@@ -17,7 +17,7 @@ export default function App() {
       try {
         const gameId = await AsyncStorage.getItem('game_id');
         if (gameId === null) {
-          setSelectedRole(null);
+          setSelectedRole(null); 
         }
       } catch (error) {
         console.error('Error checking first launch:', error);
@@ -35,7 +35,7 @@ export default function App() {
 
   const handleRoleSelect = async (role) => {
     try {
-      await AsyncStorage.setItem('game_id', 'new_game_id'); // Замените 'new_game_id' на реальную логику генерации ID
+      await AsyncStorage.setItem('game_id', 'new_game_id');
       setSelectedRole(role);
 
       if (role === 'admin') {
@@ -80,6 +80,9 @@ export default function App() {
     </View>
   );
 }
+
+// ... (styles)
+
 
 const styles = StyleSheet.create({
   container: {
