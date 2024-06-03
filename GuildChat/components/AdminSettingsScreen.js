@@ -1,35 +1,34 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity } from 'react-native';
 
-const AdminSettingsScreen = () => {
-  const [selectedOption, setSelectedOption] = useState('server'); // Состояние для выбранной опции
+const AdminSettingsScreen = ({ servers, parseError }) => {
+  const [selectedOption, setSelectedOption] = useState('server');
 
   const handleOptionPress = (option) => {
     setSelectedOption(option);
   };
 
+  // Проверка наличия данных серверов
+  if (!servers) {
+    return <Text>Loading servers...</Text>; // или другой индикатор загрузки
+  }
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.button, selectedOption === 'server' && styles.selectedButton, styles.buttonWidth]} // Добавили styles.buttonWidth
+        style={[styles.button, selectedOption === 'server' && styles.selectedButton, styles.buttonWidth]}
         onPress={() => handleOptionPress('server')}
       >
         <Text style={styles.buttonText}>Сервер</Text>
       </TouchableOpacity>
-      <TouchableOpacity 
-        style={[styles.disabledButton, styles.buttonWidth]} // Добавили styles.buttonWidth
-        disabled
-      >
+      <TouchableOpacity style={[styles.disabledButton, styles.buttonWidth]} disabled>
         <Text style={styles.disabledButtonText}>Світ</Text>
       </TouchableOpacity>
-      <View style={[styles.inputContainer, styles.buttonWidth]}> // Добавили styles.buttonWidth
+      <View style={[styles.inputContainer, styles.buttonWidth]}>
         <Text style={styles.inputLabel}>Id гільдії</Text>
         <TextInput style={styles.input} editable={false} />
       </View>
-      <TouchableOpacity 
-        style={[styles.disabledButton, styles.buttonWidth]} // Добавили styles.buttonWidth
-        disabled
-      >
+      <TouchableOpacity style={[styles.disabledButton, styles.buttonWidth]} disabled>
         <Text style={styles.disabledButtonText}>Застосувати</Text>
       </TouchableOpacity>
 
@@ -55,10 +54,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff', // Белый фон как в Telegram
+    backgroundColor: '#fff',
   },
   button: {
-    backgroundColor: '#0088cc', // Синий цвет кнопки
+    backgroundColor: '#0088cc',
     padding: 15,
     borderRadius: 5,
     marginBottom: 10,
@@ -66,10 +65,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedButton: {
-    backgroundColor: '#006699', // Более темный синий для выбранной кнопки
+    backgroundColor: '#006699',
   },
   disabledButton: {
-    backgroundColor: '#e0e0e0', // Серый цвет для неактивной кнопки
+    backgroundColor: '#e0e0e0',
     padding: 15,
     borderRadius: 5,
     marginBottom: 10,
@@ -82,7 +81,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   disabledButtonText: {
-    color: '#999999', // Более светлый серый для текста неактивной кнопки
+    color: '#999999',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -95,13 +94,14 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc', // Светло-серый цвет границы
+    borderColor: '#ccc',
     padding: 10,
     borderRadius: 5,
   },
   buttonWidth: {
-    width: '80%', // Аналогично ширине кнопок в RoleSelectionScreen
+    width: '80%', 
   },
 });
 
 export default AdminSettingsScreen;
+

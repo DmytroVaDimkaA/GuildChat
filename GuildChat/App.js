@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Button, ScrollView } from 'react-native';
 import { database } from './firebaseConfig';
 import { ref, onValue } from 'firebase/database';
+import { parseData } from './parser';
 import RoleSelectionScreen from './components/RoleSelectionScreen';
 import AdminSettingsScreen from './components/AdminSettingsScreen';
-import { parseData } from './parser';
 
 export default function App() {
   const [welcomeMessage, setWelcomeMessage] = useState('');
