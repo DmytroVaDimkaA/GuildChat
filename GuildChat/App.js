@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Button, ScrollView, Image } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StyleSheet, Text, View, Button, ScrollView } from 'react-native';
 import { database } from './firebaseConfig';
 import { ref, onValue } from 'firebase/database';
-import { parseData } from './parser';
 import RoleSelectionScreen from './components/RoleSelectionScreen';
+import AdminSettingsScreen from './components/AdminSettingsScreen';
 
 export default function App() {
   const [welcomeMessage, setWelcomeMessage] = useState('');
@@ -13,42 +12,20 @@ export default function App() {
   const [parseError, setParseError] = useState(null);
 
   useEffect(() => {
-    const checkFirstLaunch = async () => {
-      try {
-        const gameId = await AsyncStorage.getItem('game_id');
-        if (gameId === null) {
-          setSelectedRole(null); 
-        }
-      } catch (error) {
-        console.error('Error checking first launch:', error);
-      }
-
-      const messageRef = ref(database, 'messages/welcome');
-      onValue(messageRef, (snapshot) => {
-        const message = snapshot.val();
-        setWelcomeMessage(message);
-      });
-    };
-
-    checkFirstLaunch();
+    const messageRef = ref(database, 'messages/welcome');
+    onValue(messageRef, (snapshot) => {
+      const message = snapshot.val();
+      setWelcomeMessage(message);
+    });
   }, []);
 
-  const handleRoleSelect = async (role) => {
-    try {
-      await AsyncStorage.setItem('game_id', 'new_game_id');
-      setSelectedRole(role);
+  const handleRoleSelect = (role) => {
+    setSelectedRole(role);
 
-      if (role === 'admin') {
-        try {
-          const servers = await parseData();
-          setParsedServers(servers);
-        } catch (error) {
-          console.error('Error parsing servers:', error);
-          setParseError(error.message);
-        }
-      }
-    } catch (error) {
-      console.error('Error saving role:', error);
+    if (role === 'admin') {
+      parseData()
+        .then(servers => setParsedServers(servers))
+        .catch(error => setParseError(error.message));
     }
   };
 
@@ -56,32 +33,20 @@ export default function App() {
     <View style={styles.container}>
       {selectedRole === null ? (
         <RoleSelectionScreen onRoleSelect={handleRoleSelect} />
+      ) : selectedRole === 'admin' ? (
+        <AdminSettingsScreen servers={parsedServers} parseError={parseError} />
       ) : (
         <ScrollView style={styles.scrollContainer}>
           <Text>Выбранная роль: {selectedRole}</Text>
           <Text>{welcomeMessage}</Text>
-          <Button title="Спарсить" onPress={parseData} />
-          {parsedServers && (
-            <View>
-              {Object.keys(parsedServers).map((country) => (
-                <View key={country}>
-                  <Image source={{ uri: parsedServers[country][0].flagUrl }} style={{ width: 50, height: 30 }} />
-                  <Text>{country}</Text>
-                  {parsedServers[country].map((server) => (
-                    <Text key={server.server_name}>{server.name} - {server.server_name}</Text>
-                  ))}
-                </View>
-              ))}
-            </View>
-          )}
-          {parseError && <Text style={styles.errorText}>{parseError}</Text>}
         </ScrollView>
       )}
     </View>
   );
 }
 
-// ... (styles)
+// ... styles
+
 
 const styles = StyleSheet.create({
   container: {
