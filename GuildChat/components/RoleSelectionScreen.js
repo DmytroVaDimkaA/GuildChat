@@ -1,64 +1,38 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import axios from 'axios';
+import cheerio from 'cheerio';
 
-const RoleSelectionScreen = ({ onRoleSelect }) => {
-  const [selectedRole, setSelectedRole] = useState(null);
+export async function parseData() {
+  try {
+    const response = await axios.get('https://foe.scoredb.io/Worlds');
+    const $ = cheerio.load(response.data);
 
-  const handleRolePress = (role) => {
-    setSelectedRole(role);
-    onRoleSelect(role);
-  };
+    const serversByCountry = {};
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#FFFFFF',
-      padding: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      marginBottom: 30,
-      color: '#222222',
-    },
-    button: {
-      backgroundColor: '#0088CC',
-      paddingHorizontal: 20,
-      paddingVertical: 15,
-      borderRadius: 5,
-      marginBottom: 15,
-      width: '80%',
-      alignItems: 'center',
-    },
-    selectedButton: {
-      backgroundColor: '#006699',
-    },
-    buttonText: {
-      color: '#FFFFFF',
-      fontSize: 18,
-      fontWeight: 'bold',
-    },
-  });
+    const serverList = $('ul.navbar-nav:has(a:contains("Servers"))');
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Виберіть роль:</Text>
-      <TouchableOpacity
-        style={[styles.button, selectedRole === 'admin' && styles.selectedButton]}
-        onPress={() => handleRolePress('admin')}
-      >
-        <Text style={styles.buttonText}>Адміністратор</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.button, selectedRole === 'user' && styles.selectedButton]}
-        onPress={() => handleRolePress('user')}
-      >
-        <Text style={styles.buttonText}>Звичайний користувач</Text>
-      </TouchableOpacity>
-    </View>
-  );
-};
+    serverList.find('.dropdown').each((i, countryDropdown) => {
+      const country = $(countryDropdown).find('.dropdown-item:first-child img').attr('alt');
+      const flagUrl = 'https://foe.scoredb.io' + $(countryDropdown).find('.dropdown-item:first-child img').attr('src');
 
-export default RoleSelectionScreen;
+      serversByCountry[country] = [];
+
+      $(countryDropdown).find('.dropdown-menu .dropdown-item').each((j, serverItem) => {
+        if ($(serverItem).find('img').length === 0) {
+          const serverName = $(serverItem).text().trim();
+          const serverUrl = $(serverItem).attr('href');
+
+          // Обрезаем начало адреса и переименовываем ключ
+          serversByCountry[country].push({ 
+            name: serverName, 
+            server_name: serverUrl.replace('https://foe.scoredb.io/', '') 
+          });
+        }
+      });
+    });
+
+    return serversByCountry;
+  } catch (error) {
+    console.error('Ошибка при парсинге:', error);
+    throw error;
+  }
+}
