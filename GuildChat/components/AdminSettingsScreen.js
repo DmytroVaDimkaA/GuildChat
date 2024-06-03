@@ -2,11 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity } from 'react-native';
 
 const AdminSettingsScreen = ({ servers, parseError }) => {
-  const [selectedOption, setSelectedOption] = useState('server');
-
-  const handleOptionPress = (option) => {
-    setSelectedOption(option);
-  };
+  // ... (остальной код компонента)
 
   // Проверка наличия данных серверов
   if (!servers) {
@@ -15,30 +11,15 @@ const AdminSettingsScreen = ({ servers, parseError }) => {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={[styles.button, selectedOption === 'server' && styles.selectedButton, styles.buttonWidth]}
-        onPress={() => handleOptionPress('server')}
-      >
-        <Text style={styles.buttonText}>Сервер</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={[styles.disabledButton, styles.buttonWidth]} disabled>
-        <Text style={styles.disabledButtonText}>Світ</Text>
-      </TouchableOpacity>
-      <View style={[styles.inputContainer, styles.buttonWidth]}>
-        <Text style={styles.inputLabel}>Id гільдії</Text>
-        <TextInput style={styles.input} editable={false} />
-      </View>
-      <TouchableOpacity style={[styles.disabledButton, styles.buttonWidth]} disabled>
-        <Text style={styles.disabledButtonText}>Застосувати</Text>
-      </TouchableOpacity>
+      {/* ... (остальной код компонента) */}
 
       {/* Отображение данных серверов или ошибки */}
       {servers && (
         <View>
-          {Object.keys(servers).map((country) => (
+          {Object.keys(servers).map((country) => ( // Перебираем страны
             <View key={country}>
               <Text>{country}</Text>
-              {servers[country].map((server) => (
+              {servers[country].map((server) => ( // servers[country] теперь массив
                 <Text key={server.server_name}>{server.name} - {server.server_name}</Text>
               ))}
             </View>
