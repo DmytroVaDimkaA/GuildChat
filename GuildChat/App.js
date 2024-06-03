@@ -1,52 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react'; // Убираем useState
 import { StyleSheet, Text, View, Button } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from './firebaseConfig';
 import { ref, onValue } from 'firebase/database';
-import { parseData } from './parser'; // Импортируем функцию parseData
+import { parseData } from './parser';
 
 export default function App() {
   const [welcomeMessage, setWelcomeMessage] = useState('');
-  const [isFirstLaunch, setIsFirstLaunch] = useState(null);
+  let isFirstLaunch = true; // Используем переменную вместо состояния
 
   useEffect(() => {
     const checkFirstLaunch = async () => {
       try {
         const gameId = await AsyncStorage.getItem('game_id');
-        if (gameId === null) {
-          setIsFirstLaunch(true);
-          // Здесь можно добавить логику для создания нового game_id
-          await AsyncStorage.setItem('game_id', 'new_game_id'); // Пример
+        if (gameId !== null) {
+          isFirstLaunch = false; // Обновляем переменную
         } else {
-          setIsFirstLaunch(false);
+          await AsyncStorage.setItem('game_id', 'new_game_id'); 
         }
       } catch (error) {
         console.error('Error checking first launch:', error);
       }
+
+      const messageRef = ref(database, 'messages/welcome');
+      onValue(messageRef, (snapshot) => {
+        const message = snapshot.val();
+        setWelcomeMessage(message);
+      });
     };
 
     checkFirstLaunch();
-
-    const messageRef = ref(database, 'messages/welcome');
-    onValue(messageRef, (snapshot) => {
-      const message = snapshot.val();
-      setWelcomeMessage(message);
-    });
-  }, []);
+  }, []); // Пустой массив зависимостей
 
   return (
     <View style={styles.container}>
-      {isFirstLaunch === null ? (
-        <Text>Loading...</Text>
-      ) : isFirstLaunch ? (
+      {isFirstLaunch ? ( // Используем переменную в JSX
         <Text>Вы впервые зашли! {welcomeMessage}</Text>
       ) : (
         <Text>{welcomeMessage}</Text>
       )}
-      <Button title="Спарсить" onPress={parseData} /> 
+      <Button title="Спарсить" onPress={parseData} />
     </View>
   );
 }
+
+// ... (styles)
+
 
 const styles = StyleSheet.create({
   container: {
