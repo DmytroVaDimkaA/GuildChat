@@ -11,6 +11,9 @@ export async function parseData() {
     const serverList = $('ul.navbar-nav:has(a:contains("Servers"))');
 
     serverList.find('.dropdown').each((i, countryDropdown) => {
+      const country = $(countryDropdown).find('.dropdown-item:first-child img').attr('alt');
+      const flagUrl = $(countryDropdown).find('.dropdown-item:first-child img').attr('src');
+
       const countryServers = [];
       $(countryDropdown).find('.dropdown-menu .dropdown-item').each((j, serverItem) => {
         if ($(serverItem).find('img').length === 0) {
@@ -20,7 +23,7 @@ export async function parseData() {
         }
       });
 
-      servers.push(...countryServers); // Добавляем серверы в общий массив
+      servers.push({ country, flagUrl, servers: countryServers });
     });
 
     return servers;
@@ -29,4 +32,3 @@ export async function parseData() {
     throw error;
   }
 }
-

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Button, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, Button } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { database } from './firebaseConfig'; // Предполагается, что у вас есть файл firebaseConfig.js с конфигурацией Firebase
+import { database } from './firebaseConfig';
 import { ref, onValue } from 'firebase/database';
 import { parseData } from './parser';
 import RoleSelectionScreen from './components/RoleSelectionScreen';
@@ -17,15 +17,12 @@ export default function App() {
       try {
         const gameId = await AsyncStorage.getItem('game_id');
         if (gameId === null) {
-          setSelectedRole(null); // Показываем экран выбора роли при первом запуске
-        } else {
-          // Здесь можно добавить логику для загрузки данных пользователя, если это не первый запуск
+          setSelectedRole(null);
         }
       } catch (error) {
         console.error('Error checking first launch:', error);
       }
 
-      // Получаем приветственное сообщение из Firebase
       const messageRef = ref(database, 'messages/welcome');
       onValue(messageRef, (snapshot) => {
         const message = snapshot.val();
@@ -34,11 +31,11 @@ export default function App() {
     };
 
     checkFirstLaunch();
-  }, []); // Пустой массив зависимостей - useEffect выполнится только один раз при монтировании компонента
+  }, []);
 
   const handleRoleSelect = async (role) => {
     try {
-      await AsyncStorage.setItem('game_id', 'new_game_id'); // Заменяем 'new_game_id' на реальную логику генерации ID
+      await AsyncStorage.setItem('game_id', 'new_game_id');
       setSelectedRole(role);
 
       if (role === 'admin') {
@@ -60,19 +57,31 @@ export default function App() {
       {selectedRole === null ? (
         <RoleSelectionScreen onRoleSelect={handleRoleSelect} />
       ) : (
-        <ScrollView style={styles.scrollContainer}>
+        <>
           <Text>Выбранная роль: {selectedRole}</Text>
           <Text>{welcomeMessage}</Text>
-          <Button title="Спарсить" onPress={parseData} /> 
+          <Button title="Спарсить" onPress={parseData} />
           {parsedServers && (
-            <Text style={styles.jsonOutput}>{JSON.stringify(parsedServers, null, 2)}</Text>
+            <View>
+              {parsedServers.map((country) => (
+                <View key={country.country}>
+                  <Text>{country.country}</Text>
+                  {country.servers.map((server) => (
+                    <Text key={server.url}>{server.name} - {server.url}</Text>
+                  ))}
+                </View>
+              ))}
+            </View>
           )}
           {parseError && <Text style={styles.errorText}>{parseError}</Text>}
-        </ScrollView>
+        </>
       )}
     </View>
   );
 }
+
+// ... (styles)
+
 
 const styles = StyleSheet.create({
   container: {
