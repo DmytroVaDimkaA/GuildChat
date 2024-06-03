@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'; // Убираем useState
+import React, { useState, useEffect } from 'react'; // Добавлено useState и useEffect
 import { StyleSheet, Text, View, Button } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from './firebaseConfig';
@@ -7,16 +7,16 @@ import { parseData } from './parser';
 
 export default function App() {
   const [welcomeMessage, setWelcomeMessage] = useState('');
-  let isFirstLaunch = true; // Используем переменную вместо состояния
+  let isFirstLaunch = true;
 
   useEffect(() => {
     const checkFirstLaunch = async () => {
       try {
         const gameId = await AsyncStorage.getItem('game_id');
         if (gameId !== null) {
-          isFirstLaunch = false; // Обновляем переменную
+          isFirstLaunch = false;
         } else {
-          await AsyncStorage.setItem('game_id', 'new_game_id'); 
+          await AsyncStorage.setItem('game_id', 'new_game_id');
         }
       } catch (error) {
         console.error('Error checking first launch:', error);
@@ -30,11 +30,11 @@ export default function App() {
     };
 
     checkFirstLaunch();
-  }, []); // Пустой массив зависимостей
+  }, []);
 
   return (
     <View style={styles.container}>
-      {isFirstLaunch ? ( // Используем переменную в JSX
+      {isFirstLaunch ? (
         <Text>Вы впервые зашли! {welcomeMessage}</Text>
       ) : (
         <Text>{welcomeMessage}</Text>
@@ -43,9 +43,6 @@ export default function App() {
     </View>
   );
 }
-
-// ... (styles)
-
 
 const styles = StyleSheet.create({
   container: {
