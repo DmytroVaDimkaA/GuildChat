@@ -11,24 +11,23 @@ export async function parseData() {
     const serverList = $('ul.navbar-nav:has(a:contains("Servers"))');
 
     serverList.find('.dropdown').each((i, countryDropdown) => {
-      const $countryDropdown = $(countryDropdown);
-      const $img = $countryDropdown.find('.dropdown-item:first-child img');
+      const country = $(countryDropdown).find('.dropdown-item:first-child img').attr('alt');
+      const flagUrl = 'https://foe.scoredb.io' + $(countryDropdown).find('.dropdown-item:first-child img').attr('src');
 
-      // Проверяем наличие изображения флага
-      if ($img.length > 0) {
-        const country = $img.attr('alt');
-        const flagUrl = 'https://foe.scoredb.io' + $img.attr('src');
+      serversByCountry[country] = [];
 
-        serversByCountry[country] = [];
+      $(countryDropdown).find('.dropdown-menu .dropdown-item').each((j, serverItem) => {
+        if ($(serverItem).find('img').length === 0) {
+          const serverName = $(serverItem).text().trim();
+          const serverUrl = $(serverItem).attr('href');
 
-        $countryDropdown.find('.dropdown-menu .dropdown-item').each((j, serverItem) => {
-          if ($(serverItem).find('img').length === 0) {
-            const serverName = $(serverItem).text().trim();
-            const serverUrl = $(serverItem).attr('href');
-            serversByCountry[country].push({ name: serverName, server_name: serverUrl.replace('https://foe.scoredb.io/', '') });
-          }
-        });
-      }
+          serversByCountry[country].push({
+            name: serverName,
+            server_name: serverUrl.replace('https://foe.scoredb.io/', ''),
+            flagUrl: flagUrl, // Добавляем URL флага в каждый объект сервера
+          });
+        }
+      });
     });
 
     return serversByCountry;
