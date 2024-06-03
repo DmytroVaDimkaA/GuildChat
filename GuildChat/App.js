@@ -4,6 +4,7 @@ import { database } from './firebaseConfig';
 import { ref, onValue } from 'firebase/database';
 import RoleSelectionScreen from './components/RoleSelectionScreen';
 import AdminSettingsScreen from './components/AdminSettingsScreen';
+import { parseData } from './parser';
 
 export default function App() {
   const [welcomeMessage, setWelcomeMessage] = useState('');
