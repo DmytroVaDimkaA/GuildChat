@@ -45,9 +45,6 @@ export default function App() {
   );
 }
 
-// ... styles
-
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
