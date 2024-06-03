@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Button } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from './firebaseConfig';
 import { ref, onValue } from 'firebase/database';
+import { parseData } from './parser'; // Импортируем функцию parseData
 
 export default function App() {
   const [welcomeMessage, setWelcomeMessage] = useState('');
@@ -42,12 +43,10 @@ export default function App() {
       ) : (
         <Text>{welcomeMessage}</Text>
       )}
+      <Button title="Спарсить" onPress={parseData} /> 
     </View>
   );
 }
-
-
-
 
 const styles = StyleSheet.create({
   container: {
