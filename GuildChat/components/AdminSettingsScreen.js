@@ -9,13 +9,13 @@ const AdminSettingsScreen = () => {
   };
 
   const screenWidth = Dimensions.get('window').width;
-  const buttonWidth = screenWidth * 0.8; // 80% от ширины экрана
+  const buttonWidth = screenWidth * 0.8;
 
   return (
     <View style={styles.container}>
-      <View style={styles.contentContainer}> // Добавлен контейнер для центрирования элементов
+      <View style={styles.contentContainer}>
         <TouchableOpacity
-          style={[styles.button, selectedOption === 'server' && styles.selectedButton, { width: buttonWidth }]} // Фиксированная ширина
+          style={[styles.button, selectedOption === 'server' && styles.selectedButton, { width: buttonWidth }]}
           onPress={() => handleOptionPress('server')}
         >
           <Text style={styles.buttonText}>Сервер</Text>
@@ -24,8 +24,12 @@ const AdminSettingsScreen = () => {
           <Text style={styles.disabledButtonText}>Світ</Text>
         </TouchableOpacity>
         <View style={[styles.inputContainer, { width: buttonWidth }]}>
-          <Text style={styles.inputLabel}>Id гільдії</Text>
-          <TextInput style={styles.input} editable={false} />
+          <TextInput 
+            style={styles.input} 
+            editable={false}
+            placeholder="Введіть Id гільдії" // Добавили плейсхолдер
+            placeholderTextColor={styles.placeholderText.color} // Применили стиль плейсхолдера
+          />
         </View>
         <TouchableOpacity style={[styles.disabledButton, { width: buttonWidth }]} disabled>
           <Text style={styles.disabledButtonText}>Застосувати</Text>
@@ -39,54 +43,54 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f8f8f8', // Светло-серый фон Telegram
-    alignItems: 'center', // Выравнивание по горизонтали
-    justifyContent: 'center', // Выравнивание по вертикали
+    //backgroundColor: '#f8f8f8',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  contentContainer: {}, // Пустой контейнер для центрирования элементов
+  contentContainer: {},
   button: {
-    backgroundColor: '#29ABE2', // Голубой цвет активной кнопки Telegram
+    backgroundColor: '#29ABE2',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 20, // Увеличенный радиус для более скругленных углов
+    borderRadius: 5,
     marginBottom: 10,
     alignItems: 'center',
   },
   selectedButton: {
-    backgroundColor: '#2798c8', // Более темный голубой для выбранной кнопки
+    backgroundColor: '#0088CC',
   },
   disabledButton: {
-    backgroundColor: '#B0B0B0', // Серый цвет для неактивной кнопки Telegram
+    backgroundColor: '#B0B0B0',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 20,
+    borderRadius: 5,
     marginBottom: 10,
     alignItems: 'center',
   },
   buttonText: {
     color: 'white',
-    fontSize: 16, // Уменьшенный размер шрифта
-    fontWeight: '500', // Средний вес шрифта
+    fontSize: 16,
+    fontWeight: '500',
   },
   disabledButtonText: {
-    color: '#666666', // Более темный серый для текста неактивной кнопки
+    color: '#666666',
     fontSize: 16,
     fontWeight: '500',
   },
   inputContainer: {
     marginBottom: 10,
   },
-  inputLabel: {
-    fontSize: 16,
-    marginBottom: 5,
-    color: '#333333', // Темно-серый цвет текста
-  },
+ 
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e0', // Более светлый серый для границы
+    borderColor: '#e0e0e0',
     padding: 10,
     borderRadius: 5,
-    backgroundColor: '#f2f2f2', // Светло-серый фон поля ввода
+    backgroundColor: '#f2f2f2',
+  },
+
+  placeholderText: { // Добавлен новый стиль для плейсхолдера
+    color: '#999999', // Светло-серый цвет текста плейсхолдера
   },
 });
 
