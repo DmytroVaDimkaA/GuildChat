@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Modal, Dimensions } from 'react-native';
 
 const AdminSettingsScreen = () => {
   const [selectedOption, setSelectedOption] = useState('server');
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handleOptionPress = (option) => {
     setSelectedOption(option);
+    if (option === 'server') {
+      setIsModalVisible(true);
+    }
   };
 
   const screenWidth = Dimensions.get('window').width;
   const buttonWidth = screenWidth * 0.8;
+
+  const placeholderTextColor = '#999999';
 
   return (
     <View style={styles.container}>
@@ -24,17 +30,35 @@ const AdminSettingsScreen = () => {
           <Text style={styles.disabledButtonText}>Світ</Text>
         </TouchableOpacity>
         <View style={[styles.inputContainer, { width: buttonWidth }]}>
-          <TextInput 
-            style={styles.input} 
+          <TextInput
+            style={styles.input}
             editable={false}
-            placeholder="Введіть Id гільдії" // Добавили плейсхолдер
-            placeholderTextColor={styles.placeholderText.color} // Применили стиль плейсхолдера
+            placeholder="Введіть Id гільдії"
+            placeholderTextColor={placeholderTextColor}
           />
         </View>
         <TouchableOpacity style={[styles.disabledButton, { width: buttonWidth }]} disabled>
           <Text style={styles.disabledButtonText}>Застосувати</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Модальное окно для выбора сервера */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Выберите сервер</Text>
+            {/* Здесь будет список серверов (например, FlatList) */}
+            <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
+              <Text style={styles.modalButtonText}>Закрыть</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -43,7 +67,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    //backgroundColor: '#f8f8f8',
+    backgroundColor: '#f8f8f8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -80,7 +104,11 @@ const styles = StyleSheet.create({
   inputContainer: {
     marginBottom: 10,
   },
- 
+  inputLabel: {
+    fontSize: 16,
+    marginBottom: 5,
+    color: '#333333',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#e0e0e0',
@@ -88,9 +116,35 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#f2f2f2',
   },
-
-  placeholderText: { // Добавлен новый стиль для плейсхолдера
-    color: '#999999', // Светло-серый цвет текста плейсхолдера
+  placeholderText: {
+    color: '#999999',
+  },
+  modalContainer: { // Стили для модального окна
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  modalButton: {
+    backgroundColor: '#29ABE2',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
