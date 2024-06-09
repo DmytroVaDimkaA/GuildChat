@@ -182,7 +182,7 @@ const AdminSettingsScreen = () => {
       >
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { height: Dimensions.get('window').height * 0.5 }]}>
-            <Text style={styles.modalTitle}>Выберите страну</Text>
+            <Text style={styles.modalTitle}>Оберіть країну</Text>
 
             {isLoading ? (
               <ActivityIndicator size="large" color="#0000ff" />
@@ -201,7 +201,7 @@ const AdminSettingsScreen = () => {
             )}
 
             <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
-              <Text style={styles.modalButtonText}>Закрыть</Text>
+              <Text style={styles.modalButtonText}>Закрити</Text>
             </TouchableOpacity>
           </View>
         </View>
