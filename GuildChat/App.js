@@ -1,97 +1,120 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Button, ScrollView, Image } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { database } from './firebaseConfig';
-import { ref, onValue } from 'firebase/database';
-import { parseData } from './parser';
-import RoleSelectionScreen from './components/RoleSelectionScreen';
-import AdminSettingsScreen from './components/AdminSettingsScreen';
+import { StyleSheet, Text, View, Button, FlatList, ActivityIndicator, Image } from 'react-native';
+import axios from 'axios';
+import cheerio from 'cheerio';
 
+// Компонент App
 export default function App() {
-  const [welcomeMessage, setWelcomeMessage] = useState('');
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [parsedServers, setParsedServers] = useState(null);
-  const [parseError, setParseError] = useState(null);
+  const [servers, setServers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const checkFirstLaunch = async () => {
-      try {
-        const gameId = await AsyncStorage.getItem('game_id');
-        if (gameId === null) {
-          setSelectedRole(null); 
-        } else {
-          // Здесь можно добавить логику для загрузки данных пользователя, если это не первый запуск
-        }
-      } catch (error) {
-        console.error('Error checking first launch:', error);
-      }
-
-      const messageRef = ref(database, 'messages/welcome');
-      onValue(messageRef, (snapshot) => {
-        const message = snapshot.val();
-        setWelcomeMessage(message);
-      });
-    };
-
-    checkFirstLaunch();
+    fetchData();
   }, []);
 
-  const handleRoleSelect = async (role) => {
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      await AsyncStorage.setItem('game_id', 'new_game_id'); // Замените 'new_game_id' на реальную логику генерации ID
-      setSelectedRole(role);
-
-      if (role === 'admin') {
-        try {
-          const servers = await parseData();
-          setParsedServers(servers);
-        } catch (error) {
-          console.error('Error parsing servers:', error);
-          setParseError(error.message);
-        }
-      }
-    } catch (error) {
-      console.error('Error saving role:', error);
+      const fetchedServers = await parseData();
+      setServers(fetchedServers);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const renderItem = ({ item }) => (
+    <View style={styles.item}>
+      <Image source={{ uri: item.flagUrl }} style={styles.flag} />
+      <Text style={styles.serverName}>{item.name} ({item.server_name})</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      {selectedRole === null ? (
-        <RoleSelectionScreen onRoleSelect={handleRoleSelect} />
-      ) : selectedRole === 'admin' ? (
-        <AdminSettingsScreen servers={parsedServers} parseError={parseError} />
+      {isLoading ? (
+        <ActivityIndicator size="large" />
+      ) : error ? (
+        <View>
+          <Text style={styles.errorText}>{error}</Text>
+          <Button title="Повторить" onPress={fetchData} />
+        </View>
       ) : (
-        <ScrollView style={styles.scrollContainer}>
-          <Text>Выбранная роль: {selectedRole}</Text>
-          <Text>{welcomeMessage}</Text>
-          <Button title="Спарсить" onPress={handleParsePress} disabled={selectedRole !== 'admin'} />
-        </ScrollView>
+        <FlatList
+          data={servers}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.server_name}
+        />
       )}
     </View>
   );
 }
 
+// Функция парсинга
+async function parseData() {
+  try {
+    const response = await axios.get('https://foe.scoredb.io/Worlds');
+
+    if (!response.ok) {
+      throw new Error(`Ошибка сети: ${response.status}`);
+    }
+
+    const $ = cheerio.load(response.data);
+    const servers = [];
+
+    $('.nav-item.dropdown:has(a:contains("Servers")) .dropdown-menu .dropdown').each((i, countryDropdown) => {
+      const countryItem = $(countryDropdown).find('.dropdown-item:first-child');
+      const countryName = countryItem.text().trim().replace(/[^a-zA-Z ]/g, '');
+      const flagUrl = 'https://foe.scoredb.io' + countryItem.find('img').attr('src');
+
+      $(countryDropdown).find('.dropdown-menu .dropdown-item').each((j, serverItem) => {
+        if ($(serverItem).find('img').length === 0) {
+          const serverName = $(serverItem).text().trim();
+          const serverUrl = $(serverItem).attr('href');
+
+          servers.push({
+            country: countryName,
+            name: serverName,
+            server_name: serverUrl.replace('https://foe.scoredb.io/', ''),
+            flagUrl: flagUrl,
+          });
+        }
+      });
+    });
+
+    return servers;
+  } catch (error) {
+    console.error('Ошибка при парсинге:', error);
+    throw error; 
+  }
+}
+
+// Стили
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContainer: {
     padding: 20,
   },
-  welcomeMessage: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
+  item: {
+    flexDirection: 'row', // Располагаем флаг и название в ряд
+    alignItems: 'center', // Выравниваем по вертикали
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
   },
-  jsonOutput: {
-    fontFamily: 'monospace',
+  flag: {
+    width: 24,
+    height: 24,
+    marginRight: 10,
+  },
+  serverName: {
+    fontSize: 16,
   },
   errorText: {
     color: 'red',
+    marginBottom: 10,
   },
 });
-

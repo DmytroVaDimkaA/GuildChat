@@ -14,11 +14,11 @@
     "@react-native-firebase/database": "^20.0.0",
     "axios": "^1.7.2",
     "cheerio": "^1.0.0-rc.12",
-    "expo": "~51.0.9",
+    "expo": "~51.0.11",
     "expo-status-bar": "~1.12.1",
     "firebase": "^10.12.2",
     "react": "18.2.0",
-    "react-native": "0.74.1",
+    "react-native": "0.74.2",
     "@react-native-picker/picker": "2.7.5"
   },
   "devDependencies": {
