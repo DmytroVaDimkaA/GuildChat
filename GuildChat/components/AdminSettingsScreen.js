@@ -1,30 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Modal, Dimensions, FlatList } from 'react-native';
-import { parseData } from '../parser';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Modal, Dimensions } from 'react-native';
 
 const AdminSettingsScreen = () => {
   const [selectedOption, setSelectedOption] = useState('server');
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [countries, setCountries] = useState([]);
-  const [parseError, setParseError] = useState(null);
-
-  const screenWidth = Dimensions.get('window').width;
-  const buttonWidth = screenWidth * 0.8;
-
-  const placeholderTextColor = '#999999';
-
-  useEffect(() => {
-    const loadCountries = async () => {
-      try {
-        const parsedData = await parseData();
-        setCountries(Object.keys(parsedData));
-      } catch (error) {
-        setParseError(error.message);
-      }
-    };
-
-    loadCountries();
-  }, []);
 
   const handleOptionPress = (option) => {
     setSelectedOption(option);
@@ -33,11 +12,10 @@ const AdminSettingsScreen = () => {
     }
   };
 
-  const handleCountryPress = (country) => {
-    // Здесь будет логика обработки выбора страны
-    console.log(`Выбрана страна: ${country}`);
-    setIsModalVisible(false); 
-  };
+  const screenWidth = Dimensions.get('window').width;
+  const buttonWidth = screenWidth * 0.8;
+
+  const placeholderTextColor = '#999999';
 
   return (
     <View style={styles.container}>
@@ -64,6 +42,7 @@ const AdminSettingsScreen = () => {
         </TouchableOpacity>
       </View>
 
+      {/* Модальное окно для выбора сервера */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -72,28 +51,8 @@ const AdminSettingsScreen = () => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Выберите страну</Text>
-
-            {/* Отображение списка стран */}
-            {countries.length > 0 ? (
-              <FlatList
-                data={countries}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.modalButton}
-                    onPress={() => handleCountryPress(item)}
-                  >
-                    <Text style={styles.modalButtonText}>{item}</Text>
-                  </TouchableOpacity>
-                )}
-                keyExtractor={(item) => item}
-              />
-            ) : parseError ? (
-              <Text style={styles.errorText}>{parseError}</Text>
-            ) : (
-              <Text>Loading countries...</Text>
-            )}
-
+            <Text style={styles.modalTitle}>Выберите сервер</Text>
+            {/* Здесь будет список серверов (например, FlatList) */}
             <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
               <Text style={styles.modalButtonText}>Закрыть</Text>
             </TouchableOpacity>
@@ -103,8 +62,6 @@ const AdminSettingsScreen = () => {
     </View>
   );
 };
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -162,7 +119,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: '#999999',
   },
-  modalContainer: {
+  modalContainer: { // Стили для модального окна
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -189,7 +146,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-
 });
 
 export default AdminSettingsScreen;
