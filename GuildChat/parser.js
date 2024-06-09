@@ -8,19 +8,23 @@ export async function parseData() {
 
     const countries = [];
 
-    // Находим элемент li с классом "nav-item dropdown", содержащий ссылку "Servers"
-    const serverList = $('li.nav-item.dropdown:has(a:contains("Servers"))'); 
+    const serverList = $('li.nav-item.dropdown:has(a:contains("Servers"))');
 
-    // Находим все элементы .dropdown внутри .dropdown-menu
-    serverList.find('.dropdown-menu .dropdown').each((_, dropdown) => {
-      // Извлекаем название страны из первого элемента .dropdown-item внутри .dropdown
-      const countryName = $(dropdown).find('.dropdown-item:first-child').text().trim();
-      countries.push(countryName);
+    serverList.find('.dropdown-menu > .dropdown').each((_, dropdown) => {
+      const countryItem = $(dropdown).find('> .dropdown-item:first-child'); // Выбираем элемент с флагом
+      const countryName = countryItem.text().trim();
+      const flagUrl = countryItem.find('img').attr('src'); // Получаем URL флага
+
+      countries.push({
+        name: countryName,
+        flag: flagUrl ? `https://foe.scoredb.io${flagUrl}` : null, // Добавляем полный URL флага
+      });
     });
 
     return countries;
   } catch (error) {
     console.error('Ошибка при парсинге:', error);
-    throw error; 
+    throw error;
   }
 }
+

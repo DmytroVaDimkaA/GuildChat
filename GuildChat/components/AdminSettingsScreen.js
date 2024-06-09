@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Modal, Dimensions, FlatList, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Modal, Dimensions, FlatList, ActivityIndicator, Image } from 'react-native';
 import { parseData } from '../parser';
 
 const AdminSettingsScreen = () => {
@@ -38,7 +38,8 @@ const AdminSettingsScreen = () => {
     }
   };
 
-  const handleCountryPress = () => {
+  const handleCountryPress = (country) => {
+    setSelectedCountry(country);
     setIsModalVisible(false);
   };
 
@@ -55,7 +56,7 @@ const AdminSettingsScreen = () => {
     container: {
       flex: 1,
       padding: 20,
-      backgroundColor: '#ffffff',
+      backgroundColor: 'white',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -85,7 +86,7 @@ const AdminSettingsScreen = () => {
       fontWeight: '500',
     },
     disabledButtonText: {
-      color: '#666666',
+      color: 'white',
       fontSize: 16,
       fontWeight: '500',
     },
@@ -128,13 +129,26 @@ const AdminSettingsScreen = () => {
       backgroundColor: '#29ABE2',
       padding: 10,
       borderRadius: 5,
-      alignItems: 'center',
       marginBottom: 10,
+      borderColor: 'white',
+      borderWidth: 1,
+      flexDirection: 'row',   // Выравнивание элементов в ряд
+      alignItems: 'center', // Выравнивание по вертикали
+    },
+    flagContainer: {         // Новый контейнер для флага
+      justifyContent: 'flex-start', // Прижимаем флаг к левому краю
     },
     modalButtonText: {
       color: 'white',
       fontSize: 16,
       fontWeight: 'bold',
+      textAlign: 'center', // Центрируем текст названия страны
+      flex: 1,              // Позволяет тексту занимать оставшееся пространство
+    },
+    flagImage: {
+      width: 24,
+      height: 24,
+      marginRight: 10,
     },
     errorText: {
       color: 'red',
@@ -166,12 +180,16 @@ const AdminSettingsScreen = () => {
           />
         </View>
         <TouchableOpacity
-          style={[styles.button, { width: buttonWidth }]}
-          onPress={handleApplyPress}
-          disabled={!selectedServer}
-        >
-          <Text style={styles.buttonText}>Застосувати</Text>
-        </TouchableOpacity>
+        style={[
+          styles.button,
+          { width: buttonWidth },
+          !selectedServer && styles.disabledButton, // Применяем disabledButton, если selectedServer не выбран
+        ]}
+  onPress={handleApplyPress}
+  disabled={!selectedServer}
+>
+  <Text style={styles.buttonText}>Застосувати</Text>
+</TouchableOpacity>
       </View>
 
       <Modal
@@ -192,11 +210,14 @@ const AdminSettingsScreen = () => {
               <FlatList
                 data={countries}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={[styles.modalButton, { marginBottom: 10 }]} onPress={handleCountryPress}>
-                    <Text style={styles.modalButtonText}>{item}</Text>
+                  <TouchableOpacity style={styles.modalButton} onPress={handleCountryPress}>
+                    <View style={styles.flagContainer}>
+                      {item.flag && <Image source={{ uri: item.flag }} style={styles.flagImage} />} 
+                    </View>
+                    <Text style={styles.modalButtonText}>{item.name}</Text>
                   </TouchableOpacity>
                 )}
-                keyExtractor={(item) => item}
+                keyExtractor={(item) => item.name}
               />
             )}
 
@@ -211,3 +232,4 @@ const AdminSettingsScreen = () => {
 };
 
 export default AdminSettingsScreen;
+
