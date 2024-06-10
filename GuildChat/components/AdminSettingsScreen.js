@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Modal, Dimensions, FlatList, ActivityIndicator, Image } from 'react-native';
 import { parseData } from '../parser';
 
-const AdminSettingsScreen = () => {
-  const [selectedOption, setSelectedOption] = useState('server');
+const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isWorldModalVisible, setIsWorldModalVisible] = useState(false);
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedServer, setSelectedServer] = useState(null);
@@ -32,14 +32,20 @@ const AdminSettingsScreen = () => {
   }, []);
 
   const handleOptionPress = (option) => {
-    setSelectedOption(option);
     if (option === 'server') {
       setIsModalVisible(true);
+    } else if (option === 'world') {
+      setIsWorldModalVisible(true);
     }
   };
 
   const handleCountryPress = (country) => {
-    setSelectedCountry(country);
+    onCountryPress(country);
+    setIsModalVisible(false);
+  };
+
+  const handleServerPress = (server) => {
+    setSelectedServer(server);
     setIsModalVisible(false);
   };
 
@@ -52,11 +58,15 @@ const AdminSettingsScreen = () => {
     }
   };
 
+  const handleWorldPress = () => {
+    setIsWorldModalVisible(false);
+  };
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       padding: 20,
-      backgroundColor: 'white',
+      backgroundColor: '#FFFFFF',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -81,11 +91,6 @@ const AdminSettingsScreen = () => {
       alignItems: 'center',
     },
     buttonText: {
-      color: 'white',
-      fontSize: 16,
-      fontWeight: '500',
-    },
-    disabledButtonText: {
       color: 'white',
       fontSize: 16,
       fontWeight: '500',
@@ -132,21 +137,21 @@ const AdminSettingsScreen = () => {
       marginBottom: 10,
       borderColor: 'white',
       borderWidth: 1,
-      flexDirection: 'row',   // Выравнивание элементов в ряд
-      alignItems: 'center', // Выравнивание по вертикали
+      flexDirection: 'row',
+      alignItems: 'center',
     },
-    flagContainer: {         // Новый контейнер для флага
-      justifyContent: 'flex-start', // Прижимаем флаг к левому краю
+    flagContainer: {
+      justifyContent: 'flex-start',
     },
     modalButtonText: {
       color: 'white',
       fontSize: 16,
       fontWeight: 'bold',
-      textAlign: 'center', // Центрируем текст названия страны
-      flex: 1,              // Позволяет тексту занимать оставшееся пространство
+      textAlign: 'center',
+      flex: 1,
     },
     flagImage: {
-      width: 24,
+      width: 36,
       height: 24,
       marginRight: 10,
     },
@@ -155,18 +160,23 @@ const AdminSettingsScreen = () => {
       marginBottom: 10,
     },
   });
+  
 
   return (
     <View style={styles.container}>
       <View style={styles.contentContainer}>
         <TouchableOpacity
-          style={[styles.button, selectedOption === 'server' && styles.selectedButton, { width: buttonWidth }]}
+          style={[styles.button, selectedOption !== 'Сервер' && styles.selectedButton, { width: buttonWidth }]}
           onPress={() => handleOptionPress('server')}
         >
-          <Text style={styles.buttonText}>Сервер</Text>
+          <Text style={styles.buttonText}>{selectedOption}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.disabledButton, { width: buttonWidth }]} disabled>
-          <Text style={styles.disabledButtonText}>Світ</Text>
+        <TouchableOpacity
+          style={[styles.button, selectedOption === 'Сервер' && styles.disabledButton, { width: buttonWidth }]}
+          disabled={selectedOption === 'Сервер'}
+          onPress={() => handleOptionPress('world')}
+        >
+          <Text style={styles.buttonText}>Світ</Text>
         </TouchableOpacity>
 
         <View style={[styles.inputContainer, { width: buttonWidth }]}>
@@ -180,18 +190,15 @@ const AdminSettingsScreen = () => {
           />
         </View>
         <TouchableOpacity
-        style={[
-          styles.button,
-          { width: buttonWidth },
-          !selectedServer && styles.disabledButton, // Применяем disabledButton, если selectedServer не выбран
-        ]}
-  onPress={handleApplyPress}
-  disabled={!selectedServer}
->
-  <Text style={styles.buttonText}>Застосувати</Text>
-</TouchableOpacity>
+          style={[styles.button, { width: buttonWidth }, !selectedServer && styles.disabledButton]}
+          onPress={handleApplyPress}
+          disabled={!selectedServer}
+        >
+          <Text style={styles.buttonText}>Застосувати</Text>
+        </TouchableOpacity>
       </View>
 
+      {/* Модальное окно для выбора страны */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -210,9 +217,9 @@ const AdminSettingsScreen = () => {
               <FlatList
                 data={countries}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.modalButton} onPress={handleCountryPress}>
+                  <TouchableOpacity style={[styles.modalButton, { marginBottom: 10 }]} onPress={() => handleCountryPress(item)}>
                     <View style={styles.flagContainer}>
-                      {item.flag && <Image source={{ uri: item.flag }} style={styles.flagImage} />} 
+                      {item.flag && <Image source={{ uri: item.flag }} style={styles.flagImage} />}
                     </View>
                     <Text style={styles.modalButtonText}>{item.name}</Text>
                   </TouchableOpacity>
@@ -227,9 +234,26 @@ const AdminSettingsScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Модальное окно для выбора игрового мира (пустое) */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isWorldModalVisible}
+        onRequestClose={() => setIsWorldModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { height: Dimensions.get('window').height * 0.5 }]}>
+            <Text style={styles.modalTitle}>Оберіть ігровий світ</Text>
+
+            <TouchableOpacity style={styles.modalButton} onPress={() => setIsWorldModalVisible(false)}>
+              <Text style={styles.modalButtonText}>Закрити</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 export default AdminSettingsScreen;
-
