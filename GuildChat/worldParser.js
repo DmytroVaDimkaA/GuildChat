@@ -1,49 +1,38 @@
-// newParser.js
-
 import axios from 'axios';
 import cheerio from 'cheerio';
 
-export async function parseDataNew() { // Изменено имя функции на parseDataNew
+async function parseDataNew(selectedCountryName) {
   try {
     const response = await axios.get('https://foe.scoredb.io/Worlds');
     const $ = cheerio.load(response.data);
 
-    const countries = [];
+    const worlds = [];
 
-    // Находим элемент li с классом "nav-item dropdown", содержащий ссылку "Servers"
-    const serverList = $('li.nav-item.dropdown:has(a:contains("Servers"))');
+    // Находим элемент .dropdown-item, содержащий название выбранной страны
+    const countryItem = $(`a.dropdown-item:contains("${selectedCountryName}")`);
 
-    // Находим все элементы .dropdown внутри .dropdown-menu
-    serverList.find('.dropdown-menu > .dropdown').each((_, dropdown) => {
-      const countryItem = $(dropdown).find('> .dropdown-item:first-child');
-      const countryName = countryItem.text().trim();
-      const flagUrl = countryItem.find('img').attr('src');
+    // Находим родительский элемент .dropdown
+    const parentDropdown = countryItem.closest('.dropdown');
 
-      // Получаем список серверов для данной страны
-      const worlds = [];
-      $(dropdown).find('.dropdown-menu .dropdown-item:not(:has(img))').each((_, serverItem) => {
-        const serverName = $(serverItem).text().trim();
-        const serverUrl = $(serverItem).attr('href');
+    // Находим вложенный .dropdown-menu внутри родительского .dropdown
+    const dropdownMenu = parentDropdown.find('.dropdown-menu');
 
-        // Форматируем текст для вывода
-        const formattedText = `${serverName} (${serverUrl.substring(0, serverUrl.lastIndexOf('/') + 1)})`;
+    // Извлекаем миры только из этого вложенного меню
+    dropdownMenu.find('a.dropdown-item').each((_, link) => {
+      const worldName = $(link).text().trim();
+      let worldUrl = $(link).attr('href');
 
-        worlds.push({
-          name: formattedText, // Используем отформатированный текст
-          server_name: serverUrl.replace('https://foe.scoredb.io/', ''),
-        });
-      });
+      // Обрезаем начало ссылки до последнего слеша
+      worldUrl = worldUrl.substring(worldUrl.lastIndexOf('/') + 1);
 
-      countries.push({
-        name: countryName,
-        flag: flagUrl ? `https://foe.scoredb.io${flagUrl}` : null,
-        worlds: worlds,
-      });
+      worlds.push({ name: worldName, url: worldUrl });
     });
 
-    return countries;
+    return worlds;
   } catch (error) {
     console.error('Ошибка при парсинге:', error);
     throw error;
   }
 }
+
+export { parseDataNew };
