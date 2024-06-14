@@ -1,7 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Modal, Dimensions, FlatList, ActivityIndicator, Image } from 'react-native';
-import { parseData } from '../parser';
-import { parseDataNew } from '../worldParser';
+import React, { useState, useEffect } from "react";
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Modal,
+  Dimensions,
+  FlatList,
+  ActivityIndicator,
+  Image,
+} from "react-native";
+import { parseData } from "../parser";
+import { parseDataNew } from "../worldParser";
 
 const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -9,13 +20,14 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const [countries, setCountries] = useState([]);
   const [worlds, setWorlds] = useState([]);
   const [selectedServer, setSelectedServer] = useState(null);
-  const [guildId, setGuildId] = useState('');
+  const [selectedWorld, setSelectedWorld] = useState(null);
+  const [guildId, setGuildId] = useState("");
   const [parseError, setParseError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCountryName, setSelectedCountryName] = useState(null);
-  const [uri, setUri] = useState('');
+  const [uri, setUri] = useState("");
 
-  const screenWidth = Dimensions.get('window').width;
+  const screenWidth = Dimensions.get("window").width;
   const buttonWidth = screenWidth * 0.8;
 
   useEffect(() => {
@@ -35,9 +47,9 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   }, []);
 
   const handleOptionPress = (option) => {
-    if (option === 'server') {
+    if (option === "server") {
       setIsModalVisible(true);
-    } else if (option === 'world') {
+    } else if (option === "world") {
       setSelectedCountryName(selectedOption); // Збереження назви країни
       setIsWorldModalVisible(true);
       loadWorlds(selectedOption); // Завантаження світів для вибраної країни
@@ -56,15 +68,17 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
 
   const handleApplyPress = () => {
     if (selectedServer) {
-      console.log('Настройки сохранены!');
+      console.log("Настройки сохранены!");
       // Здесь добавьте логику сохранения настроек (без AsyncStorage)
     } else {
-      console.error('Ошибка: сервер не выбран');
+      console.error("Ошибка: сервер не выбран");
     }
   };
 
   const handleWorldPress = (world) => {
+    console.log(world);
     setUri(world.url);
+    setSelectedWorld(world.name);
     setIsWorldModalVisible(false);
   };
 
@@ -81,8 +95,13 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   };
 
   const renderWorldItem = ({ item }) => (
-    <TouchableOpacity style={[styles.modalButton, { marginBottom: 10 }]} onPress={() => handleWorldPress(item)}>
-      <Text style={styles.modalButtonText}>{item.name} ({item.url.substring(item.url.lastIndexOf('/') + 1)})</Text>
+    <TouchableOpacity
+      style={[styles.modalButton, { marginBottom: 10 }]}
+      onPress={() => handleWorldPress(item)}
+    >
+      <Text style={styles.modalButtonText}>
+        {item.name} ({item.url.substring(item.url.lastIndexOf("/") + 1)})
+      </Text>
     </TouchableOpacity>
   );
 
@@ -90,34 +109,34 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     container: {
       flex: 1,
       padding: 20,
-      backgroundColor: '#FFFFFF',
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: "#FFFFFF",
+      alignItems: "center",
+      justifyContent: "center",
     },
     contentContainer: {},
     button: {
-      backgroundColor: '#29ABE2',
+      backgroundColor: "#29ABE2",
       paddingHorizontal: 20,
       paddingVertical: 12,
       borderRadius: 5,
       marginBottom: 10,
-      alignItems: 'center',
+      alignItems: "center",
     },
     selectedButton: {
-      backgroundColor: '#0088CC',
+      backgroundColor: "#0088CC",
     },
     disabledButton: {
-      backgroundColor: '#B0B0B0',
+      backgroundColor: "#B0B0B0",
       paddingHorizontal: 20,
       paddingVertical: 12,
       borderRadius: 5,
       marginBottom: 10,
-      alignItems: 'center',
+      alignItems: "center",
     },
     buttonText: {
-      color: 'white',
+      color: "white",
       fontSize: 16,
-      fontWeight: '500',
+      fontWeight: "500",
     },
     inputContainer: {
       marginBottom: 10,
@@ -125,53 +144,53 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     inputLabel: {
       fontSize: 16,
       marginBottom: 5,
-      color: '#333333',
+      color: "#333333",
     },
     input: {
       borderWidth: 1,
-      borderColor: '#e0e0e0',
+      borderColor: "#e0e0e0",
       padding: 10,
       borderRadius: 5,
-      backgroundColor: '#f2f2f2',
+      backgroundColor: "#f2f2f2",
     },
     placeholderText: {
-      color: '#999999',
+      color: "#999999",
     },
     modalContainer: {
       flex: 1,
-      justifyContent: 'flex-end',
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
     },
     modalContent: {
-      backgroundColor: '#fff',
+      backgroundColor: "#fff",
       padding: 20,
       borderTopLeftRadius: 10,
       borderTopRightRadius: 10,
-      maxHeight: Dimensions.get('window').height * 0.5,
+      maxHeight: Dimensions.get("window").height * 0.5,
     },
     modalTitle: {
       fontSize: 20,
-      fontWeight: 'bold',
+      fontWeight: "bold",
       marginBottom: 10,
     },
     modalButton: {
-      backgroundColor: '#29ABE2',
+      backgroundColor: "#29ABE2",
       padding: 10,
       borderRadius: 5,
       marginBottom: 10,
-      borderColor: 'white',
+      borderColor: "white",
       borderWidth: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
     },
     flagContainer: {
-      justifyContent: 'flex-start',
+      justifyContent: "flex-start",
     },
     modalButtonText: {
-      color: 'white',
+      color: "white",
       fontSize: 16,
-      fontWeight: 'bold',
-      textAlign: 'center',
+      fontWeight: "bold",
+      textAlign: "center",
       flex: 1,
     },
     flagImage: {
@@ -180,7 +199,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
       marginRight: 10,
     },
     errorText: {
-      color: 'red',
+      color: "red",
       marginBottom: 10,
     },
   });
@@ -189,17 +208,25 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     <View style={styles.container}>
       <View style={styles.contentContainer}>
         <TouchableOpacity
-          style={[styles.button, selectedOption !== 'Сервер' && styles.selectedButton, { width: buttonWidth }]}
-          onPress={() => handleOptionPress('server')}
+          style={[
+            styles.button,
+            selectedOption !== "Сервер" && styles.selectedButton,
+            { width: buttonWidth },
+          ]}
+          onPress={() => handleOptionPress("server")}
         >
           <Text style={styles.buttonText}>{selectedOption}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.button, selectedOption === 'Сервер' && styles.disabledButton, { width: buttonWidth }]}
-          disabled={selectedOption === 'Сервер'}
-          onPress={() => handleOptionPress('world')}
+          style={[
+            styles.button,
+            selectedOption === "Сервер" && styles.disabledButton,
+            { width: buttonWidth },
+          ]}
+          disabled={selectedOption === "Сервер"}
+          onPress={() => handleOptionPress("world")}
         >
-          <Text style={styles.buttonText}>Світ</Text>
+          <Text style={styles.buttonText}>{selectedWorld || "Світ"}</Text>
         </TouchableOpacity>
 
         <View style={[styles.inputContainer, { width: buttonWidth }]}>
@@ -207,13 +234,17 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
             style={styles.input}
             value={guildId}
             onChangeText={setGuildId}
-            editable={selectedOption === 'server'}
+            editable={selectedOption !== "Сервер" && selectedWorld !== null}
             placeholder="Введіть Id гільдії"
             placeholderTextColor="#999999"
           />
         </View>
         <TouchableOpacity
-          style={[styles.button, { width: buttonWidth }, !selectedServer && styles.disabledButton]}
+          style={[
+            styles.button,
+            { width: buttonWidth },
+            !selectedServer && styles.disabledButton,
+          ]}
           onPress={handleApplyPress}
           disabled={!selectedServer}
         >
@@ -228,7 +259,12 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
         onRequestClose={() => setIsModalVisible(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { height: Dimensions.get('window').height * 0.5 }]}>
+          <View
+            style={[
+              styles.modalContent,
+              { height: Dimensions.get("window").height * 0.5 },
+            ]}
+          >
             <Text style={styles.modalTitle}>Оберіть країну</Text>
 
             {isLoading ? (
@@ -239,9 +275,17 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
               <FlatList
                 data={countries}
                 renderItem={({ item }) => (
-                  <TouchableOpacity style={[styles.modalButton, { marginBottom: 10 }]} onPress={() => handleCountryPress(item)}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { marginBottom: 10 }]}
+                    onPress={() => handleCountryPress(item)}
+                  >
                     <View style={styles.flagContainer}>
-                      {item.flag && <Image source={{ uri: item.flag }} style={styles.flagImage} />}
+                      {item.flag && (
+                        <Image
+                          source={{ uri: item.flag }}
+                          style={styles.flagImage}
+                        />
+                      )}
                     </View>
                     <Text style={styles.modalButtonText}>{item.name}</Text>
                   </TouchableOpacity>
@@ -250,7 +294,10 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
               />
             )}
 
-            <TouchableOpacity style={styles.modalButton} onPress={() => setIsModalVisible(false)}>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setIsModalVisible(false)}
+            >
               <Text style={styles.modalButtonText}>Закрити</Text>
             </TouchableOpacity>
           </View>
@@ -264,7 +311,12 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
         onRequestClose={() => setIsWorldModalVisible(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { height: Dimensions.get('window').height * 0.5 }]}>
+          <View
+            style={[
+              styles.modalContent,
+              { height: Dimensions.get("window").height * 0.5 },
+            ]}
+          >
             <Text style={styles.modalTitle}>Оберіть ігровий світ</Text>
 
             {isLoading ? (
@@ -279,7 +331,10 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
               />
             )}
 
-            <TouchableOpacity style={styles.modalButton} onPress={() => setIsWorldModalVisible(false)}>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setIsWorldModalVisible(false)}
+            >
               <Text style={styles.modalButtonText}>Закрити</Text>
             </TouchableOpacity>
           </View>
@@ -290,7 +345,3 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
 };
 
 export default AdminSettingsScreen;
-
-
-
-
