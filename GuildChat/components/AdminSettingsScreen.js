@@ -58,6 +58,8 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
 
   const handleCountryPress = (country) => {
     onCountryPress(country);
+    setGuildId("");
+    setSelectedWorld(null);
     setIsModalVisible(false);
   };
 
