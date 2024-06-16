@@ -10,6 +10,7 @@ import {
   FlatList,
   ActivityIndicator,
   Image,
+  Keyboard,
 } from "react-native";
 import { parseData } from "../parser";
 import { parseDataNew } from "../worldParser";
@@ -25,7 +26,9 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const [parseError, setParseError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCountryName, setSelectedCountryName] = useState(null);
-  const [uri, setUri] = useState("");
+  const [uril, setUril] = useState("");
+
+  const [isApplyButtonEnabled, setIsApplyButtonEnabled] = useState(false);
 
   const screenWidth = Dimensions.get("window").width;
   const buttonWidth = screenWidth * 0.8;
@@ -46,13 +49,17 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     loadCountries();
   }, []);
 
+  useEffect(() => {
+    setIsApplyButtonEnabled(guildId.length === 5);
+  }, [guildId]);
+
   const handleOptionPress = (option) => {
     if (option === "server") {
       setIsModalVisible(true);
     } else if (option === "world") {
-      setSelectedCountryName(selectedOption); // Збереження назви країни
+      setSelectedCountryName(selectedOption);
       setIsWorldModalVisible(true);
-      loadWorlds(selectedOption); // Завантаження світів для вибраної країни
+      loadWorlds(selectedOption);
     }
   };
 
@@ -68,18 +75,25 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     setIsModalVisible(false);
   };
 
+  const handleGuildIdChange = (text) => {
+    const numericText = text.replace(/[^0-9]/g, "");
+    setGuildId(numericText);
+  };
+
   const handleApplyPress = () => {
-    if (selectedServer) {
+    if (isApplyButtonEnabled) {
+      const newUril = `https://foe.scoredb.io/${uril}/Guild/${guildId}/Members`;
       console.log("Настройки сохранены!");
-      // Здесь добавьте логику сохранения настроек (без AsyncStorage)
+      console.log("URIL:", newUril);
     } else {
-      console.error("Ошибка: сервер не выбран");
+      console.error("Ошибка: сервер не выбран или некорректный ID гильдии");
     }
   };
 
   const handleWorldPress = (world) => {
     console.log(world);
-    setUri(world.url);
+    setUril(world.url);
+    console.log("URIL:", uril);
     setSelectedWorld(world.name);
     setIsWorldModalVisible(false);
   };
@@ -235,7 +249,9 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
           <TextInput
             style={styles.input}
             value={guildId}
-            onChangeText={setGuildId}
+            onChangeText={handleGuildIdChange}
+            keyboardType="numeric"
+            maxLength={5}
             editable={selectedOption !== "Сервер" && selectedWorld !== null}
             placeholder="Введіть Id гільдії"
             placeholderTextColor="#999999"
@@ -245,10 +261,10 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
           style={[
             styles.button,
             { width: buttonWidth },
-            !selectedServer && styles.disabledButton,
+            !isApplyButtonEnabled && styles.disabledButton,
           ]}
           onPress={handleApplyPress}
-          disabled={!selectedServer}
+          disabled={!isApplyButtonEnabled}
         >
           <Text style={styles.buttonText}>Застосувати</Text>
         </TouchableOpacity>
