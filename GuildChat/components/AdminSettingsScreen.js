@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { parseData } from "../parser";
 import { parseDataNew } from "../worldParser";
+import { parseGuildData } from "../guildParser"; // Імпортуємо новий парсер
 
 const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -80,20 +81,25 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     setGuildId(numericText);
   };
 
-  const handleApplyPress = () => {
+  const handleApplyPress = async () => {
     if (isApplyButtonEnabled) {
-      const newUril = `https://foe.scoredb.io/${uril}/Guild/${guildId}/Members`;
-      console.log("Настройки сохранены!");
+      const newUril = `https://foe.scoredb.io/${uril}/Guild/${guildId}/Activity`;
+      console.log("Настройки збережені!");
       console.log("URIL:", newUril);
+
+      try {
+        const data = await parseGuildData(newUril); // Викликаємо новий парсер
+        console.log("Результат парсингу:", data);
+      } catch (error) {
+        console.error("Помилка парсингу:", error);
+      }
     } else {
-      console.error("Ошибка: сервер не выбран или некорректный ID гильдии");
+      console.error("Помилка: сервер не вибрано або некоректний ID гільдії");
     }
   };
 
   const handleWorldPress = (world) => {
-    console.log(world);
     setUril(world.url);
-    console.log("URIL:", uril);
     setSelectedWorld(world.name);
     setIsWorldModalVisible(false);
   };
@@ -296,70 +302,68 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
                   <TouchableOpacity
                     style={[styles.modalButton, { marginBottom: 10 }]}
                     onPress={() => handleCountryPress(item)}
-                  >
-                    <View style={styles.flagContainer}>
-                      {item.flag && (
-                        <Image
-                          source={{ uri: item.flag }}
-                          style={styles.flagImage}
-                        />
-                      )}
-                    </View>
-                    <Text style={styles.modalButtonText}>{item.name}</Text>
-                  </TouchableOpacity>
-                )}
-                keyExtractor={(item) => item.name}
-              />
-            )}
-
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setIsModalVisible(false)}
-            >
-              <Text style={styles.modalButtonText}>Закрити</Text>
-            </TouchableOpacity>
+                    >
+                      <Image
+                        source={{ uri: item.image }}
+                        style={styles.flagImage}
+                        resizeMode="contain"
+                      />
+                      <Text style={styles.modalButtonText}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )}
+                  keyExtractor={(item) => item.name}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                />
+              )}
+              <TouchableOpacity
+                style={[styles.modalButton, { marginBottom: 10 }]}
+                onPress={() => setIsModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Закрити</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isWorldModalVisible}
-        onRequestClose={() => setIsWorldModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View
-            style={[
-              styles.modalContent,
-              { height: Dimensions.get("window").height * 0.5 },
-            ]}
-          >
-            <Text style={styles.modalTitle}>Оберіть ігровий світ</Text>
-
-            {isLoading ? (
-              <ActivityIndicator size="large" color="#0000ff" />
-            ) : parseError ? (
-              <Text style={styles.errorText}>{parseError}</Text>
-            ) : (
-              <FlatList
-                data={worlds}
-                renderItem={renderWorldItem}
-                keyExtractor={(item) => item.name}
-              />
-            )}
-
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setIsWorldModalVisible(false)}
+        </Modal>
+  
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={isWorldModalVisible}
+          onRequestClose={() => setIsWorldModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View
+              style={[
+                styles.modalContent,
+                { height: Dimensions.get("window").height * 0.5 },
+              ]}
             >
-              <Text style={styles.modalButtonText}>Закрити</Text>
-            </TouchableOpacity>
+              <Text style={styles.modalTitle}>Оберіть світ для {selectedCountryName}</Text>
+  
+              {isLoading ? (
+                <ActivityIndicator size="large" color="#0000ff" />
+              ) : parseError ? (
+                <Text style={styles.errorText}>{parseError}</Text>
+              ) : (
+                <FlatList
+                  data={worlds}
+                  renderItem={renderWorldItem}
+                  keyExtractor={(item) => item.name}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                />
+              )}
+              <TouchableOpacity
+                style={[styles.modalButton, { marginBottom: 10 }]}
+                onPress={() => setIsWorldModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Закрити</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </View>
-  );
-};
-
-export default AdminSettingsScreen;
+        </Modal>
+      </View>
+    );
+  };
+  
+  export default AdminSettingsScreen;
+  
