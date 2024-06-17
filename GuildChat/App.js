@@ -5,9 +5,11 @@ import { ref, onValue } from 'firebase/database';
 import RoleSelectionScreen from './components/RoleSelectionScreen';
 import AdminSettingsScreen from './components/AdminSettingsScreen';
 
+
+
 export default function App() {
   const [selectedRole, setSelectedRole] = useState(null);
-  const [selectedOption, setSelectedOption] = useState('Сервер'); // Для текста кнопки
+  const [selectedOption, setSelectedOption] = useState('Сервер');
 
   useEffect(() => {
     // ... (логика для проверки первого запуска, если необходимо)
@@ -19,7 +21,7 @@ export default function App() {
   };
 
   const handleCountryPressApp = (country) => {
-    setSelectedOption(country.name); // Обновляем текст кнопки "Сервер"
+    setSelectedOption(country.name);
   };
 
   return (

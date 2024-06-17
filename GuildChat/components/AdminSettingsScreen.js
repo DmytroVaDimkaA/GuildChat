@@ -15,7 +15,8 @@ import {
 } from "react-native";
 import { parseData } from "../parser";
 import { parseDataNew } from "../worldParser";
-import { parseGuildData } from "../guildParser"; // Імпортуємо новий парсер
+import { parseGuildData } from "../guildParser";
+import AdminSelectScreen from './AdminSelectScreen';
 
 const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -31,6 +32,8 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const [uril, setUril] = useState("");
 
   const [isApplyButtonEnabled, setIsApplyButtonEnabled] = useState(false);
+  const [showSelectScreen, setShowSelectScreen] = useState(false);
+  const [parsedGuildData, setParsedGuildData] = useState(null);
 
   const screenWidth = Dimensions.get("window").width;
   const buttonWidth = screenWidth * 0.8;
@@ -92,19 +95,21 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
         const data = result.data;
         if (data.length === 0) {
           Alert.alert(
-            "Гільдія не знайдена",
-            `Гільдію з ID ${guildId} не знайдено у вибраному вами світі на цьому сервері.`,
+            "Гильдия не найдена",
+            `Гильдия с ID ${guildId} не найдена в выбранном вами мире на этом сервере.`,
             [{ text: "OK" }]
           );
         } else {
-          console.log("Результат парсингу:", data);
+          console.log("Полученные данные гильдии:", data); // Добавьте эту строку для проверки
+          setParsedGuildData(data);
+          setShowSelectScreen(true);
         }
       } else {
-        console.error("Помилка парсингу:", result.error); 
-        // Ви можете відобразити більш зручне для користувача повідомлення про помилку тут, використовуючи Alert.alert
+        console.error("Ошибка парсинга:", result.error); 
+        // Вы можете отобразить более удобное для пользователя сообщение об ошибке здесь, используя Alert.alert
       } 
     } else {
-      console.error("Помилка: сервер не вибрано або некоректний ID гільдії");
+      console.error("Ошибка: сервер не выбран или некорректный ID гильдии");
     }
   };
 
@@ -137,195 +142,198 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     </TouchableOpacity>
   );
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      padding: 20,
-      backgroundColor: "#FFFFFF",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    contentContainer: {},
-    button: {
-      backgroundColor: "#29ABE2",
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 5,
-      marginBottom: 10,
-      alignItems: "center",
-    },
-    selectedButton: {
-      backgroundColor: "#0088CC",
-    },
-    disabledButton: {
-      backgroundColor: "#B0B0B0",
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 5,
-      marginBottom: 10,
-      alignItems: "center",
-    },
-    buttonText: {
-      color: "white",
-      fontSize: 16,
-      fontWeight: "500",
-    },
-    inputContainer: {
-      marginBottom: 10,
-    },
-    inputLabel: {
-      fontSize: 16,
-      marginBottom: 5,
-      color: "#333333",
-    },
-    input: {
-      borderWidth: 1,
-      borderColor: "#e0e0e0",
-      padding: 10,
-      borderRadius: 5,
-      backgroundColor: "#f2f2f2",
-    },
-    placeholderText: {
-      color: "#999999",
-    },
-    modalContainer: {
-      flex: 1,
-      justifyContent: "flex-end",
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
-    },
-    modalContent: {
-      backgroundColor: "#fff",
-      padding: 20,
-      borderTopLeftRadius: 10,
-      borderTopRightRadius: 10,
-      maxHeight: Dimensions.get("window").height * 0.5,
-    },
-    modalTitle: {
-      fontSize: 20,
-      fontWeight: "bold",
-      marginBottom: 10,
-    },
-    modalButton: {
-      backgroundColor: "#29ABE2",
-      padding: 10,
-      borderRadius: 5,
-      marginBottom: 10,
-      borderColor: "white",
-      borderWidth: 1,
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    flagContainer: {
-      justifyContent: "flex-start",
-    },
-    modalButtonText: {
-      color: "white",
-      fontSize: 16,
-      fontWeight: "bold",
-      textAlign: "center",
-      flex: 1,
-    },
-    flagImage: {
-      width: 36,
-      height: 24,
-      marginRight: 10,
-    },
-    errorText: {
-      color: "red",
-      marginBottom: 10,
-    },
-  });
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.contentContainer}>
-        <TouchableOpacity
-          style={[
-            styles.button,
-            selectedOption !== "Сервер" && styles.selectedButton,
-            { width: buttonWidth },
-          ]}
-          onPress={() => handleOptionPress("server")}
-        >
-          <Text style={styles.buttonText}>{selectedOption}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.button,
-            selectedOption === "Сервер" && styles.disabledButton,
-            { width: buttonWidth },
-          ]}
-          disabled={selectedOption === "Сервер"}
-          onPress={() => handleOptionPress("world")}
-        >
-          <Text style={styles.buttonText}>{selectedWorld || "Світ"}</Text>
-        </TouchableOpacity>
-
-        <View style={[styles.inputContainer, { width: buttonWidth }]}>
-          <TextInput
-            style={styles.input}
-            value={guildId}
-            onChangeText={handleGuildIdChange}
-            keyboardType="numeric"
-            maxLength={5}
-            editable={selectedOption !== "Сервер" && selectedWorld !== null}
-            placeholder="Введіть Id гільдії"
-            placeholderTextColor="#999999"
-          />
-        </View>
-        <TouchableOpacity
-          style={[
-            styles.button,
-            { width: buttonWidth },
-            !isApplyButtonEnabled && styles.disabledButton,
-          ]}
-          onPress={handleApplyPress}
-          disabled={!isApplyButtonEnabled}
-        >
-          <Text style={styles.buttonText}>Застосувати</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View
-            style={[
-              styles.modalContent,
-              { height: Dimensions.get("window").height * 0.5 },
-            ]}
-          >
-            <Text style={styles.modalTitle}>Оберіть країну</Text>
-
-            {isLoading ? (
-              <ActivityIndicator size="large" color="#0000ff" />
-            ) : parseError ? (
-              <Text style={styles.errorText}>{parseError}</Text>
-            ) : (
-              <FlatList
-                data={countries}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[styles.modalButton, { marginBottom: 10 }]}
-                    onPress={() => handleCountryPress(item)}
-                  >
-                    {item.flag && ( // Перевірка на наявність URL прапора
-                      <Image
-                        source={{ uri: item.flag }}
-                        style={[styles.flagImage, { marginRight: 10 }]} // Додаємо marginRight
-                        resizeMode="contain"
-                      />
-                    )}
-                    <Text style={styles.modalButtonText}>{item.name}</Text> 
-                  </TouchableOpacity>
-                )}
-                keyExtractor={(item) => item.name}
-                contentContainerStyle={{ flexGrow: 1 }}
+   const styles = StyleSheet.create({
+      container: {
+       flex: 1,
+       padding: 20,
+       backgroundColor: "#FFFFFF",
+       alignItems: "center",
+       justifyContent: "center",
+      },
+      contentContainer: {},
+      button: {
+       backgroundColor: "#29ABE2",
+       paddingHorizontal: 20,
+       paddingVertical: 12,
+       borderRadius: 5,
+       marginBottom: 10,
+       alignItems: "center",
+      },
+      selectedButton: {
+       backgroundColor: "#0088CC",
+      },
+      disabledButton: {
+       backgroundColor: "#B0B0B0",
+       paddingHorizontal: 20,
+       paddingVertical: 12,
+       borderRadius: 5,
+       marginBottom: 10,
+       alignItems: "center",
+      },
+      buttonText: {
+       color: "white",
+       fontSize: 16,
+       fontWeight: "500",
+      },
+      inputContainer: {
+       marginBottom: 10,
+      },
+      inputLabel: {
+       fontSize: 16,
+       marginBottom: 5,
+       color: "#333333",
+      },
+      input: {
+       borderWidth: 1,
+       borderColor: "#e0e0e0",
+       padding: 10,
+       borderRadius: 5,
+       backgroundColor: "#f2f2f2",
+      },
+      placeholderText: {
+       color: "#999999",
+      },
+      modalContainer: {
+       flex: 1,
+       justifyContent: "flex-end",
+       backgroundColor: "rgba(0, 0, 0, 0.5)",
+      },
+      modalContent: {
+       backgroundColor: "#fff",
+       padding: 20,
+       borderTopLeftRadius: 10,
+       borderTopRightRadius: 10,
+       maxHeight: Dimensions.get("window").height * 0.5,
+      },
+      modalTitle: {
+       fontSize: 20,
+       fontWeight: "bold",
+       marginBottom: 10,
+      },
+      modalButton: {
+       backgroundColor: "#29ABE2",
+       padding: 10,
+       borderRadius: 5,
+       marginBottom: 10,
+       borderColor: "white",
+       borderWidth: 1,
+       flexDirection: "row",
+       alignItems: "center",
+      },
+      flagContainer: {
+       justifyContent: "flex-start",
+      },
+      modalButtonText: {
+       color: "white",
+       fontSize: 16,
+       fontWeight: "bold",
+       textAlign: "center",
+       flex: 1,
+      },
+      flagImage: {
+       width: 36,
+       height: 24,
+       marginRight: 10,
+      },
+      errorText: {
+       color: "red",
+       marginBottom: 10,
+      },
+     });
+    return (
+      <View style={styles.container}>
+        {showSelectScreen ? (
+          <AdminSelectScreen guildData={parsedGuildData} />
+        ) : (
+          <View style={styles.contentContainer}>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                selectedOption !== "Сервер" && styles.selectedButton,
+                { width: buttonWidth },
+              ]}
+              onPress={() => handleOptionPress("server")}
+            >
+              <Text style={styles.buttonText}>{selectedOption}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                selectedOption === "Сервер" && styles.disabledButton,
+                { width: buttonWidth },
+              ]}
+              disabled={selectedOption === "Сервер"}
+              onPress={() => handleOptionPress("world")}
+            >
+              <Text style={styles.buttonText}>{selectedWorld || "Світ"}</Text>
+            </TouchableOpacity>
+  
+            <View style={[styles.inputContainer, { width: buttonWidth }]}>
+              <TextInput
+                style={styles.input}
+                value={guildId}
+                onChangeText={handleGuildIdChange}
+                keyboardType="numeric"
+                maxLength={5}
+                editable={selectedOption !== "Сервер" && selectedWorld !== null}
+                placeholder="Введіть Id гільдії"
+                placeholderTextColor="#999999"
               />
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                { width: buttonWidth },
+                !isApplyButtonEnabled && styles.disabledButton,
+              ]}
+              onPress={handleApplyPress}
+              disabled={!isApplyButtonEnabled}
+            >
+              <Text style={styles.buttonText}>Застосувати</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+  
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={isModalVisible}
+          onRequestClose={() => setIsModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View
+              style={[
+                styles.modalContent,
+                { height: Dimensions.get("window").height * 0.5 },
+              ]}
+            >
+              <Text style={styles.modalTitle}>Оберіть країну</Text>
+  
+              {isLoading ? (
+                <ActivityIndicator size="large" color="#0000ff" />
+              ) : parseError ? (
+                <Text style={styles.errorText}>{parseError}</Text>
+              ) : (
+                <FlatList
+                  data={countries}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[styles.modalButton, { marginBottom: 10 }]}
+                      onPress={() => handleCountryPress(item)}
+                    >
+                      {item.flag && (
+                        <Image
+                          source={{ uri: item.flag }}
+                          style={[styles.flagImage, { marginRight: 10 }]}
+                          resizeMode="contain"
+                        />
+                      )}
+                      <Text style={styles.modalButtonText}>{item.name}</Text> 
+                    </TouchableOpacity>
+                  )}
+                  keyExtractor={(item) => item.name}
+                  contentContainerStyle={{ flexGrow: 1 }}
+                />
               )}
               <TouchableOpacity
                 style={[styles.modalButton, { marginBottom: 10 }]}
