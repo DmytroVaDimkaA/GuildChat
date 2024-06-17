@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Image,
   Keyboard,
+  Alert,
 } from "react-native";
 import { parseData } from "../parser";
 import { parseDataNew } from "../worldParser";
@@ -84,15 +85,24 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const handleApplyPress = async () => {
     if (isApplyButtonEnabled) {
       const newUril = `https://foe.scoredb.io/${uril}/Guild/${guildId}/Activity`;
-      console.log("Настройки збережені!");
-      console.log("URIL:", newUril);
 
-      try {
-        const data = await parseGuildData(newUril); // Викликаємо новий парсер
-        console.log("Результат парсингу:", data);
-      } catch (error) {
-        console.error("Помилка парсингу:", error);
-      }
+      const result = await parseGuildData(newUril);
+
+      if (result.success) {
+        const data = result.data;
+        if (data.length === 0) {
+          Alert.alert(
+            "Гільдія не знайдена",
+            `Гільдію з ID ${guildId} не знайдено у вибраному вами світі на цьому сервері.`,
+            [{ text: "OK" }]
+          );
+        } else {
+          console.log("Результат парсингу:", data);
+        }
+      } else {
+        console.error("Помилка парсингу:", result.error); 
+        // Ви можете відобразити більш зручне для користувача повідомлення про помилку тут, використовуючи Alert.alert
+      } 
     } else {
       console.error("Помилка: сервер не вибрано або некоректний ID гільдії");
     }
@@ -302,18 +312,20 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
                   <TouchableOpacity
                     style={[styles.modalButton, { marginBottom: 10 }]}
                     onPress={() => handleCountryPress(item)}
-                    >
+                  >
+                    {item.flag && ( // Перевірка на наявність URL прапора
                       <Image
-                        source={{ uri: item.image }}
-                        style={styles.flagImage}
+                        source={{ uri: item.flag }}
+                        style={[styles.flagImage, { marginRight: 10 }]} // Додаємо marginRight
                         resizeMode="contain"
                       />
-                      <Text style={styles.modalButtonText}>{item.name}</Text>
-                    </TouchableOpacity>
-                  )}
-                  keyExtractor={(item) => item.name}
-                  contentContainerStyle={{ flexGrow: 1 }}
-                />
+                    )}
+                    <Text style={styles.modalButtonText}>{item.name}</Text> 
+                  </TouchableOpacity>
+                )}
+                keyExtractor={(item) => item.name}
+                contentContainerStyle={{ flexGrow: 1 }}
+              />
               )}
               <TouchableOpacity
                 style={[styles.modalButton, { marginBottom: 10 }]}
