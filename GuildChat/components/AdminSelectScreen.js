@@ -9,21 +9,25 @@ const AdminSelectScreen = ({ guildData }) => {
 
   const renderItem = ({ item }) => (
     <View style={styles.itemContainer}>
-      {/* Проверка наличия URL изображения */}
       {item.imageUrl && (
         <Image 
           source={{ uri: item.imageUrl }} 
           style={styles.image} 
-          onError={(e) => console.warn('Ошибка загрузки изображения:', e.nativeEvent.error)} // Добавлено для отладки
+          onError={(e) => console.warn('Ошибка загрузки изображения:', e.nativeEvent.error)}
         />
       )}
       <View style={styles.textContainer}>
         <Text style={styles.name}>{item.name}</Text>
         <Text>Battles: {item.battles}</Text>
         <Text>Points: {item.points}</Text>
+        {item.linkUrl && (
+          <Text style={styles.link}>https://foe.scoredb.io/{item.linkUrl}</Text>
+        )}
       </View>
     </View>
   );
+  
+  
 
   return (
     <View style={styles.container}>
@@ -42,7 +46,12 @@ const styles = StyleSheet.create({
     color: 'red',
     textAlign: 'center',
     marginTop: 20,
-  }
+  },
+  link: {
+    color: 'blue',
+    textDecorationLine: 'underline',
+    marginTop: 5,
+  },
 });
 
 export default AdminSelectScreen;
