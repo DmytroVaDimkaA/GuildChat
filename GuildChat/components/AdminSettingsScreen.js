@@ -243,7 +243,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     return (
       <View style={styles.container}>
         {showSelectScreen ? (
-          <AdminSelectScreen guildData={parsedGuildData} />
+          <AdminSelectScreen guildData={parsedGuildData} uril={uril} />
         ) : (
           <View style={styles.contentContainer}>
             <TouchableOpacity
@@ -386,4 +386,3 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   };
   
   export default AdminSettingsScreen;
-  

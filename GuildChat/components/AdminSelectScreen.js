@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, Image, Modal, TouchableOpacity, Activ
 import { database } from '../firebaseConfig'; // Припустимо, що це ваш імпорт бази даних Firebase
 import { ref, set } from 'firebase/database';
 
-const AdminSelectScreen = ({ guildData, onMemberSelect }) => {
+const AdminSelectScreen = ({ guildData, uril, onMemberSelect }) => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [imageLoadingStates, setImageLoadingStates] = useState({});
 
@@ -15,20 +15,14 @@ const AdminSelectScreen = ({ guildData, onMemberSelect }) => {
     if (selectedMember) {
       const userId = selectedMember.linkUrl.split('/').pop(); // Отримати останній шматок URL як userId
       const imageUrl = `https://foe.scoredb.io${selectedMember.imageUrl}`; // imageUrl користувача
-      const { name } = selectedMember; // name користувача
 
-      // Функція для оновлення даних користувача в базі даних Firebase
-      const updateUser = (userId, name, imageUrl) => {
+      // Функція для оновлення imageUrl в базі даних Firebase
+      const updateUserImageUrl = (userId, imageUrl) => {
         const usersRef = ref(database, `users/${userId}`);
-        const userData = {
-          name,
-          imageUrl,
-          greatBuildings: {}, // Порожня гілка greatBuildings
-        };
-        return set(usersRef, userData);
+        return set(usersRef, { imageUrl });
       };
 
-      updateUser(userId, name, imageUrl)
+      updateUserImageUrl(userId, imageUrl)
         .then(() => {
           console.log(`Дані користувача оновлено в Firebase для користувача з userId: ${userId}`);
         })
@@ -36,6 +30,7 @@ const AdminSelectScreen = ({ guildData, onMemberSelect }) => {
           console.error('Помилка при оновленні даних користувача:', error);
         });
 
+      console.log("URL:", uril); // Виведення uril в консоль після підтвердження
       setSelectedMember(null);
     }
   };
