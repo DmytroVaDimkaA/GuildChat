@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { database } from '../firebaseConfig'; // Припустимо, що це ваш імпорт бази даних Firebase
+import { ref, set } from 'firebase/database';
 
 const AdminSelectScreen = ({ guildData, onMemberSelect }) => {
   const [selectedMember, setSelectedMember] = useState(null);
@@ -10,8 +12,32 @@ const AdminSelectScreen = ({ guildData, onMemberSelect }) => {
   };
 
   const handleConfirm = () => {
-    onMemberSelect(selectedMember);
-    setSelectedMember(null);
+    if (selectedMember) {
+      const userId = selectedMember.linkUrl.split('/').pop(); // Отримати останній шматок URL як userId
+      const imageUrl = `https://foe.scoredb.io${selectedMember.imageUrl}`; // imageUrl користувача
+      const { name } = selectedMember; // name користувача
+
+      // Функція для оновлення даних користувача в базі даних Firebase
+      const updateUser = (userId, name, imageUrl) => {
+        const usersRef = ref(database, `users/${userId}`);
+        const userData = {
+          name,
+          imageUrl,
+          greatBuildings: {}, // Порожня гілка greatBuildings
+        };
+        return set(usersRef, userData);
+      };
+
+      updateUser(userId, name, imageUrl)
+        .then(() => {
+          console.log(`Дані користувача оновлено в Firebase для користувача з userId: ${userId}`);
+        })
+        .catch((error) => {
+          console.error('Помилка при оновленні даних користувача:', error);
+        });
+
+      setSelectedMember(null);
+    }
   };
 
   const handleCancel = () => {
@@ -36,7 +62,7 @@ const AdminSelectScreen = ({ guildData, onMemberSelect }) => {
                   setImageLoadingStates(prev => ({ ...prev, [item.name]: false }));
                 }}
               />
-            ) : null} 
+            ) : null}
           </View>
           {isLoading && <ActivityIndicator size="small" color="#fff" />}
           <Text style={styles.name}>{item.name}</Text>
@@ -91,6 +117,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
+  itemButton: {
+    marginBottom: 10,
+  },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -115,13 +144,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
-  },
-  imagePlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ccc',
-    marginRight: 15,
   },
   name: {
     fontSize: 16,
@@ -160,7 +182,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   button: {
-    flex: 1,
     backgroundColor: '#2196F3',
     padding: 10,
     borderRadius: 5,
