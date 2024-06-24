@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, Image, Modal, TouchableOpacity, Activ
 import { database } from '../firebaseConfig'; // Припустимо, що це ваш імпорт бази даних Firebase
 import { ref, set } from 'firebase/database';
 
-const AdminSelectScreen = ({ guildData, uril, onMemberSelect }) => {
+const AdminSelectScreen = ({ guildData, clanCaption, uril }) => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [imageLoadingStates, setImageLoadingStates] = useState({});
 
@@ -25,13 +25,17 @@ const AdminSelectScreen = ({ guildData, uril, onMemberSelect }) => {
       updateUserImageUrl(userId, imageUrl)
         .then(() => {
           console.log(`Дані користувача оновлено в Firebase для користувача з userId: ${userId}`);
+
+          // Виведення отриманих даних з AdminSettingsScreen у консоль
+          console.log("Отримані дані з AdminSettingsScreen в AdminSelectScreen:");
+          console.log("guildData:", guildData);
+          console.log("clanCaption:", clanCaption);
+          console.log("uril:", uril); // Вивід uril в консоль разом з іншими даними
+          setSelectedMember(null);
         })
         .catch((error) => {
           console.error('Помилка при оновленні даних користувача:', error);
         });
-
-      console.log("URL:", uril); // Виведення uril в консоль після підтвердження
-      setSelectedMember(null);
     }
   };
 

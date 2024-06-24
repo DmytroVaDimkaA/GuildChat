@@ -34,6 +34,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const [isApplyButtonEnabled, setIsApplyButtonEnabled] = useState(false);
   const [showSelectScreen, setShowSelectScreen] = useState(false);
   const [parsedGuildData, setParsedGuildData] = useState(null);
+  const [clanCaption, setClanCaption] = useState(null);
 
   const screenWidth = Dimensions.get("window").width;
   const buttonWidth = screenWidth * 0.8;
@@ -88,30 +89,33 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const handleApplyPress = async () => {
     if (isApplyButtonEnabled) {
       const newUril = `https://foe.scoredb.io/${uril}/Guild/${guildId}/Activity`;
-
+  
       const result = await parseGuildData(newUril);
-
+  
       if (result.success) {
-        const data = result.data;
+        const { data, clanCaption } = result; // Отримайте clanCaption з результату
+  
         if (data.length === 0) {
           Alert.alert(
-            "Гильдия не найдена",
-            `Гильдия с ID ${guildId} не найдена в выбранном вами мире на этом сервере.`,
+            "Гільдія не знайдена",
+            `Гільдія з ID ${guildId} не знайдена у вибраному вами світі на цьому сервері.`,
             [{ text: "OK" }]
           );
         } else {
-          console.log("Полученные данные гильдии:", data); // Добавьте эту строку для проверки
+          console.log("Получені дані гільдії:", data);
           setParsedGuildData(data);
+          setClanCaption(clanCaption); // Збережіть clanCaption у стейті
           setShowSelectScreen(true);
         }
       } else {
-        console.error("Ошибка парсинга:", result.error); 
-        // Вы можете отобразить более удобное для пользователя сообщение об ошибке здесь, используя Alert.alert
-      } 
+        console.error("Помилка парсингу:", result.error);
+        // Відобразіть більш зручне для користувача повідомлення про помилку тут, використовуючи Alert.alert
+      }
     } else {
-      console.error("Ошибка: сервер не выбран или некорректный ID гильдии");
+      console.error("Помилка: сервер не вибраний або некоректний ID гільдії");
     }
   };
+  
 
   const handleWorldPress = (world) => {
     setUril(world.url);
@@ -243,8 +247,8 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     return (
       <View style={styles.container}>
         {showSelectScreen ? (
-          <AdminSelectScreen guildData={parsedGuildData} uril={uril} />
-        ) : (
+      <AdminSelectScreen guildData={parsedGuildData} clanCaption={clanCaption} uril={uril} />
+    ) : (
           <View style={styles.contentContainer}>
             <TouchableOpacity
               style={[
@@ -386,3 +390,4 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   };
   
   export default AdminSettingsScreen;
+  

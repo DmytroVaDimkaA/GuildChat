@@ -28,8 +28,11 @@ const parseGuildData = async (url) => {
       });
     });
 
+    // Extract content of <b> within <h6> with class "small avatar-clan-caption"
+    const clanCaption = $('h6.small.avatar-clan-caption b').text().trim();
+
     // Return success and the parsed data
-    return { success: true, data: guildData };
+    return { success: true, data: guildData, clanCaption };
   } catch (error) {
     // Return failure and the error message
     return { success: false, error: error.message }; 
