@@ -15,6 +15,7 @@ const AdminSelectScreen = ({ guildData, clanCaption, uril, guildId }) => {
     if (selectedMember) {
       const userId = selectedMember.linkUrl.split('/').pop(); // Отримати останній шматок URL як userId
       const imageUrl = `https://foe.scoredb.io${selectedMember.imageUrl}`; // imageUrl користувача
+      const updatedGuildId = `${uril}_${guildId}`; // Формування нового значення guildId
 
       // Функція для оновлення imageUrl в базі даних Firebase
       const updateUserImageUrl = (userId, imageUrl) => {
@@ -22,20 +23,34 @@ const AdminSelectScreen = ({ guildData, clanCaption, uril, guildId }) => {
         return set(usersRef, { imageUrl });
       };
 
+      // Функція для створення нової гілки в базі даних Firebase
+      const createGuildBranch = (guildId, guildName) => {
+        const guildRef = ref(database, `guilds/${guildId}`);
+        return set(guildRef, { guildName });
+      };
+
       updateUserImageUrl(userId, imageUrl)
         .then(() => {
           console.log(`Дані користувача оновлено в Firebase для користувача з userId: ${userId}`);
+
+          // Створення нової гілки в базі даних Firebase
+          return createGuildBranch(updatedGuildId, clanCaption);
+        })
+        .then(() => {
+          console.log(`Гілку guilds/${updatedGuildId} створено з guildName: ${clanCaption}`);
 
           // Виведення отриманих даних з AdminSettingsScreen у консоль
           console.log("Отримані дані з AdminSettingsScreen в AdminSelectScreen:");
           console.log("guildData:", guildData);
           console.log("clanCaption:", clanCaption);
-          console.log("uril:", uril); // Вивід uril в консоль разом з іншими даними
+          console.log("uril:", uril);
           console.log("guildId:", guildId);
+          console.log("updatedGuildId:", updatedGuildId); // Вивід нової константи в консоль
+
           setSelectedMember(null);
         })
         .catch((error) => {
-          console.error('Помилка при оновленні даних користувача:', error);
+          console.error('Помилка при оновленні даних користувача або створенні гілки:', error);
         });
     }
   };
@@ -156,46 +171,52 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: 'white',
+    width: 300,
+    backgroundColor: '#fff',
     padding: 20,
     borderRadius: 10,
     alignItems: 'center',
   },
   modalImage: {
-    width: 100,
-    height: 100,
-    marginBottom: 10,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 15,
   },
   modalName: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   confirmationText: {
     fontSize: 16,
-    marginBottom: 10,
+    marginBottom: 20,
+    textAlign: 'center',
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
+    justifyContent: 'space-between',
+    width: '100%',
   },
   button: {
-    backgroundColor: '#2196F3',
-    padding: 10,
+    flex: 1,
+    backgroundColor: '#64B5F6',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 5,
+    alignItems: 'center',
     marginHorizontal: 5,
   },
   buttonText: {
-    color: 'white',
-    textAlign: 'center',
+    color: '#fff',
+    fontSize: 16,
   },
   errorText: {
-    color: 'red',
     textAlign: 'center',
+    color: 'red',
     marginTop: 20,
   },
 });
 
 export default AdminSelectScreen;
+
