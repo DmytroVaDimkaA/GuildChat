@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, Image, Modal, TouchableOpacity, Activ
 import { database } from '../firebaseConfig'; // Припустимо, що це ваш імпорт бази даних Firebase
 import { ref, set } from 'firebase/database';
 
-const AdminSelectScreen = ({ guildData, clanCaption, uril }) => {
+const AdminSelectScreen = ({ guildData, clanCaption, uril, guildId }) => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [imageLoadingStates, setImageLoadingStates] = useState({});
 
@@ -31,6 +31,7 @@ const AdminSelectScreen = ({ guildData, clanCaption, uril }) => {
           console.log("guildData:", guildData);
           console.log("clanCaption:", clanCaption);
           console.log("uril:", uril); // Вивід uril в консоль разом з іншими даними
+          console.log("guildId:", guildId);
           setSelectedMember(null);
         })
         .catch((error) => {

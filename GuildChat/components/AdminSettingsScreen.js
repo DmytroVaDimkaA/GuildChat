@@ -30,6 +30,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCountryName, setSelectedCountryName] = useState(null);
   const [uril, setUril] = useState("");
+  
 
   const [isApplyButtonEnabled, setIsApplyButtonEnabled] = useState(false);
   const [showSelectScreen, setShowSelectScreen] = useState(false);
@@ -84,6 +85,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
   const handleGuildIdChange = (text) => {
     const numericText = text.replace(/[^0-9]/g, "");
     setGuildId(numericText);
+    
   };
 
   const handleApplyPress = async () => {
@@ -247,7 +249,12 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
     return (
       <View style={styles.container}>
         {showSelectScreen ? (
-      <AdminSelectScreen guildData={parsedGuildData} clanCaption={clanCaption} uril={uril} />
+      <AdminSelectScreen 
+        guildData={parsedGuildData} 
+        clanCaption={clanCaption} 
+        uril={uril} 
+        guildId={guildId}
+      />
     ) : (
           <View style={styles.contentContainer}>
             <TouchableOpacity
