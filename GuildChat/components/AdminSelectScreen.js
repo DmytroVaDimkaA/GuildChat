@@ -16,37 +16,43 @@ const AdminSelectScreen = ({ guildData, clanCaption, uril, guildId }) => {
       const userId = selectedMember.linkUrl.split('/').pop(); // Отримати останній шматок URL як userId
       const imageUrl = `https://foe.scoredb.io${selectedMember.imageUrl}`; // imageUrl користувача
       const updatedGuildId = `${uril}_${guildId}`; // Формування нового значення guildId
-
-      // Функція для оновлення imageUrl в базі даних Firebase
-      const updateUserImageUrl = (userId, imageUrl) => {
-        const usersRef = ref(database, `users/${userId}`);
-        return set(usersRef, { imageUrl });
+      const userName = selectedMember.name; // Отримання userName
+      const role = "member"; // Визначення ролі користувача (у даному випадку це просто "member", але може бути динамічним)
+  
+      // Функція для оновлення даних користувача у базі даних Firebase
+      const updateUserDetails = (userId, guildId, imageUrl, userName, role) => {
+        const userRef = ref(database, `users/${userId}`);
+        const userGuildRef = ref(database, `users/${userId}/${guildId}`);
+        return Promise.all([
+          set(userGuildRef, { imageUrl, role }),
+          set(userRef, { userName, [`${guildId}`]: { imageUrl, role } })
+        ]);
       };
-
-      // Функція для створення нової гілки в базі даних Firebase
+  
+      // Функція для створення нової гілки у базі даних Firebase
       const createGuildBranch = (guildId, guildName) => {
         const guildRef = ref(database, `guilds/${guildId}`);
         return set(guildRef, { guildName });
       };
-
-      updateUserImageUrl(userId, imageUrl)
+  
+      updateUserDetails(userId, updatedGuildId, imageUrl, userName, role)
         .then(() => {
-          console.log(`Дані користувача оновлено в Firebase для користувача з userId: ${userId}`);
-
-          // Створення нової гілки в базі даних Firebase
+          console.log(`Дані користувача оновлено у Firebase для користувача з userId: ${userId}, guildId: ${updatedGuildId}`);
+  
+          // Створення нової гілки у базі даних Firebase
           return createGuildBranch(updatedGuildId, clanCaption);
         })
         .then(() => {
           console.log(`Гілку guilds/${updatedGuildId} створено з guildName: ${clanCaption}`);
-
+  
           // Виведення отриманих даних з AdminSettingsScreen у консоль
           console.log("Отримані дані з AdminSettingsScreen в AdminSelectScreen:");
           console.log("guildData:", guildData);
           console.log("clanCaption:", clanCaption);
           console.log("uril:", uril);
           console.log("guildId:", guildId);
-          console.log("updatedGuildId:", updatedGuildId); // Вивід нової константи в консоль
-
+          console.log("updatedGuildId:", updatedGuildId); // Вивід нової константи у консоль
+  
           setSelectedMember(null);
         })
         .catch((error) => {
@@ -54,7 +60,9 @@ const AdminSelectScreen = ({ guildData, clanCaption, uril, guildId }) => {
         });
     }
   };
-
+  
+  
+  
   const handleCancel = () => {
     setSelectedMember(null);
   };
