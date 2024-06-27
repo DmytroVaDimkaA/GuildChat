@@ -4,7 +4,7 @@ import { database } from '../firebaseConfig'; // Припустимо, що це
 import { ref, set, get, update } from 'firebase/database';
 import CryptoJS from 'react-native-crypto-js';
 
-const AdminSelectScreen = ({ guildData, clanCaption, guildId, uril }) => {
+const AdminSelectScreen = ({ guildData, clanCaption, guildId, uril, selectedWorld }) => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [imageLoadingStates, setImageLoadingStates] = useState({});
 
@@ -20,6 +20,7 @@ const AdminSelectScreen = ({ guildData, clanCaption, guildId, uril }) => {
       const guildRef = ref(database, `guilds/${uril}_${guildId}`);
       const guildInfo = {
         guildName: clanCaption,
+        worldName: selectedWorld
       };
 
       set(guildRef, guildInfo)
@@ -78,7 +79,7 @@ const AdminSelectScreen = ({ guildData, clanCaption, guildId, uril }) => {
           console.log("guildData:", guildData);
           console.log("clanCaption:", clanCaption);
           console.log("guildId:", guildId);
-
+          console.log("Назва світу:", selectedWorld);
           setSelectedMember(null);
         })
         .catch((error) => {
