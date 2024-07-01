@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Image, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { database } from '../firebaseConfig'; // Припустимо, що це ваш імпорт бази даних Firebase
 import { ref, set, get, update } from 'firebase/database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import CryptoJS from 'react-native-crypto-js';
 
 const AdminSelectScreen = ({ guildData, clanCaption, guildId, uril, selectedWorld }) => {
@@ -12,79 +13,69 @@ const AdminSelectScreen = ({ guildData, clanCaption, guildId, uril, selectedWorl
     setSelectedMember(item);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (selectedMember) {
       const selectedUserId = selectedMember.linkUrl.split('/').pop(); // Отримати останній шматок URL як userId
+      const formattedGuildId = `${uril}_${guildId}`; // Форматований guildId
 
       // Створення запису в гілці guilds
-      const guildRef = ref(database, `guilds/${uril}_${guildId}`);
+      const guildRef = ref(database, `guilds/${formattedGuildId}`);
       const guildInfo = {
         guildName: clanCaption,
         worldName: selectedWorld
       };
 
-      set(guildRef, guildInfo)
-        .then(() => {
-          console.log(`Дані гільдії оновлено в Firebase для гільдії з id: ${uril}_${guildId}`);
+      try {
+        await set(guildRef, guildInfo);
+        console.log(`Дані гільдії оновлено в Firebase для гільдії з id: ${formattedGuildId}`);
 
-          // Додавання членів гільдії до гілки users
-          guildData.forEach((member) => {
-            const userId = member.linkUrl.split('/').pop();
-            const imageUrl = `https://foe.scoredb.io${member.imageUrl}`;
-            const userGuildData = {
-              [`${uril}_${guildId}`]: {
-                imageUrl: imageUrl,
-                role: userId === selectedUserId ? 'guildLeader' : 'member', // Визначення ролі
-              }
+        // Додавання членів гільдії до гілки users
+        await Promise.all(guildData.map(async (member) => {
+          const userId = member.linkUrl.split('/').pop();
+          const imageUrl = `https://foe.scoredb.io${member.imageUrl}`;
+          const userGuildData = {
+            [formattedGuildId]: {
+              imageUrl: imageUrl,
+              role: userId === selectedUserId ? 'guildLeader' : 'member', // Визначення ролі
+            }
+          };
+
+          // Перевірка існування користувача
+          const snapshot = await get(ref(database, `users/${userId}`));
+          if (snapshot.exists()) {
+            // Користувач існує, оновлюємо дані про нову гільдію
+            await update(ref(database, `users/${userId}`), userGuildData);
+            console.log(`Дані користувача оновлено в Firebase для гільдії з id: ${formattedGuildId}`);
+          } else {
+            // Користувач не існує, створюємо новий запис
+            const userRootRef = ref(database, `users/${userId}`);
+            const encryptedUserId = CryptoJS.AES.encrypt(userId, 'your-encryption-key').toString();
+            const userRootData = {
+              userName: member.name,
+              password: encryptedUserId, // Додавання зашифрованого userId
+              ...userGuildData // Додаємо дані про гільдію
             };
 
-            // Перевірка існування користувача
-            get(ref(database, `users/${userId}`))
-              .then((snapshot) => {
-                if (snapshot.exists()) {
-                  // Користувач існує, оновлюємо дані про нову гільдію
-                  update(ref(database, `users/${userId}`), userGuildData)
-                    .then(() => {
-                      console.log(`Дані користувача оновлено в Firebase для гільдії з id: ${uril}_${guildId}`);
-                    })
-                    .catch((error) => {
-                      console.error('Помилка при оновленні даних користувача:', error);
-                    });
-                } else {
-                  // Користувач не існує, створюємо новий запис
-                  const userRootRef = ref(database, `users/${userId}`);
-                  const encryptedUserId = CryptoJS.AES.encrypt(userId, 'your-encryption-key').toString();
-                  const userRootData = {
-                    userName: member.name,
-                    password: encryptedUserId, // Додавання зашифрованого userId
-                    ...userGuildData // Додаємо дані про гільдію
-                  };
+            await set(userRootRef, userRootData);
+            console.log(`Основні дані користувача оновлено в Firebase для користувача з userId: ${userId}`);
+          }
+        }));
 
-                  set(userRootRef, userRootData)
-                    .then(() => {
-                      console.log(`Основні дані користувача оновлено в Firebase для користувача з userId: ${userId}`);
-                    })
-                    .catch((error) => {
-                      console.error('Помилка при оновленні основних даних користувача:', error);
-                    });
-                }
-              })
-              .catch((error) => {
-                console.error('Помилка при перевірці існування користувача:', error);
-              });
-          });
+        // Збереження даних до AsyncStorage
+        await AsyncStorage.setItem('guildId', formattedGuildId);
+        await AsyncStorage.setItem('userId', selectedUserId);
 
-          // Виведення отриманих даних з AdminSettingsScreen у консоль
-          console.log("Отримані дані з AdminSettingsScreen в AdminSelectScreen:");
-          console.log("guildData:", guildData);
-          console.log("clanCaption:", clanCaption);
-          console.log("guildId:", guildId);
-          console.log("Назва світу:", selectedWorld);
-          setSelectedMember(null);
-        })
-        .catch((error) => {
-          console.error('Помилка при оновленні даних гільдії:', error);
-        });
+        // Виведення отриманих даних з AsyncStorage у консоль
+        const storedGuildId = await AsyncStorage.getItem('guildId');
+        const storedUserId = await AsyncStorage.getItem('userId');
+        console.log("Дані збережені в AsyncStorage:");
+        console.log("guildId:", storedGuildId);
+        console.log("userId:", storedUserId);
+
+        setSelectedMember(null);
+      } catch (error) {
+        console.error('Помилка при оновленні даних:', error);
+      }
     }
   };
 
@@ -238,11 +229,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     textAlign: 'center',
-  },
-  errorText: {
-    color: 'red',
-    textAlign: 'center',
-    marginTop: 20,
   },
 });
 
