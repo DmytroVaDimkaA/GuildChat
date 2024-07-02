@@ -16,9 +16,9 @@ import {
 import { parseData } from "../parser";
 import { parseDataNew } from "../worldParser";
 import { parseGuildData } from "../guildParser";
-import AdminSelectScreen from './AdminSelectScreen';
+import AdminSelectScreen from "./AdminSelectScreen";
 
-const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
+const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isWorldModalVisible, setIsWorldModalVisible] = useState(false);
   const [countries, setCountries] = useState([]);
@@ -252,6 +252,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
           uril={uril}
           guildId={guildId}
           selectedWorld={selectedWorld} // Передача назви світу
+          fetch={fetch}
         />
       ) : (
         <View style={styles.contentContainer}>
@@ -335,7 +336,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress }) => {
                   )}
                 />
                 <TouchableOpacity
-                  style={[styles.modalButton, {  marginBottom: 10  }]}
+                  style={[styles.modalButton, { marginBottom: 10 }]}
                   onPress={() => setIsModalVisible(false)}
                 >
                   <Text style={styles.modalButtonText}>Закрити</Text>

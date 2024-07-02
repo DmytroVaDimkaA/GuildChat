@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { SafeAreaView, View, StyleSheet } from 'react-native';
-import Header from './Header';
-import AnimatedMenu from './Menu';
+import React, { useState } from "react";
+import { SafeAreaView, View, StyleSheet } from "react-native";
+import Header from "./Header";
+import AnimatedMenu from "./Menu";
 
 const MainContent = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedTitle, setSelectedTitle] = useState('Заголовок приложения'); // Состояние для выбранного заголовка
+  const [selectedTitle, setSelectedTitle] = useState("Заголовок приложения"); // Состояние для выбранного заголовка
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
@@ -14,7 +14,7 @@ const MainContent = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Header title={selectedTitle} toggleMenu={toggleMenu} /> 
+        <Header title={selectedTitle} toggleMenu={toggleMenu} />
         <AnimatedMenu
           menuOpen={menuOpen}
           toggleMenu={toggleMenu}
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    flexDirection: 'column',
+    flexDirection: "column",
   },
 });
 
