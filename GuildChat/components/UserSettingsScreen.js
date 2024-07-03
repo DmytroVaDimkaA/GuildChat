@@ -15,20 +15,17 @@ import { database } from "../firebaseConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const UserSettingsScreen = ({ fetch }) => {
-  const [password, setPassword] = useState(
-    "U2FsdGVkX19VGU4THPKRr0yd7CC/xGQTIXJ/t6QpaxU="
-  );
+  const [password, setPassword] = useState("");
   const [guilds, setGuilds] = useState([]);
-  const [savedUser, setUser] = useState();
 
   const selectGuild = async (guild) => {
     await AsyncStorage.setItem("guildId", guild.guildId);
-    await AsyncStorage.setItem("userId", savedUser.userId);
     fetch();
   };
+
   const apply = async () => {
     const user = await getUser(password);
-    console.log(user);
+
     if (!user) {
       Alert.alert("Користувача не знайдено", `Спробуйте ввести інший пароль`, [
         { text: "OK" },
@@ -36,7 +33,8 @@ const UserSettingsScreen = ({ fetch }) => {
       return;
     }
 
-    setUser(user);
+    await AsyncStorage.setItem("userId", user.userId);
+
     const userGuilds = await getGuildsByUser(user);
 
     if (userGuilds.length <= 0) {

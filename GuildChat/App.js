@@ -10,7 +10,7 @@ export default function App() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedOption, setSelectedOption] = useState("Сервер");
   const [userData, setUserData] = useState(false);
-
+  const [checked, setChecked] = useState(false);
   useEffect(() => {
     fetch();
   }, []);
@@ -23,14 +23,24 @@ export default function App() {
   };
 
   const fetch = async () => {
-    // await AsyncStorage.clear();
-    const guildId = await AsyncStorage.getItem("guildId");
-    const userId = await AsyncStorage.getItem("userId");
-    console.log(guildId, userId);
-    if (guildId && userId) {
-      setUserData(true);
+    try {
+      // await AsyncStorage.clear();
+      const guildId = await AsyncStorage.getItem("guildId");
+      const userId = await AsyncStorage.getItem("userId");
+      console.log(guildId, userId);
+      if (guildId && userId) {
+        setUserData(true);
+      }
+    } catch {
+    } finally {
+      setChecked(true);
     }
   };
+
+  if (!checked) {
+    return;
+  }
+
   if (userData) {
     return <MainContent />;
   }
