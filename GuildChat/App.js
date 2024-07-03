@@ -11,9 +11,11 @@ export default function App() {
   const [selectedOption, setSelectedOption] = useState("Сервер");
   const [userData, setUserData] = useState(false);
   const [checked, setChecked] = useState(false);
+
   useEffect(() => {
     fetch();
   }, []);
+
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
   };

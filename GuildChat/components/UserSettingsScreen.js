@@ -61,6 +61,10 @@ const UserSettingsScreen = ({ fetch }) => {
     );
     const user = snapshot.val()[userId];
 
+    if (!user) {
+      return null;
+    }
+
     return { ...user, userId };
   };
 
