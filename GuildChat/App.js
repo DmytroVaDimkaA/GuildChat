@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, View } from "react-native";
-import { database } from "./firebaseConfig";
-import { ref, onValue } from "firebase/database";
 import RoleSelectionScreen from "./components/RoleSelectionScreen";
 import AdminSettingsScreen from "./components/AdminSettingsScreen";
 import MainContent from "./components/MainContent";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import UserSettingsScreen from "./components/UserSettingsScreen";
 
 export default function App() {
   const [selectedRole, setSelectedRole] = useState(null);
@@ -24,9 +23,10 @@ export default function App() {
   };
 
   const fetch = async () => {
+    // await AsyncStorage.clear();
     const guildId = await AsyncStorage.getItem("guildId");
     const userId = await AsyncStorage.getItem("userId");
-
+    console.log(guildId, userId);
     if (guildId && userId) {
       setUserData(true);
     }
@@ -46,7 +46,7 @@ export default function App() {
           fetch={fetch}
         />
       ) : (
-        <View>{/* Здесь можно добавить контент для роли "user" */}</View>
+        <UserSettingsScreen fetch={fetch} />
       )}
     </View>
   );
