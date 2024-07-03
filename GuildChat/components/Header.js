@@ -19,21 +19,21 @@ const Header = ({ title, toggleMenu }) => {
 
 const styles = StyleSheet.create({
   header: {
-    height: 80,
+    height: 100,
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-start",
     backgroundColor: "#517da2",
     paddingHorizontal: 16,
-    position: 'absolute',
+    position: "absolute",
+    paddingTop: 40,
     left: 0,
     top: 0,
   },
   headerContent: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 16,
   },
   headerTitle: {
     fontSize: 20,
@@ -56,4 +56,3 @@ const styles = StyleSheet.create({
 });
 
 export default Header;
-

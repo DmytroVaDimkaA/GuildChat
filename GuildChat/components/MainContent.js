@@ -12,7 +12,7 @@ const MainContent = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.container}>
         <Header title={selectedTitle} toggleMenu={toggleMenu} />
         <AnimatedMenu
@@ -21,7 +21,7 @@ const MainContent = () => {
           setSelectedTitle={setSelectedTitle} // Передаем функцию для обновления заголовка
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
