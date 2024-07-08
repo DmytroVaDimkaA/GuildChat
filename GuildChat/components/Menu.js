@@ -10,6 +10,7 @@ import {
   Dimensions,
   TouchableOpacity,
   Image,
+  TouchableWithoutFeedback,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { database } from "../firebaseConfig";
@@ -69,7 +70,6 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
   const [userImageUrl, setUserImageUrl] = useState(""); // State для imageUrl
   const [userRole, setUserRole] = useState(""); // State для ролі користувача
   const [wordName, setWordName] = useState(""); // Початкове значення пусте
-
 
   // Ефект для установки PanResponder та обробки BackButton
   useEffect(() => {
@@ -210,7 +210,7 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
         console.log("userId -", storedUserId);
         console.log("guildId -", guildId);
         setUserId(storedUserId); // Зберігаємо userId у стейт
-  
+
         if (storedUserId) {
           const userRef = ref(database, `users/${storedUserId}`);
           onValue(userRef, (snapshot) => {
@@ -223,22 +223,22 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
               if (guildId && userData[guildId] && userData[guildId].imageUrl) {
                 setUserImageUrl(userData[guildId].imageUrl); // Зберігаємо imageUrl у стейт
               }
-  
+
               // Визначення ролі користувача
               const userRoleFromData = userData[guildId].role; // Припустимо, що поле role є у даному користувача
               setUserRole(userRoleFromData); // Встановлюємо роль користувача у стейт
-  
+
               // Виведення ролі користувача в консоль
               console.log("Роль користувача:", userRoleFromData);
             }
           });
-  
+
           // Отримання даних гільдії з гілки guilds
           const guildRef = ref(database, `guilds/${guildId}`);
           onValue(guildRef, (snapshot) => {
             const guildData = snapshot.val();
             console.log("Дані гільдії з Firebase:", guildData); // Виведення даних гільдії в консоль
-  
+
             // Отримання wordName з guildData і оновлення стану
             const wordNameFromGuildData = guildData["worldName"]; // Припустимо, що wordName доступний у guildData
             setWordName(wordNameFromGuildData); // Встановлення значення wordName
@@ -248,16 +248,23 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
         console.error("Error fetching data from AsyncStorage or Firebase:", error);
       }
     };
-  
+
     fetchData();
   }, []);
-  
-  
+
+  // Обробник тапу на Overlay для закриття меню
+  const handleOverlayPress = () => {
+    if (menuOpen) {
+      toggleMenu();
+    }
+  };
 
   return (
     <>
       {menuOpen && (
-        <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
+        <TouchableWithoutFeedback onPress={handleOverlayPress}>
+          <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
+        </TouchableWithoutFeedback>
       )}
       <Animated.View
         {...panResponderInstance?.panHandlers}
@@ -281,7 +288,6 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
             <View style={styles.profileDetails}>
               <Text style={styles.profileName}>{userName || "ВаДімкаА"}</Text>
               <Text style={styles.profilePhone}>{wordName}</Text>
-
             </View>
           </View>
 
