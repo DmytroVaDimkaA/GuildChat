@@ -11,7 +11,11 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { database } from "../firebaseConfig";
+import { ref, onValue } from "firebase/database";
 
+// Імпортуємо SVG іконки
 import GB from "./ico/GB.svg";
 import Admin from "./ico/admin.svg";
 import GVG from "./ico/GVG.svg";
@@ -21,8 +25,10 @@ import Chat from "./ico/Chat.svg";
 import Azbook from "./ico/azbook.svg";
 import Profile from "./ico/profile.svg";
 
+// Компонент Separator
 const Separator = () => <View style={styles.separator} />;
 
+// Опції для меню
 const menuOptions = [
   {
     text: "Прокачка Величних Споруд",
@@ -32,12 +38,12 @@ const menuOptions = [
     text: "Поле битви гільдій",
     icon: <GVG width="24" height="24" fill="#8C9093" />,
     keyDate: new Date(2024, 2, 14),
-  }, // 14 марта 2024
+  },
   {
     text: "Квантові вторгнення",
     icon: <Quant width="24" height="24" fill="#8C9093" />,
     keyDate: new Date(2024, 2, 21),
-  }, // 21 марта 2024
+  },
   { text: "Сервіси", icon: <Servise width="24" height="24" fill="#8C9093" /> },
   { text: "Альтанка", icon: <Chat width="24" height="24" fill="#8C9093" /> },
   { text: "Абетка", icon: <Azbook width="24" height="24" fill="#8C9093" /> },
@@ -51,13 +57,21 @@ const menuOptions = [
   },
 ];
 
+// Компонент Menu
 const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
   const [menuTranslateX] = useState(new Animated.Value(-300));
   const [contentOpacity] = useState(new Animated.Value(1));
   const [overlayOpacity] = useState(new Animated.Value(0));
   const [panResponderInstance, setPanResponderInstance] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [userId, setUserId] = useState(null); // State для userId
+  const [userName, setUserName] = useState(""); // State для userName
+  const [userImageUrl, setUserImageUrl] = useState(""); // State для imageUrl
+  const [userRole, setUserRole] = useState(""); // State для ролі користувача
+  const [wordName, setWordName] = useState(""); // Початкове значення пусте
 
+
+  // Ефект для установки PanResponder та обробки BackButton
   useEffect(() => {
     const newPanResponderInstance = PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) =>
@@ -115,18 +129,57 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
     };
   }, [menuOpen, toggleMenu, menuTranslateX, contentOpacity, overlayOpacity]);
 
+  // Обробник натискання на опцію меню
   const handleOptionPress = (index) => {
     setSelectedOption(index);
     setSelectedTitle(menuOptions[index].text);
     toggleMenu();
   };
 
+  // Ефект для скидання вибраної опції при закритті меню
   useEffect(() => {
     if (menuOpen) {
       setSelectedOption(null);
     }
   }, [menuOpen]);
 
+  const isGuildLeader = (role) => {
+    return role === "guildLeader";
+  };
+
+  // Функція для перевірки видимості опції
+  function isOptionVisible(option, currentDate) {
+    if (!option.keyDate) return true; // Якщо keyDate не вказано, опція завжди видима
+
+    const keyDateWeek = getWeekNumber(option.keyDate, option.keyDate);
+    const currentWeek = getWeekNumber(currentDate, option.keyDate);
+
+    const weekDifference = currentWeek - keyDateWeek;
+
+    if (0 <= weekDifference <= 1) {
+      // Нульовий або перший тиждень
+      const currentDay = currentDate.getDay();
+      const currentHour = currentDate.getHours();
+
+      if (keyDateWeek % 2 === 1) {
+        // Парна неділя
+        return true;
+      } else {
+        // Непарна неділя
+        return (
+          (currentDay === 1 && currentHour < 8) || // Понеділок до 8:00
+          (currentDay === 4 && currentHour >= 8) || // Четвер після 8:00
+          currentDay === 5 ||
+          currentDay === 6 ||
+          currentDay === 0
+        ); // П'ятниця - неділя
+      }
+    }
+
+    return false; // У всіх інших випадках не видно
+  }
+
+  // Функція для отримання номера тижня
   function getWeekNumber(date, keyDate = null) {
     const firstDayOfYear = keyDate
       ? new Date(keyDate.getFullYear(), 0, 1)
@@ -148,87 +201,109 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
     }
   }
 
-  function isOptionVisible(option, currentDate) {
-    if (!option.keyDate) return true; // Если keyDate не указана, пункт всегда видим
-
-    const keyDateWeek = getWeekNumber(option.keyDate, option.keyDate);
-    const currentWeek = getWeekNumber(currentDate, option.keyDate);
-
-    const weekDifference = currentWeek - keyDateWeek;
-
-    if (0 <= weekDifference <= 1) {
-      // Нулевая или первая неделя
-      const currentDay = currentDate.getDay();
-      const currentHour = currentDate.getHours();
-
-      if (keyDateWeek % 2 === 1) {
-        // Четная неделя
-        return true;
-      } else {
-        // Нечетная неделя
-        return (
-          (currentDay === 1 && currentHour < 8) || // Понедельник до 8:00
-          (currentDay === 4 && currentHour >= 8) || // Четверг после 8:00
-          currentDay === 5 ||
-          currentDay === 6 ||
-          currentDay === 0
-        ); // Пятница - воскресенье
+  // Ефект для отримання даних з AsyncStorage і Firebase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        const guildId = await AsyncStorage.getItem("guildId");
+        console.log("userId -", storedUserId);
+        console.log("guildId -", guildId);
+        setUserId(storedUserId); // Зберігаємо userId у стейт
+  
+        if (storedUserId) {
+          const userRef = ref(database, `users/${storedUserId}`);
+          onValue(userRef, (snapshot) => {
+            const userData = snapshot.val();
+            console.log("Дані користувача з Firebase:", userData);
+            if (userData) {
+              if (userData.userName) {
+                setUserName(userData.userName); // Зберігаємо userName у стейт
+              }
+              if (guildId && userData[guildId] && userData[guildId].imageUrl) {
+                setUserImageUrl(userData[guildId].imageUrl); // Зберігаємо imageUrl у стейт
+              }
+  
+              // Визначення ролі користувача
+              const userRoleFromData = userData[guildId].role; // Припустимо, що поле role є у даному користувача
+              setUserRole(userRoleFromData); // Встановлюємо роль користувача у стейт
+  
+              // Виведення ролі користувача в консоль
+              console.log("Роль користувача:", userRoleFromData);
+            }
+          });
+  
+          // Отримання даних гільдії з гілки guilds
+          const guildRef = ref(database, `guilds/${guildId}`);
+          onValue(guildRef, (snapshot) => {
+            const guildData = snapshot.val();
+            console.log("Дані гільдії з Firebase:", guildData); // Виведення даних гільдії в консоль
+  
+            // Отримання wordName з guildData і оновлення стану
+            const wordNameFromGuildData = guildData["worldName"]; // Припустимо, що wordName доступний у guildData
+            setWordName(wordNameFromGuildData); // Встановлення значення wordName
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching data from AsyncStorage or Firebase:", error);
       }
-    }
-
-    return false; // В остальных случаях не видно
-  }
+    };
+  
+    fetchData();
+  }, []);
+  
+  
 
   return (
     <>
+      {menuOpen && (
+        <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
+      )}
       <Animated.View
-        style={[styles.overlay, { opacity: overlayOpacity }]}
-        pointerEvents={menuOpen ? "auto" : "none"}
-        onStartShouldSetResponder={() => toggleMenu()}
-      />
-      <Animated.View
+        {...panResponderInstance?.panHandlers}
         style={[
           styles.container,
-          {
-            transform: [{ translateX: menuTranslateX }],
-            opacity: contentOpacity,
-          },
+          { transform: [{ translateX: menuTranslateX }] },
         ]}
-        {...(panResponderInstance && panResponderInstance.panHandlers)}
       >
         <View style={styles.container}>
           <View style={styles.header}>
             <View style={styles.profileIcon}>
               <Image
                 source={{
-                  uri: "https://foe.scoredb.io/img/games/foe/avatars/addon_portrait_id_cop_egyptians_maatkare.jpg",
+                  uri:
+                    userImageUrl ||
+                    "https://foe.scoredb.io/img/games/foe/avatars/addon_portrait_id_cop_egyptians_maatkare.jpg",
                 }}
                 style={styles.profileIcon}
               />
             </View>
             <View style={styles.profileDetails}>
-              <Text style={styles.profileName}>ВаДімкаА</Text>
-              <Text style={styles.profilePhone}>Лагендорн</Text>
+              <Text style={styles.profileName}>{userName || "ВаДімкаА"}</Text>
+              <Text style={styles.profilePhone}>{wordName}</Text>
+
             </View>
           </View>
 
           <ScrollView style={styles.optionsContainer}>
             {menuOptions.map(
               (option, index) =>
-                isOptionVisible(option, new Date()) && ( // Проверка видимости
+                isOptionVisible(option, new Date()) && (
                   <React.Fragment key={index}>
-                    <TouchableOpacity
-                      onPress={() => handleOptionPress(index)}
-                      style={[
-                        styles.option,
-                        selectedOption === index && styles.selectedOption,
-                      ]}
-                    >
-                      <View style={styles.optionContentRow}>
-                        {option.icon && option.icon}
-                        <Text style={styles.optionText}>{option.text}</Text>
-                      </View>
-                    </TouchableOpacity>
+                    {!(option.text === "Адміністративна панель" && !isGuildLeader(userRole)) && (
+                      <TouchableOpacity
+                        onPress={() => handleOptionPress(index)}
+                        style={[
+                          styles.option,
+                          selectedOption === index && styles.selectedOption,
+                        ]}
+                      >
+                        <View style={styles.optionContentRow}>
+                          {option.icon && option.icon}
+                          <Text style={styles.optionText}>{option.text}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
                     {index === 5 && <Separator />}
                   </React.Fragment>
                 )
@@ -240,6 +315,7 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
   );
 };
 
+// Стилі компонента
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -258,13 +334,11 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    //marginTop: 20,
     marginRight: 20,
     overflow: "hidden",
   },
   profileDetails: {},
   profileName: {
-    //marginTop: 20,
     fontSize: 24,
     fontWeight: "bold",
     color: "white",
