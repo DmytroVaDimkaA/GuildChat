@@ -203,54 +203,69 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
 
   // Ефект для отримання даних з AsyncStorage і Firebase
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem("userId");
-        const guildId = await AsyncStorage.getItem("guildId");
-        console.log("userId -", storedUserId);
-        console.log("guildId -", guildId);
-        setUserId(storedUserId); // Зберігаємо userId у стейт
+  const fetchData = async () => {
+    try {
+      const storedUserId = await AsyncStorage.getItem("userId");
+      const guildId = await AsyncStorage.getItem("guildId");
+      console.log("userId -", storedUserId);
+      console.log("guildId -", guildId);
+      setUserId(storedUserId); // Зберігаємо userId у стейт
 
-        if (storedUserId) {
-          const userRef = ref(database, `users/${storedUserId}`);
-          onValue(userRef, (snapshot) => {
-            const userData = snapshot.val();
-            console.log("Дані користувача з Firebase:", userData);
-            if (userData) {
-              if (userData.userName) {
-                setUserName(userData.userName); // Зберігаємо userName у стейт
-              }
-              if (guildId && userData[guildId] && userData[guildId].imageUrl) {
-                setUserImageUrl(userData[guildId].imageUrl); // Зберігаємо imageUrl у стейт
-              }
-
-              // Визначення ролі користувача
-              const userRoleFromData = userData[guildId].role; // Припустимо, що поле role є у даному користувача
-              setUserRole(userRoleFromData); // Встановлюємо роль користувача у стейт
-
-              // Виведення ролі користувача в консоль
-              console.log("Роль користувача:", userRoleFromData);
+      if (storedUserId) {
+        const userRef = ref(database, `users/${storedUserId}`);
+        onValue(userRef, (snapshot) => {
+          const userData = snapshot.val();
+          console.log("Дані користувача з Firebase:", userData);
+          if (userData) {
+            if (userData.userName) {
+              setUserName(userData.userName); // Зберігаємо userName у стейт
             }
-          });
+            if (guildId && userData[guildId] && userData[guildId].imageUrl) {
+              setUserImageUrl(userData[guildId].imageUrl); // Зберігаємо imageUrl у стейт
+            }
 
-          // Отримання даних гільдії з гілки guilds
-          const guildRef = ref(database, `guilds/${guildId}`);
-          onValue(guildRef, (snapshot) => {
-            const guildData = snapshot.val();
-            console.log("Дані гільдії з Firebase:", guildData); // Виведення даних гільдії в консоль
+            // Визначення ролі користувача
+            const userRoleFromData = userData[guildId]?.role; // Припустимо, що поле role є у даному користувача
+            setUserRole(userRoleFromData); // Встановлюємо роль користувача у стейт
 
-            // Отримання wordName з guildData і оновлення стану
-            const wordNameFromGuildData = guildData["worldName"]; // Припустимо, що wordName доступний у guildData
-            setWordName(wordNameFromGuildData); // Встановлення значення wordName
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching data from AsyncStorage or Firebase:", error);
+            // Виведення ролі користувача в консоль
+            console.log("Роль користувача:", userRoleFromData);
+
+            // Витягнення всіх guildId з userData
+            const guildIds = Object.keys(userData).filter(key => 
+              key !== "password" && typeof userData[key] === "object"
+            );
+
+            // Отримання назв гільдій
+            guildIds.forEach(gid => {
+              const guildRef = ref(database, `guilds/${gid}/worldName`);
+              onValue(guildRef, (guildSnapshot) => {
+                const worldName = guildSnapshot.val();
+                console.log(`Назва гільдії для ${gid}:`, worldName);
+              });
+            });
+          }
+        });
+
+        // Отримання даних гільдії з гілки guilds
+        const guildRef = ref(database, `guilds/${guildId}`);
+        onValue(guildRef, (snapshot) => {
+          const guildData = snapshot.val();
+          console.log("Дані гільдії з Firebase:", guildData); // Виведення даних гільдії в консоль
+
+          // Отримання wordName з guildData і оновлення стану
+          const wordNameFromGuildData = guildData["worldName"]; // Припустимо, що wordName доступний у guildData
+          setWordName(wordNameFromGuildData); // Встановлення значення wordName
+        });
       }
-    };
+    } catch (error) {
+      console.error("Error fetching data from AsyncStorage or Firebase:", error);
+    }
+  };
 
-    fetchData();
-  }, []);
+  fetchData();
+}, []);
+
 
   // Обробник тапу на Overlay для закриття меню
   const handleOverlayPress = () => {
