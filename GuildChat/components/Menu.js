@@ -228,30 +228,16 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
             const userRoleFromData = userData[guildId]?.role; // Припустимо, що поле role є у даному користувача
             setUserRole(userRoleFromData); // Встановлюємо роль користувача у стейт
 
-            // Виведення ролі користувача в консоль
-            console.log("Роль користувача:", userRoleFromData);
+              // Виведення ролі користувача в консоль
+              console.log("Роль користувача:", userRoleFromData);
+            }
+          });
 
-            // Витягнення всіх guildId з userData
-            const guildIds = Object.keys(userData).filter(key => 
-              key !== "password" && typeof userData[key] === "object"
-            );
-
-            // Отримання назв гільдій
-            guildIds.forEach(gid => {
-              const guildRef = ref(database, `guilds/${gid}/worldName`);
-              onValue(guildRef, (guildSnapshot) => {
-                const worldName = guildSnapshot.val();
-                console.log(`Назва гільдії для ${gid}:`, worldName);
-              });
-            });
-          }
-        });
-
-        // Отримання даних гільдії з гілки guilds
-        const guildRef = ref(database, `guilds/${guildId}`);
-        onValue(guildRef, (snapshot) => {
-          const guildData = snapshot.val();
-          console.log("Дані гільдії з Firebase:", guildData); // Виведення даних гільдії в консоль
+          // Отримання даних гільдії з гілки guilds
+          const guildRef = ref(database, `guilds/${guildId}`);
+          onValue(guildRef, (snapshot) => {
+            const guildData = snapshot.val();
+            console.log("Дані гільдії з Firebase:", guildData); // Виведення даних гільдії в консоль
 
           // Отримання wordName з guildData і оновлення стану
           const wordNameFromGuildData = guildData["worldName"]; // Припустимо, що wordName доступний у guildData
