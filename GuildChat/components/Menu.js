@@ -253,6 +253,8 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
 }, []);
 
 
+
+
   // Обробник тапу на Overlay для закриття меню
   const handleOverlayPress = () => {
     if (menuOpen) {
