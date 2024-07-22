@@ -13,10 +13,10 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { database } from "../firebaseConfig";
 import { ref, onValue } from "firebase/database";
+import { database } from "../firebaseConfig";
 
-// Імпортуємо SVG іконки
+// Import SVG icons
 import GB from "./ico/GB.svg";
 import Admin from "./ico/admin.svg";
 import GVG from "./ico/GVG.svg";
@@ -26,52 +26,65 @@ import Chat from "./ico/Chat.svg";
 import Azbook from "./ico/azbook.svg";
 import Profile from "./ico/profile.svg";
 
-// Компонент Separator
+// Component Separator
 const Separator = () => <View style={styles.separator} />;
 
-// Опції для меню
+// Menu options
 const menuOptions = [
   {
     text: "Прокачка Величних Споруд",
-    icon: <GB width="24" height="24" fill="#8C9093" />,
+    icon: <GB width="18" height="18" fill="#8C9093" />,
   },
   {
     text: "Поле битви гільдій",
-    icon: <GVG width="24" height="24" fill="#8C9093" />,
+    icon: <GVG width="18" height="18" fill="#8C9093" />,
     keyDate: new Date(2024, 2, 14),
   },
   {
     text: "Квантові вторгнення",
-    icon: <Quant width="24" height="24" fill="#8C9093" />,
+    icon: <Quant width="18" height="18" fill="#8C9093" />,
     keyDate: new Date(2024, 2, 21),
   },
-  { text: "Сервіси", icon: <Servise width="24" height="24" fill="#8C9093" /> },
-  { text: "Альтанка", icon: <Chat width="24" height="24" fill="#8C9093" /> },
-  { text: "Абетка", icon: <Azbook width="24" height="24" fill="#8C9093" /> },
+  { text: "Сервіси", icon: <Servise width="18" height="18" fill="#8C9093" /> },
+  { text: "Альтанка", icon: <Chat width="18" height="18" fill="#8C9093" /> },
+  { text: "Абетка", icon: <Azbook width="18" height="18" fill="#8C9093" /> },
   {
     text: "Налаштування",
-    icon: <Profile width="24" height="24" fill="#8C9093" />,
+    icon: <Profile width="18" height="18" fill="#8C9093" />,
   },
   {
     text: "Адміністративна панель",
-    icon: <Admin width="24" height="24" fill="#8C9093" />,
+    icon: <Admin width="18" height="18" fill="#8C9093" />,
   },
 ];
 
-// Компонент Menu
+// Функція для видалення непотрібних записів
+const cleanData = (data) => {
+  if (typeof data !== "object" || data === null) return data;
+  const result = Array.isArray(data) ? [] : {};
+
+  for (const key in data) {
+    if (key === "password" || key === "userName" || key === "role") continue;
+    result[key] = cleanData(data[key]);
+  }
+  return result;
+};
+
+// Menu component
 const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
   const [menuTranslateX] = useState(new Animated.Value(-300));
   const [contentOpacity] = useState(new Animated.Value(1));
   const [overlayOpacity] = useState(new Animated.Value(0));
   const [panResponderInstance, setPanResponderInstance] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [userId, setUserId] = useState(null); // State для userId
-  const [userName, setUserName] = useState(""); // State для userName
-  const [userImageUrl, setUserImageUrl] = useState(""); // State для imageUrl
-  const [userRole, setUserRole] = useState(""); // State для ролі користувача
-  const [wordName, setWordName] = useState(""); // Початкове значення пусте
+  const [userId, setUserId] = useState(null);
+  const [userName, setUserName] = useState("");
+  const [userImageUrl, setUserImageUrl] = useState("");
+  const [userRole, setUserRole] = useState("");
+  const [wordName, setWordName] = useState("");
+  const [additionalMenuOptions, setAdditionalMenuOptions] = useState([]);
+  const [tempData, setTempData] = useState({});
 
-  // Ефект для установки PanResponder та обробки BackButton
   useEffect(() => {
     const newPanResponderInstance = PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) =>
@@ -129,14 +142,50 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
     };
   }, [menuOpen, toggleMenu, menuTranslateX, contentOpacity, overlayOpacity]);
 
-  // Обробник натискання на опцію меню
-  const handleOptionPress = (index) => {
-    setSelectedOption(index);
-    setSelectedTitle(menuOptions[index].text);
+  const handleOptionPress = async (index) => {
+    if (index < additionalMenuOptions.length) {
+      // Логіка для additionalMenuOptions
+      const selectedWorldName = additionalMenuOptions[index].text;
+  
+      // Пошук ключа у тимчасовому файлі
+      const foundKey = Object.keys(tempData).find(key => tempData[key]?.worldName === selectedWorldName);
+      if (foundKey) {
+        console.log(`Found Key for ${selectedWorldName}: ${foundKey}`);
+        
+        try {
+          // Збереження ключа у AsyncStorage
+          await AsyncStorage.setItem("guildId", foundKey);
+          console.log(`guildId successfully saved as: ${foundKey}`);
+        } catch (error) {
+          console.error("Error saving guildId to AsyncStorage:", error);
+        }
+      } else {
+        console.log(`World Name ${selectedWorldName} not found in temp data`);
+      }
+      return;
+    }
+    // Обробка натискання для основного меню
+    const menuIndex = index - additionalMenuOptions.length - 1; // враховуємо додаткові пункти та сепаратор
+    setSelectedOption(menuIndex);
+    setSelectedTitle(menuOptions[menuIndex].text);
     toggleMenu();
   };
 
-  // Ефект для скидання вибраної опції при закритті меню
+
+
+  const addWorldName = (data, worldNames) => {
+    if (typeof data !== "object" || data === null) return data;
+    const result = Array.isArray(data) ? [] : {};
+
+    for (const key in data) {
+      result[key] = addWorldName(data[key], worldNames);
+      if (worldNames[key]) {
+        result[key].worldName = worldNames[key];
+      }
+    }
+    return result;
+  };
+
   useEffect(() => {
     if (menuOpen) {
       setSelectedOption(null);
@@ -147,9 +196,8 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
     return role === "guildLeader";
   };
 
-  // Функція для перевірки видимості опції
   function isOptionVisible(option, currentDate) {
-    if (!option.keyDate) return true; // Якщо keyDate не вказано, опція завжди видима
+    if (!option.keyDate) return true;
 
     const keyDateWeek = getWeekNumber(option.keyDate, option.keyDate);
     const currentWeek = getWeekNumber(currentDate, option.keyDate);
@@ -157,29 +205,25 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
     const weekDifference = currentWeek - keyDateWeek;
 
     if (0 <= weekDifference <= 1) {
-      // Нульовий або перший тиждень
       const currentDay = currentDate.getDay();
       const currentHour = currentDate.getHours();
 
       if (keyDateWeek % 2 === 1) {
-        // Парна неділя
         return true;
       } else {
-        // Непарна неділя
         return (
-          (currentDay === 1 && currentHour < 8) || // Понеділок до 8:00
-          (currentDay === 4 && currentHour >= 8) || // Четвер після 8:00
+          (currentDay === 1 && currentHour < 8) ||
+          (currentDay === 4 && currentHour >= 8) ||
           currentDay === 5 ||
           currentDay === 6 ||
           currentDay === 0
-        ); // П'ятниця - неділя
+        );
       }
     }
 
-    return false; // У всіх інших випадках не видно
+    return false;
   }
 
-  // Функція для отримання номера тижня
   function getWeekNumber(date, keyDate = null) {
     const firstDayOfYear = keyDate
       ? new Date(keyDate.getFullYear(), 0, 1)
@@ -187,75 +231,92 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
     const daysSinceFirstDay = Math.floor((date - firstDayOfYear) / 86400000);
 
     const firstMonday = new Date(firstDayOfYear);
-    while (firstMonday.getDay() !== 1) {
+    while (firstMonday.getDay() != 0) {
       firstMonday.setDate(firstMonday.getDate() + 1);
     }
 
     const daysSinceFirstMonday = Math.floor((date - firstMonday) / 86400000);
     const weekNumber = Math.ceil((daysSinceFirstMonday + 1) / 7);
 
-    if (firstDayOfYear.getDay() === 1) {
+    if (firstDayOfYear.getDay() != 1) {
       return weekNumber;
     } else {
       return weekNumber + 1;
     }
   }
 
-  // Ефект для отримання даних з AsyncStorage і Firebase
   useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const storedUserId = await AsyncStorage.getItem("userId");
-      const guildId = await AsyncStorage.getItem("guildId");
-      console.log("userId -", storedUserId);
-      console.log("guildId -", guildId);
-      setUserId(storedUserId); // Зберігаємо userId у стейт
-
-      if (storedUserId) {
-        const userRef = ref(database, `users/${storedUserId}`);
-        onValue(userRef, (snapshot) => {
-          const userData = snapshot.val();
-          console.log("Дані користувача з Firebase:", userData);
-          if (userData) {
-            if (userData.userName) {
-              setUserName(userData.userName); // Зберігаємо userName у стейт
-            }
-            if (guildId && userData[guildId] && userData[guildId].imageUrl) {
-              setUserImageUrl(userData[guildId].imageUrl); // Зберігаємо imageUrl у стейт
-            }
-
-            // Визначення ролі користувача
-            const userRoleFromData = userData[guildId]?.role; // Припустимо, що поле role є у даному користувача
-            setUserRole(userRoleFromData); // Встановлюємо роль користувача у стейт
-
-              // Виведення ролі користувача в консоль
-              console.log("Роль користувача:", userRoleFromData);
+    const fetchData = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem("userId");
+        const guildId = await AsyncStorage.getItem("guildId");
+        setUserId(storedUserId);
+  
+        if (storedUserId) {
+          const userRef = ref(database, `users/${storedUserId}`);
+          onValue(userRef, (snapshot) => {
+            const userData = snapshot.val();
+            if (userData) {
+              setUserName(userData.userName || "ВаДімкаА");
+              setUserImageUrl(
+                userData[guildId]?.imageUrl ||
+                "https://foe.scoredb.io/img/games/foe/avatars/addon_portrait_id_cop_egyptians_maatkare.jpg"
+              );
+              setUserRole(userData[guildId]?.role);
+  
+              const guildRef = ref(database, "guilds");
+              onValue(guildRef, (guildSnapshot) => {
+                const guildData = guildSnapshot.val();
+                const worldNames = {};
+                const newAdditionalMenuOptions = [];
+  
+                Object.keys(userData).forEach((key) => {
+                  if (guildData[key] && guildData[key].worldName) {
+                    worldNames[key] = guildData[key].worldName;
+                  }
+                });
+  
+                const cleanedUserData = cleanData(userData);
+                const updatedUserData = addWorldName(cleanedUserData, worldNames);
+  
+                // Зберігаємо тимчасові дані у стан
+                setTempData(updatedUserData);
+  
+                Object.keys(updatedUserData).forEach((key) => {
+                  if (updatedUserData[key]?.worldName && updatedUserData[key]?.imageUrl) {
+                    newAdditionalMenuOptions.push({
+                      text: updatedUserData[key].worldName,
+                      icon: (
+                        <Image
+                          source={{ uri: updatedUserData[key].imageUrl }}
+                          style={styles.roundIcon}
+                        />
+                      ),
+                    });
+                  }
+                });
+  
+                setAdditionalMenuOptions(newAdditionalMenuOptions);
+              });
             }
           });
-
-          // Отримання даних гільдії з гілки guilds
+  
           const guildRef = ref(database, `guilds/${guildId}`);
           onValue(guildRef, (snapshot) => {
             const guildData = snapshot.val();
-            console.log("Дані гільдії з Firebase:", guildData); // Виведення даних гільдії в консоль
-
-          // Отримання wordName з guildData і оновлення стану
-          const wordNameFromGuildData = guildData["worldName"]; // Припустимо, що wordName доступний у guildData
-          setWordName(wordNameFromGuildData); // Встановлення значення wordName
-        });
+            setWordName(guildData?.worldName || "");
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching data from AsyncStorage or Firebase:", error);
       }
-    } catch (error) {
-      console.error("Error fetching data from AsyncStorage or Firebase:", error);
-    }
-  };
+    };
+  
+    fetchData();
+  }, []);
+  
+  
 
-  fetchData();
-}, []);
-
-
-
-
-  // Обробник тапу на Overlay для закриття меню
   const handleOverlayPress = () => {
     if (menuOpen) {
       toggleMenu();
@@ -280,31 +341,59 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
           <View style={styles.header}>
             <View style={styles.profileIcon}>
               <Image
-                source={{
-                  uri:
-                    userImageUrl ||
-                    "https://foe.scoredb.io/img/games/foe/avatars/addon_portrait_id_cop_egyptians_maatkare.jpg",
-                }}
+                source={{ uri: userImageUrl }}
                 style={styles.profileIcon}
               />
             </View>
             <View style={styles.profileDetails}>
-              <Text style={styles.profileName}>{userName || "ВаДімкаА"}</Text>
+              <Text style={styles.profileName}>{userName}</Text>
               <Text style={styles.profilePhone}>{wordName}</Text>
             </View>
           </View>
-
+  
           <ScrollView style={styles.optionsContainer}>
+            {additionalMenuOptions.map((option, index) => (
+              <React.Fragment key={`additional-${index}`}>
+                <TouchableOpacity
+                  onPress={() => handleOptionPress(index)}
+                  style={[
+                    styles.option,
+                    selectedOption === index &&
+                    styles.selectedOption,
+                  ]}
+                >
+                  <View style={styles.optionContentRow}>
+                    {option.icon && option.icon}
+                    <Text style={styles.optionText}>{option.text}</Text>
+                  </View>
+                </TouchableOpacity>
+              </React.Fragment>
+            ))}
+            <TouchableOpacity
+              onPress={() => handleOptionPress(additionalMenuOptions.length)}
+              style={[
+                styles.option,
+                selectedOption === additionalMenuOptions.length && styles.selectedOption,
+              ]}
+            >
+              <View style={styles.optionContentRow}>
+                <View style={styles.addWorldIcon}>
+                  <Text style={styles.addWorldIconText}>+</Text>
+                </View>
+                <Text style={styles.optionText}>Додати світ</Text>
+              </View>
+            </TouchableOpacity>
+            <Separator />
             {menuOptions.map(
               (option, index) =>
                 isOptionVisible(option, new Date()) && (
                   <React.Fragment key={index}>
                     {!(option.text === "Адміністративна панель" && !isGuildLeader(userRole)) && (
                       <TouchableOpacity
-                        onPress={() => handleOptionPress(index)}
+                        onPress={() => handleOptionPress(additionalMenuOptions.length + index + 1)}
                         style={[
                           styles.option,
-                          selectedOption === index && styles.selectedOption,
+                          selectedOption === additionalMenuOptions.length + index + 1 && styles.selectedOption,
                         ]}
                       >
                         <View style={styles.optionContentRow}>
@@ -317,6 +406,7 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
                   </React.Fragment>
                 )
             )}
+            
           </ScrollView>
         </View>
       </Animated.View>
@@ -324,7 +414,6 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
   );
 };
 
-// Стилі компонента
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -333,6 +422,29 @@ const styles = StyleSheet.create({
     width: 300,
     zIndex: 10,
   },
+  roundIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  addWorldIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'gray',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  oundIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  addWorldIconText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   header: {
     flexDirection: "column",
     alignItems: "flex-start",
@@ -340,22 +452,22 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   profileIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginRight: 20,
     overflow: "hidden",
   },
   profileDetails: {},
   profileName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
     color: "white",
   },
   profilePhone: {
     marginTop: 10,
     color: "#9ecbea",
-    fontSize: 18,
+    fontSize: 20,
   },
   optionsContainer: {
     marginTop: 20,
@@ -364,7 +476,7 @@ const styles = StyleSheet.create({
   option: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 15,
+    paddingVertical: 10,
     marginLeft: 0,
     width: "100%",
   },
@@ -398,4 +510,3 @@ const styles = StyleSheet.create({
 });
 
 export default Menu;
-
