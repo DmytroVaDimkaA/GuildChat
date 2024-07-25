@@ -15,6 +15,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ref, onValue } from "firebase/database";
 import { database } from "../firebaseConfig";
+import RNRestart from 'react-native-restart';
 
 // Import SVG icons
 import GB from "./ico/GB.svg";
@@ -156,6 +157,7 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
           // Збереження ключа у AsyncStorage
           await AsyncStorage.setItem("guildId", foundKey);
           console.log(`guildId successfully saved as: ${foundKey}`);
+          await reloadData(); // Оновлення даних після збереження
         } catch (error) {
           console.error("Error saving guildId to AsyncStorage:", error);
         }
@@ -170,8 +172,74 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
     setSelectedTitle(menuOptions[menuIndex].text);
     toggleMenu();
   };
+  
 
-
+  const reloadData = async () => {
+    try {
+      const storedUserId = await AsyncStorage.getItem("userId");
+      const guildId = await AsyncStorage.getItem("guildId");
+      setUserId(storedUserId);
+  
+      if (storedUserId) {
+        const userRef = ref(database, `users/${storedUserId}`);
+        onValue(userRef, (snapshot) => {
+          const userData = snapshot.val();
+          if (userData) {
+            setUserName(userData.userName || "ВаДімкаА");
+            setUserImageUrl(
+              userData[guildId]?.imageUrl ||
+              "https://foe.scoredb.io/img/games/foe/avatars/addon_portrait_id_cop_egyptians_maatkare.jpg"
+            );
+            setUserRole(userData[guildId]?.role);
+  
+            const guildRef = ref(database, "guilds");
+            onValue(guildRef, (guildSnapshot) => {
+              const guildData = guildSnapshot.val();
+              const worldNames = {};
+              const newAdditionalMenuOptions = [];
+  
+              Object.keys(userData).forEach((key) => {
+                if (guildData[key] && guildData[key].worldName) {
+                  worldNames[key] = guildData[key].worldName;
+                }
+              });
+  
+              const cleanedUserData = cleanData(userData);
+              const updatedUserData = addWorldName(cleanedUserData, worldNames);
+  
+              // Зберігаємо тимчасові дані у стан
+              setTempData(updatedUserData);
+  
+              Object.keys(updatedUserData).forEach((key) => {
+                if (updatedUserData[key]?.worldName && updatedUserData[key]?.imageUrl) {
+                  newAdditionalMenuOptions.push({
+                    text: updatedUserData[key].worldName,
+                    icon: (
+                      <Image
+                        source={{ uri: updatedUserData[key].imageUrl }}
+                        style={styles.roundIcon}
+                      />
+                    ),
+                  });
+                }
+              });
+  
+              setAdditionalMenuOptions(newAdditionalMenuOptions);
+            });
+          }
+        });
+  
+        const guildRef = ref(database, `guilds/${guildId}`);
+        onValue(guildRef, (snapshot) => {
+          const guildData = snapshot.val();
+          setWordName(guildData?.worldName || "");
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching data from AsyncStorage or Firebase:", error);
+    }
+  };
+  
 
   const addWorldName = (data, worldNames) => {
     if (typeof data !== "object" || data === null) return data;
