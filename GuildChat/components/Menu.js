@@ -15,7 +15,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ref, onValue } from "firebase/database";
 import { database } from "../firebaseConfig";
-import RNRestart from 'react-native-restart';
+import { MaterialIcons } from '@expo/vector-icons'; 
 
 // Import SVG icons
 import GB from "./ico/GB.svg";
@@ -142,6 +142,11 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
       backHandler.remove();
     };
   }, [menuOpen, toggleMenu, menuTranslateX, contentOpacity, overlayOpacity]);
+
+    const handleChevronPress = () => {
+      // Дії при натисканні на шеврон
+      console.log("Chevron pressed");
+    };
 
   const handleOptionPress = async (index) => {
     if (index < additionalMenuOptions.length) {
@@ -415,7 +420,14 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
             </View>
             <View style={styles.profileDetails}>
               <Text style={styles.profileName}>{userName}</Text>
-              <Text style={styles.profilePhone}>{wordName}</Text>
+              <View style={styles.profileContainer}>
+        
+          <Text style={styles.profilePhone}>{wordName}</Text>
+          <TouchableOpacity style={styles.chevronIcon} onPress={handleChevronPress}>
+          <MaterialIcons name="keyboard-arrow-down" size={24} color="#9ecbea" />
+        </TouchableOpacity>
+        
+      </View>
             </View>
           </View>
   
@@ -536,6 +548,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: "#9ecbea",
     fontSize: 20,
+    marginRight: 40, // додатковий відступ для шеврона
   },
   optionsContainer: {
     marginTop: 20,
@@ -574,6 +587,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginLeft: 20,
     gap: 10,
+  },
+  profileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%', // щоб контейнер займав всю ширину меню
+    paddingRight: 20, // відступ для правого краю
+  },
+
+  profilePhoneContainer: {
+    flexDirection: 'row',
+    alignItems: 'center', // це вирівняє шеврон по центру з текстом
+  },
+
+  chevronIcon: {
+    marginTop: 5,
+    //marginRight: 20,
   },
 });
 
