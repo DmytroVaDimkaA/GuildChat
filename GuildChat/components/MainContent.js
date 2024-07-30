@@ -43,7 +43,7 @@ const MainContent = ({ selectedComponent }) => {
     <SafeAreaView style={styles.safeArea}>
       <Header title={selectedTitle} toggleMenu={toggleMenu} />
       <View style={styles.container}>
-        {renderContent()}
+        
         <AnimatedMenu
           menuOpen={menuOpen}
           toggleMenu={toggleMenu}
