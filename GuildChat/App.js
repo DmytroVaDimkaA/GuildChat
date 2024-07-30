@@ -11,6 +11,7 @@ export default function App() {
   const [selectedOption, setSelectedOption] = useState("Сервер");
   const [userData, setUserData] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [selectedComponent, setSelectedComponent] = useState(null); // Додано
 
   useEffect(() => {
     fetch();
@@ -26,7 +27,6 @@ export default function App() {
 
   const fetch = async () => {
     try {
-      // await AsyncStorage.clear();
       const guildId = await AsyncStorage.getItem("guildId");
       const userId = await AsyncStorage.getItem("userId");
       console.log(guildId, userId);
@@ -40,11 +40,16 @@ export default function App() {
   };
 
   if (!checked) {
-    return;
+    return null;
   }
 
   if (userData) {
-    return <MainContent />;
+    return (
+      <MainContent 
+        selectedComponent={selectedComponent}
+        setSelectedComponent={setSelectedComponent}
+      />
+    );
   }
 
   return (

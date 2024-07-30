@@ -85,6 +85,9 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
   const [wordName, setWordName] = useState("");
   const [additionalMenuOptions, setAdditionalMenuOptions] = useState([]);
   const [tempData, setTempData] = useState({});
+  const [isAdditionalMenuVisible, setIsAdditionalMenuVisible] = useState(false); // Додано стан для видимості додаткового меню
+  const [additionalMenuHeight] = useState(new Animated.Value(0)); // Додано для анімації висоти
+  const [selectedComponent, setSelectedComponent] = useState(null);
 
   useEffect(() => {
     const newPanResponderInstance = PanResponder.create({
@@ -143,38 +146,44 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
     };
   }, [menuOpen, toggleMenu, menuTranslateX, contentOpacity, overlayOpacity]);
 
-    const handleChevronPress = () => {
-      // Дії при натисканні на шеврон
-      console.log("Chevron pressed");
-    };
+  const handleChevronPress = () => {
+    setIsAdditionalMenuVisible(!isAdditionalMenuVisible); // Перемикаємо стан видимості
+    const targetHeight = isAdditionalMenuVisible ? 0 : additionalMenuOptions.length * 50;
+    Animated.timing(additionalMenuHeight, {
+      toValue: targetHeight, // Встановлюємо нову висоту
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
 
   const handleOptionPress = async (index) => {
     if (index < additionalMenuOptions.length) {
-      // Логіка для additionalMenuOptions
       const selectedWorldName = additionalMenuOptions[index].text;
-  
-      // Пошук ключа у тимчасовому файлі
       const foundKey = Object.keys(tempData).find(key => tempData[key]?.worldName === selectedWorldName);
       if (foundKey) {
-        console.log(`Found Key for ${selectedWorldName}: ${foundKey}`);
-        
         try {
-          // Збереження ключа у AsyncStorage
           await AsyncStorage.setItem("guildId", foundKey);
-          console.log(`guildId successfully saved as: ${foundKey}`);
-          await reloadData(); // Оновлення даних після збереження
+          await reloadData();
         } catch (error) {
           console.error("Error saving guildId to AsyncStorage:", error);
         }
-      } else {
-        console.log(`World Name ${selectedWorldName} not found in temp data`);
       }
       return;
     }
-    // Обробка натискання для основного меню
-    const menuIndex = index - additionalMenuOptions.length - 1; // враховуємо додаткові пункти та сепаратор
+
+    const menuIndex = index - additionalMenuOptions.length - 1;
+    const selectedMenuOption = menuOptions[menuIndex];
     setSelectedOption(menuIndex);
-    setSelectedTitle(menuOptions[menuIndex].text);
+    setSelectedTitle(selectedMenuOption.text);
+
+    if (selectedMenuOption.text) {
+      setSelectedComponent(selectedMenuOption.text);
+      console.log(SelectedComponent);
+
+    } else {
+      console.error(`Component for menu option ${selectedMenuOption.text} is null or undefined`);
+    }
+
     toggleMenu();
   };
   
@@ -432,14 +441,49 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
           </View>
   
           <ScrollView style={styles.optionsContainer}>
-            {additionalMenuOptions.map((option, index) => (
-              <React.Fragment key={`additional-${index}`}>
+      <Animated.View style={{ height: additionalMenuHeight, overflow: 'hidden' }}>
+        {additionalMenuOptions.map((option, index) => (
+          <React.Fragment key={`additional-${index}`}>
+            <TouchableOpacity
+              onPress={() => handleOptionPress(index)}
+              style={[
+                styles.option,
+                selectedOption === index && styles.selectedOption,
+              ]}
+            >
+              <View style={styles.optionContentRow}>
+                {option.icon && option.icon}
+                <Text style={styles.optionText}>{option.text}</Text>
+              </View>
+            </TouchableOpacity>
+          </React.Fragment>
+        ))}
+        <TouchableOpacity
+          onPress={() => handleOptionPress(additionalMenuOptions.length)}
+          style={[
+            styles.option,
+            selectedOption === additionalMenuOptions.length && styles.selectedOption,
+          ]}
+        >
+          <View style={styles.optionContentRow}>
+            <View style={styles.addWorldIcon}>
+              <Text style={styles.addWorldIconText}>+</Text>
+            </View>
+            <Text style={styles.optionText}>Додати світ</Text>
+          </View>
+        </TouchableOpacity>
+        <Separator />
+      </Animated.View>
+      {menuOptions.map(
+        (option, index) =>
+          isOptionVisible(option, new Date()) && (
+            <React.Fragment key={index}>
+              {!(option.text === "Адміністративна панель" && !isGuildLeader(userRole)) && (
                 <TouchableOpacity
-                  onPress={() => handleOptionPress(index)}
+                  onPress={() => handleOptionPress(additionalMenuOptions.length + index + 1)}
                   style={[
                     styles.option,
-                    selectedOption === index &&
-                    styles.selectedOption,
+                    selectedOption === additionalMenuOptions.length + index + 1 && styles.selectedOption,
                   ]}
                 >
                   <View style={styles.optionContentRow}>
@@ -447,47 +491,13 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
                     <Text style={styles.optionText}>{option.text}</Text>
                   </View>
                 </TouchableOpacity>
-              </React.Fragment>
-            ))}
-            <TouchableOpacity
-              onPress={() => handleOptionPress(additionalMenuOptions.length)}
-              style={[
-                styles.option,
-                selectedOption === additionalMenuOptions.length && styles.selectedOption,
-              ]}
-            >
-              <View style={styles.optionContentRow}>
-                <View style={styles.addWorldIcon}>
-                  <Text style={styles.addWorldIconText}>+</Text>
-                </View>
-                <Text style={styles.optionText}>Додати світ</Text>
-              </View>
-            </TouchableOpacity>
-            <Separator />
-            {menuOptions.map(
-              (option, index) =>
-                isOptionVisible(option, new Date()) && (
-                  <React.Fragment key={index}>
-                    {!(option.text === "Адміністративна панель" && !isGuildLeader(userRole)) && (
-                      <TouchableOpacity
-                        onPress={() => handleOptionPress(additionalMenuOptions.length + index + 1)}
-                        style={[
-                          styles.option,
-                          selectedOption === additionalMenuOptions.length + index + 1 && styles.selectedOption,
-                        ]}
-                      >
-                        <View style={styles.optionContentRow}>
-                          {option.icon && option.icon}
-                          <Text style={styles.optionText}>{option.text}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    )}
-                    {index === 5 && <Separator />}
-                  </React.Fragment>
-                )
-            )}
-            
-          </ScrollView>
+              )}
+              {index === 5 && <Separator />}
+            </React.Fragment>
+          )
+      )}
+    </ScrollView>
+
         </View>
       </Animated.View>
     </>
@@ -500,7 +510,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#517da2",
     paddingTop: 20,
     width: 300,
-    zIndex: 10,
+    zIndex: 100,
   },
   roundIcon: {
     width: 24,
@@ -553,6 +563,7 @@ const styles = StyleSheet.create({
   optionsContainer: {
     marginTop: 20,
     backgroundColor: "#FFFFFF",
+    maxHeight: Dimensions.get("window").height * 0.8, 
   },
   option: {
     flexDirection: "row",
