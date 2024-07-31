@@ -20,6 +20,7 @@ const styles = StyleSheet.create({
   },
   win: {
 top: 100,
+
   },
 });
 

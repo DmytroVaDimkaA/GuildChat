@@ -72,7 +72,7 @@ const cleanData = (data) => {
 };
 
 // Menu component
-const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
+const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) => {
   const [menuTranslateX] = useState(new Animated.Value(-300));
   const [contentOpacity] = useState(new Animated.Value(1));
   const [overlayOpacity] = useState(new Animated.Value(0));
@@ -87,7 +87,7 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
   const [tempData, setTempData] = useState({});
   const [isAdditionalMenuVisible, setIsAdditionalMenuVisible] = useState(false); // Додано стан для видимості додаткового меню
   const [additionalMenuHeight] = useState(new Animated.Value(0)); // Додано для анімації висоти
-  const [selectedComponent, setSelectedComponent] = useState(null);
+  //const [selectedComponent, setSelectedComponent] = useState(null);
 
   useEffect(() => {
     const newPanResponderInstance = PanResponder.create({
@@ -170,22 +170,22 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle }) => {
       }
       return;
     }
-
+  
     const menuIndex = index - additionalMenuOptions.length - 1;
     const selectedMenuOption = menuOptions[menuIndex];
     setSelectedOption(menuIndex);
     setSelectedTitle(selectedMenuOption.text);
-
+  
     if (selectedMenuOption.text) {
-      setSelectedComponent(selectedMenuOption.text);
-      console.log(SelectedComponent);
-
+      setSelectedComponent(selectedMenuOption.text); // Переконайтеся, що використовуєте правильне ім'я змінної
+      console.log(selectedMenuOption.text); // Виводимо значення тексту обраного компоненту
     } else {
       console.error(`Component for menu option ${selectedMenuOption.text} is null or undefined`);
     }
-
+  
     toggleMenu();
   };
+  
   
 
   const reloadData = async () => {

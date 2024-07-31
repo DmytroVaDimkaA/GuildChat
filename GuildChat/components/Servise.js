@@ -18,6 +18,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   win: {
+    zIndex: 0,
 top: 100,
   },
 });

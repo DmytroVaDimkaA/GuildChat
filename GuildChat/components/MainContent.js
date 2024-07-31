@@ -10,14 +10,15 @@ import Servise from "./Servise";
 import Chat from "./Chat";
 import Azbook from "./Azbook";
 
-const MainContent = ({ selectedComponent }) => {
+const MainContent = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedComponent, setSelectedComponent] = useState(null);  // Змінили тут
   const [selectedTitle, setSelectedTitle] = useState("Заголовок приложения");
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
-  console.log(selectedComponent);
+
   const renderContent = () => {
     switch (selectedComponent) {
       case "Прокачка Величних Споруд":
@@ -47,8 +48,14 @@ const MainContent = ({ selectedComponent }) => {
         <AnimatedMenu
           menuOpen={menuOpen}
           toggleMenu={toggleMenu}
+          setSelectedComponent={setSelectedComponent}  // Змінили тут
           setSelectedTitle={setSelectedTitle}
+          style={styles.menus}
         />
+        <View style={styles.content}>
+          {renderContent()}
+        </View>
+        
       </View>
     </SafeAreaView>
   );
@@ -60,12 +67,22 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    flexDirection: 'row',
+  },
+  content: {
+    zIndex:0,
+    flex: 1,
+    //justifyContent: "center",
+    //alignItems: "center",
   },
   defaultContent: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
+  menus: {
+    zIndex: 100,
+  }
 });
 
 export default MainContent;
