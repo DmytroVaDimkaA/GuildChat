@@ -30,6 +30,7 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     left: 0,
     top: 0,
+    zIndex: 20, 
   },
   headerContent: {
     flexDirection: "row",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ref, onValue } from "firebase/database";
 import { database } from "../firebaseConfig";
-import { MaterialIcons } from '@expo/vector-icons'; 
+import { MaterialIcons } from '@expo/vector-icons';
 
 // Import SVG icons
 import GB from "./ico/GB.svg";
@@ -146,14 +146,29 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
     };
   }, [menuOpen, toggleMenu, menuTranslateX, contentOpacity, overlayOpacity]);
 
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   const handleChevronPress = () => {
     setIsAdditionalMenuVisible(!isAdditionalMenuVisible); // Перемикаємо стан видимості
-    const targetHeight = isAdditionalMenuVisible ? 0 : additionalMenuOptions.length * 50;
+    const targetHeight = isAdditionalMenuVisible ? 0 : additionalMenuOptions.length * 55;
     Animated.timing(additionalMenuHeight, {
       toValue: targetHeight, // Встановлюємо нову висоту
       duration: 300,
       useNativeDriver: false,
     }).start();
+    Animated.timing(rotateAnim, {
+      toValue: rotateAnim._value === 0 ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const rotateInterpolate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '-180deg'],
+  });
+
+  const animatedStyle = {
+    transform: [{ rotate: rotateInterpolate }],
   };
 
   const handleOptionPress = async (index) => {
@@ -170,30 +185,30 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
       }
       return;
     }
-  
+
     const menuIndex = index - additionalMenuOptions.length - 1;
     const selectedMenuOption = menuOptions[menuIndex];
     setSelectedOption(menuIndex);
     setSelectedTitle(selectedMenuOption.text);
-  
+
     if (selectedMenuOption.text) {
       setSelectedComponent(selectedMenuOption.text); // Переконайтеся, що використовуєте правильне ім'я змінної
       console.log(selectedMenuOption.text); // Виводимо значення тексту обраного компоненту
     } else {
       console.error(`Component for menu option ${selectedMenuOption.text} is null or undefined`);
     }
-  
+
     toggleMenu();
   };
-  
-  
+
+
 
   const reloadData = async () => {
     try {
       const storedUserId = await AsyncStorage.getItem("userId");
       const guildId = await AsyncStorage.getItem("guildId");
       setUserId(storedUserId);
-  
+
       if (storedUserId) {
         const userRef = ref(database, `users/${storedUserId}`);
         onValue(userRef, (snapshot) => {
@@ -205,25 +220,25 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
               "https://foe.scoredb.io/img/games/foe/avatars/addon_portrait_id_cop_egyptians_maatkare.jpg"
             );
             setUserRole(userData[guildId]?.role);
-  
+
             const guildRef = ref(database, "guilds");
             onValue(guildRef, (guildSnapshot) => {
               const guildData = guildSnapshot.val();
               const worldNames = {};
               const newAdditionalMenuOptions = [];
-  
+
               Object.keys(userData).forEach((key) => {
                 if (guildData[key] && guildData[key].worldName) {
                   worldNames[key] = guildData[key].worldName;
                 }
               });
-  
+
               const cleanedUserData = cleanData(userData);
               const updatedUserData = addWorldName(cleanedUserData, worldNames);
-  
+
               // Зберігаємо тимчасові дані у стан
               setTempData(updatedUserData);
-  
+
               Object.keys(updatedUserData).forEach((key) => {
                 if (updatedUserData[key]?.worldName && updatedUserData[key]?.imageUrl) {
                   newAdditionalMenuOptions.push({
@@ -237,12 +252,12 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
                   });
                 }
               });
-  
+
               setAdditionalMenuOptions(newAdditionalMenuOptions);
             });
           }
         });
-  
+
         const guildRef = ref(database, `guilds/${guildId}`);
         onValue(guildRef, (snapshot) => {
           const guildData = snapshot.val();
@@ -253,7 +268,7 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
       console.error("Error fetching data from AsyncStorage or Firebase:", error);
     }
   };
-  
+
 
   const addWorldName = (data, worldNames) => {
     if (typeof data !== "object" || data === null) return data;
@@ -333,7 +348,7 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
         const storedUserId = await AsyncStorage.getItem("userId");
         const guildId = await AsyncStorage.getItem("guildId");
         setUserId(storedUserId);
-  
+
         if (storedUserId) {
           const userRef = ref(database, `users/${storedUserId}`);
           onValue(userRef, (snapshot) => {
@@ -345,25 +360,25 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
                 "https://foe.scoredb.io/img/games/foe/avatars/addon_portrait_id_cop_egyptians_maatkare.jpg"
               );
               setUserRole(userData[guildId]?.role);
-  
+
               const guildRef = ref(database, "guilds");
               onValue(guildRef, (guildSnapshot) => {
                 const guildData = guildSnapshot.val();
                 const worldNames = {};
                 const newAdditionalMenuOptions = [];
-  
+
                 Object.keys(userData).forEach((key) => {
                   if (guildData[key] && guildData[key].worldName) {
                     worldNames[key] = guildData[key].worldName;
                   }
                 });
-  
+
                 const cleanedUserData = cleanData(userData);
                 const updatedUserData = addWorldName(cleanedUserData, worldNames);
-  
+
                 // Зберігаємо тимчасові дані у стан
                 setTempData(updatedUserData);
-  
+
                 Object.keys(updatedUserData).forEach((key) => {
                   if (updatedUserData[key]?.worldName && updatedUserData[key]?.imageUrl) {
                     newAdditionalMenuOptions.push({
@@ -377,12 +392,12 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
                     });
                   }
                 });
-  
+
                 setAdditionalMenuOptions(newAdditionalMenuOptions);
               });
             }
           });
-  
+
           const guildRef = ref(database, `guilds/${guildId}`);
           onValue(guildRef, (snapshot) => {
             const guildData = snapshot.val();
@@ -393,11 +408,11 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
         console.error("Error fetching data from AsyncStorage or Firebase:", error);
       }
     };
-  
+
     fetchData();
   }, []);
-  
-  
+
+
 
   const handleOverlayPress = () => {
     if (menuOpen) {
@@ -430,73 +445,75 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
             <View style={styles.profileDetails}>
               <Text style={styles.profileName}>{userName}</Text>
               <View style={styles.profileContainer}>
-        
-          <Text style={styles.profilePhone}>{wordName}</Text>
-          <TouchableOpacity style={styles.chevronIcon} onPress={handleChevronPress}>
-          <MaterialIcons name="keyboard-arrow-down" size={24} color="#9ecbea" />
-        </TouchableOpacity>
-        
-      </View>
-            </View>
-          </View>
-  
-          <ScrollView style={styles.optionsContainer}>
-      <Animated.View style={{ height: additionalMenuHeight, overflow: 'hidden' }}>
-        {additionalMenuOptions.map((option, index) => (
-          <React.Fragment key={`additional-${index}`}>
-            <TouchableOpacity
-              onPress={() => handleOptionPress(index)}
-              style={[
-                styles.option,
-                selectedOption === index && styles.selectedOption,
-              ]}
-            >
-              <View style={styles.optionContentRow}>
-                {option.icon && option.icon}
-                <Text style={styles.optionText}>{option.text}</Text>
-              </View>
-            </TouchableOpacity>
-          </React.Fragment>
-        ))}
-        <TouchableOpacity
-          onPress={() => handleOptionPress(additionalMenuOptions.length)}
-          style={[
-            styles.option,
-            selectedOption === additionalMenuOptions.length && styles.selectedOption,
-          ]}
-        >
-          <View style={styles.optionContentRow}>
-            <View style={styles.addWorldIcon}>
-              <Text style={styles.addWorldIconText}>+</Text>
-            </View>
-            <Text style={styles.optionText}>Додати світ</Text>
-          </View>
-        </TouchableOpacity>
-        <Separator />
-      </Animated.View>
-      {menuOptions.map(
-        (option, index) =>
-          isOptionVisible(option, new Date()) && (
-            <React.Fragment key={index}>
-              {!(option.text === "Адміністративна панель" && !isGuildLeader(userRole)) && (
-                <TouchableOpacity
-                  onPress={() => handleOptionPress(additionalMenuOptions.length + index + 1)}
-                  style={[
-                    styles.option,
-                    selectedOption === additionalMenuOptions.length + index + 1 && styles.selectedOption,
-                  ]}
-                >
-                  <View style={styles.optionContentRow}>
-                    {option.icon && option.icon}
-                    <Text style={styles.optionText}>{option.text}</Text>
-                  </View>
+
+                <Text style={styles.profilePhone}>{wordName}</Text>
+                <TouchableOpacity style={styles.chevronIcon} onPress={handleChevronPress}>
+                  <Animated.View style={animatedStyle}>
+                    <MaterialIcons name="keyboard-arrow-up" size={30} color="#9ecbea" />
+                  </Animated.View>
                 </TouchableOpacity>
-              )}
-              {index === 5 && <Separator />}
-            </React.Fragment>
-          )
-      )}
-    </ScrollView>
+
+              </View>
+            </View>
+          </View>
+
+          <ScrollView style={styles.optionsContainer}>
+            <Animated.View style={{ height: additionalMenuHeight, overflow: 'hidden' }}>
+              {additionalMenuOptions.map((option, index) => (
+                <React.Fragment key={`additional-${index}`}>
+                  <TouchableOpacity
+                    onPress={() => handleOptionPress(index)}
+                    style={[
+                      styles.option,
+                      selectedOption === index && styles.selectedOption,
+                    ]}
+                  >
+                    <View style={styles.optionContentRow}>
+                      {option.icon && option.icon}
+                      <Text style={styles.optionText}>{option.text}</Text>
+                    </View>
+                  </TouchableOpacity>
+                </React.Fragment>
+              ))}
+              <TouchableOpacity
+                onPress={() => handleOptionPress(additionalMenuOptions.length)}
+                style={[
+                  styles.option,
+                  selectedOption === additionalMenuOptions.length && styles.selectedOption,
+                ]}
+              >
+                <View style={styles.optionContentRow}>
+                  <View style={styles.addWorldIcon}>
+                    <Text style={styles.addWorldIconText}>+</Text>
+                  </View>
+                  <Text style={styles.optionText}>Додати світ</Text>
+                </View>
+              </TouchableOpacity>
+              <Separator />
+            </Animated.View>
+            {menuOptions.map(
+              (option, index) =>
+                isOptionVisible(option, new Date()) && (
+                  <React.Fragment key={index}>
+                    {!(option.text === "Адміністративна панель" && !isGuildLeader(userRole)) && (
+                      <TouchableOpacity
+                        onPress={() => handleOptionPress(additionalMenuOptions.length + index + 1)}
+                        style={[
+                          styles.option,
+                          selectedOption === additionalMenuOptions.length + index + 1 && styles.selectedOption,
+                        ]}
+                      >
+                        <View style={styles.optionContentRow}>
+                          {option.icon && option.icon}
+                          <Text style={styles.optionText}>{option.text}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                    {index === 5 && <Separator />}
+                  </React.Fragment>
+                )
+            )}
+          </ScrollView>
 
         </View>
       </Animated.View>
@@ -563,7 +580,7 @@ const styles = StyleSheet.create({
   optionsContainer: {
     marginTop: 20,
     backgroundColor: "#FFFFFF",
-    maxHeight: Dimensions.get("window").height * 0.8, 
+    maxHeight: Dimensions.get("window").height * 0.9,
   },
   option: {
     flexDirection: "row",
@@ -579,8 +596,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: 0,
-    width: Dimensions.get("window").width,
-    height: Dimensions.get("window").height,
+    width: "100%",
+    height: "100%",
     backgroundColor: "black",
     opacity: 0.5,
     zIndex: 9,

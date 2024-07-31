@@ -12,7 +12,7 @@ import Azbook from "./Azbook";
 
 const MainContent = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedComponent, setSelectedComponent] = useState(null);  // Змінили тут
+  const [selectedComponent, setSelectedComponent] = useState(null); // Змінили тут
   const [selectedTitle, setSelectedTitle] = useState("Заголовок приложения");
 
   const toggleMenu = () => {
@@ -42,21 +42,20 @@ const MainContent = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header title={selectedTitle} toggleMenu={toggleMenu} />
       <View style={styles.container}>
-        
-        <AnimatedMenu
-          menuOpen={menuOpen}
-          toggleMenu={toggleMenu}
-          setSelectedComponent={setSelectedComponent}  // Змінили тут
-          setSelectedTitle={setSelectedTitle}
-          style={styles.menus}
-        />
-        <View style={styles.content}>
-          {renderContent()}
-        </View>
-        
+        <Header title={selectedTitle} toggleMenu={toggleMenu} />
+        <View style={styles.content}>{renderContent()}</View>
       </View>
+      {menuOpen && (
+        <View style={styles.menuOverlay}>
+          <AnimatedMenu
+            menuOpen={menuOpen}
+            toggleMenu={toggleMenu}
+            setSelectedComponent={setSelectedComponent} // Змінили тут
+            setSelectedTitle={setSelectedTitle}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -67,22 +66,23 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    flexDirection: 'row',
+    backgroundColor: "green",
   },
   content: {
-    zIndex:0,
     flex: 1,
-    //justifyContent: "center",
-    //alignItems: "center",
+    alignItems: 'center',
   },
   defaultContent: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
-  menus: {
-    zIndex: 100,
-  }
+  menuOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+  },
 });
 
 export default MainContent;
