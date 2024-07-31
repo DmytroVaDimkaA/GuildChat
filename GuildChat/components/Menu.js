@@ -149,7 +149,13 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const handleChevronPress = () => {
     setIsAdditionalMenuVisible(!isAdditionalMenuVisible); // Перемикаємо стан видимості
-    const targetHeight = isAdditionalMenuVisible ? 0 : additionalMenuOptions.length * 55;
+    if (additionalMenuOptions.length === 1) {
+      targetHeight = isAdditionalMenuVisible ? 0 : 100;
+    } if(additionalMenuOptions.length === 2) {
+      targetHeight = isAdditionalMenuVisible ? 0 : 80;
+    } else {
+      targetHeight = isAdditionalMenuVisible ? 0 : additionalMenuOptions.length * 55;
+    }
     Animated.timing(additionalMenuHeight, {
       toValue: targetHeight, // Встановлюємо нову висоту
       duration: 300,
