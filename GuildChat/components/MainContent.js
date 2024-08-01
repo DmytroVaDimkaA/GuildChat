@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SafeAreaView, View, StyleSheet } from "react-native";
+import { SafeAreaView, View, StyleSheet, ScrollView } from "react-native";
 import Header from "./Header";
 import AnimatedMenu from "./Menu";
 import GB from "./GB";
@@ -12,7 +12,7 @@ import Azbook from "./Azbook";
 
 const MainContent = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedComponent, setSelectedComponent] = useState(null); // Змінили тут
+  const [selectedComponent, setSelectedComponent] = useState(null);
   const [selectedTitle, setSelectedTitle] = useState("Заголовок приложения");
 
   const toggleMenu = () => {
@@ -44,14 +44,18 @@ const MainContent = () => {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <Header title={selectedTitle} toggleMenu={toggleMenu} />
-        <View style={styles.content}>{renderContent()}</View>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.content}>
+            {renderContent()}
+          </View>
+        </ScrollView>
       </View>
       {menuOpen && (
         <View style={styles.menuOverlay}>
           <AnimatedMenu
             menuOpen={menuOpen}
             toggleMenu={toggleMenu}
-            setSelectedComponent={setSelectedComponent} // Змінили тут
+            setSelectedComponent={setSelectedComponent}
             setSelectedTitle={setSelectedTitle}
           />
         </View>
@@ -68,9 +72,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "green",
   },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   content: {
     flex: 1,
+    width: "100%",
     alignItems: 'center',
+    justifyContent: 'center',
   },
   defaultContent: {
     flex: 1,
