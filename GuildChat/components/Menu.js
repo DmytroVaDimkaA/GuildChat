@@ -455,7 +455,7 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
                 <Text style={styles.profilePhone}>{wordName}</Text>
                 <TouchableOpacity style={styles.chevronIcon} onPress={handleChevronPress}>
                   <Animated.View style={animatedStyle}>
-                    <MaterialIcons name="keyboard-arrow-up" size={30} color="#9ecbea" />
+                    <MaterialIcons name="keyboard-arrow-down" size={30} color="#9ecbea" />
                   </Animated.View>
                 </TouchableOpacity>
 
