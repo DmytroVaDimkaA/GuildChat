@@ -150,9 +150,9 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
   const handleChevronPress = () => {
     setIsAdditionalMenuVisible(!isAdditionalMenuVisible); // Перемикаємо стан видимості
     if (additionalMenuOptions.length === 1) {
-      targetHeight = isAdditionalMenuVisible ? 0 : 100;
-    } if(additionalMenuOptions.length === 2) {
-      targetHeight = isAdditionalMenuVisible ? 0 : 80;
+      targetHeight = isAdditionalMenuVisible ? 0 : additionalMenuOptions.length * 100;
+    } else if (additionalMenuOptions.length === 2) {
+      targetHeight = isAdditionalMenuVisible ? 0 : additionalMenuOptions.length * 80;
     } else {
       targetHeight = isAdditionalMenuVisible ? 0 : additionalMenuOptions.length * 55;
     }
