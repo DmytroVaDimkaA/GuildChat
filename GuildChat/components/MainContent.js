@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { SafeAreaView, View, StyleSheet, ScrollView } from "react-native";
+import { SafeAreaView, View, StyleSheet } from "react-native";
 import Header from "./Header";
 import AnimatedMenu from "./Menu";
-import GB from "./GB";
+import GBScreen from "./GB/GBScreen";
 import Admin from "./Admin";
 import GVG from "./GVG";
 import Quant from "./Quant";
 import Servise from "./Servise";
-import Chat from "./Chat";
+import Chat from "./Chat/ChatScreen";
 import Azbook from "./Azbook";
 
 const MainContent = () => {
@@ -22,7 +22,7 @@ const MainContent = () => {
   const renderContent = () => {
     switch (selectedComponent) {
       case "Прокачка Величних Споруд":
-        return <GB />;
+        return <GBScreen />;
       case "Адміністративна панель":
         return <Admin />;
       case "Поле битви гільдій":
@@ -44,11 +44,9 @@ const MainContent = () => {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <Header title={selectedTitle} toggleMenu={toggleMenu} />
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.content}>
-            {renderContent()}
-          </View>
-        </ScrollView>
+        <View style={styles.content}>
+          {renderContent()}
+        </View>
       </View>
       {menuOpen && (
         <View style={styles.menuOverlay}>
@@ -72,15 +70,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "green",
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
   content: {
     flex: 1,
     width: "100%",
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   defaultContent: {
     flex: 1,

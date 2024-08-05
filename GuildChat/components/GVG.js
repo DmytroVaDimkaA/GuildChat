@@ -18,7 +18,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   win: {
-top: 100,
+    marginTop: 100,
+    flex: 1,
+    width: "100%",
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    backgroundColor: "white",
   },
 });
 
