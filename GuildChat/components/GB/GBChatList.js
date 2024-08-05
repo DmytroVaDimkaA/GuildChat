@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 
 const chatData = []; // Порожній список чатів
 
@@ -17,10 +18,9 @@ const GBChatList = ({ onSelectChat }) => {
         ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>} // Повідомлення про порожній список
       />
       <TouchableOpacity style={styles.fab} onPress={() => console.log('Додати новий чат')}>
-        <Image
-          source={{ uri: 'https://example.com/pencil-icon.png' }} // Заміни URI на фактичний шлях до іконки олівця
-          style={styles.fabIcon}
-        />
+      <View style={styles.icon}>
+        <FontAwesome name="pencil" size={26} color="#fff" style={styles.fabIcon} />
+      </View>
       </TouchableOpacity>
     </View>
   );
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#007bff',
+    backgroundColor: '#517da2',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
@@ -60,6 +60,11 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     tintColor: 'white',
+  },
+  icon: {
+    flex: 1,
+    marginTop: 15,
+    alignItems: 'center',
   },
 });
 
