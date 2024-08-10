@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import RoleSelectionScreen from "./components/RoleSelectionScreen";
 import AdminSettingsScreen from "./components/AdminSettingsScreen";
-import MainContent from "./components/MainContent";
+import MainContent from "./components/MainContent3";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import UserSettingsScreen from "./components/UserSettingsScreen";
 
