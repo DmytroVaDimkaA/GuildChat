@@ -1,11 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import FloatingActionButton from '../FloatingActionButton';
 
 const chatData = []; // Порожній список чатів
 
 const ChatList = ({ onSelectChat }) => {
+  const handleFabPress = () => {
+    console.log('Floating Action Button Pressed');
+    // Додайте сюди логіку для відкриття нового чату або меню
+  };
   return (
+    
     <View style={styles.container}>
       <FlatList
         data={chatData}
@@ -17,10 +23,8 @@ const ChatList = ({ onSelectChat }) => {
         keyExtractor={(item) => item.id}
         ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>} // Повідомлення про порожній список
       />
-      <TouchableOpacity style={styles.fab} onPress={() => console.log('Додати новий чат')}>
-      <View style={styles.icon}>
-        <FontAwesome name="pencil" size={26} color="#fff" style={styles.fabIcon} />
-      </View>
+      <TouchableOpacity onPress={() => console.log('Додати новий чат')}>
+      <FloatingActionButton onPress={handleFabPress} />
       </TouchableOpacity>
     </View>
   );
