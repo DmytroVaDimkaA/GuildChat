@@ -1,17 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import FloatingActionButton from '../FloatingActionButton';
+import { useNavigation } from '@react-navigation/native';
 
 const chatData = []; // Порожній список чатів
 
 const ChatList = ({ onSelectChat }) => {
+  const navigation = useNavigation();
+
   const handleFabPress = () => {
-    console.log('Floating Action Button Pressed');
-    // Додайте сюди логіку для відкриття нового чату або меню
+    navigation.navigate('GuildMembersList'); // Назва екрану в навігації
   };
   return (
-    
     <View style={styles.container}>
       <FlatList
         data={chatData}
@@ -23,9 +23,7 @@ const ChatList = ({ onSelectChat }) => {
         keyExtractor={(item) => item.id}
         ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>} // Повідомлення про порожній список
       />
-      <TouchableOpacity onPress={() => console.log('Додати новий чат')}>
       <FloatingActionButton onPress={handleFabPress} />
-      </TouchableOpacity>
     </View>
   );
 };
