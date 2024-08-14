@@ -32,8 +32,6 @@ function CustomDrawerContent(props) {
     );
 }
 
-
-
 export default function App() {
     return (
         <NavigationContainer>                  
@@ -78,8 +76,3 @@ const styles = StyleSheet.create({
         fontSize: 20
     }
 });
-
-
-
-
-

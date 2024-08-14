@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#517da2",
     paddingTop: 20,
-    width: 300,
+    width: 280,
     zIndex: 100,
   },
   roundIcon: {

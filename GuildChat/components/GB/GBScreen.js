@@ -3,8 +3,9 @@ import { View, StyleSheet, SafeAreaView } from 'react-native';
 import ChatList from './GBChatList'; // Компонент для відображення списку чатів
 import MessageList from './GBMessageList'; // Компонент для відображення повідомлень в чаті
 import MessageInput from './GBMessageInput'; // Компонент для введення нових повідомлень
+import Header from '../Header';
 
-const GBScreen = () => {
+const GBScreen = ({ navigation }) => {
   const [messages, setMessages] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null); // Додано для вибору чату
 
@@ -29,6 +30,7 @@ const GBScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* <Header title="Прокачка Величних Споруд" navigation={navigation} /> */}
       <View style={styles.content}>
         {selectedChat ? (
           <>
