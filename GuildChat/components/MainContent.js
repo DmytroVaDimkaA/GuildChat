@@ -170,7 +170,18 @@ const MainContent = () => {
           })}
           drawerContent={(props) => <CustomDrawerContent {...props} />}
         >
-          <Drawer.Screen name="Прокачка Величних Споруд" component={GBScreen} />
+          <Drawer.Screen 
+            name="Прока Величних Споруд" 
+            component={GBScreen}
+            options={{
+              //headerShown: false,
+              drawerLabel: 'Величні споруди',
+              title: 'Величні споруди',
+              drawerIcon: ({ color, size }) => (
+                  <GB width={size} height={size} fill={color} />
+              ),
+          }}
+          />
           <Drawer.Screen name="Адміністративна панель" component={Admin} />
           <Drawer.Screen name="Поле битви гільдій" component={GVG} />
           <Drawer.Screen name="Квантові вторгнення" component={Quant} />

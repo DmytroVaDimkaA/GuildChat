@@ -47,7 +47,10 @@ const AdminSelectScreen = ({
           `Дані гільдії оновлено в Firebase для гільдії з id: ${formattedGuildId}`
         );
 
-        // Додавання членів гільдії до гілки users
+        // Створення папки guildUsers
+        const guildUsersRef = ref(database, `guilds/${formattedGuildId}/guildUsers`);
+
+        // Додавання членів гільдії до гілки users і guildUsers
         await Promise.all(
           guildData.map(async (member) => {
             const userId = member.linkUrl.split("/").pop();
@@ -57,6 +60,12 @@ const AdminSelectScreen = ({
                 imageUrl: imageUrl,
                 role: userId === selectedUserId ? "guildLeader" : "member", // Визначення ролі
               },
+            };
+
+            // Данні для користувача в guildUsers
+            const userGuildUserData = {
+              userName: member.name,
+              imageUrl: imageUrl,
             };
 
             // Перевірка існування користувача
@@ -85,6 +94,13 @@ const AdminSelectScreen = ({
                 `Основні дані користувача оновлено в Firebase для користувача з userId: ${userId}`
               );
             }
+
+            // Додавання користувача до guildUsers
+            const userGuildUserRef = ref(database, `guilds/${formattedGuildId}/guildUsers/${userId}`);
+            await set(userGuildUserRef, userGuildUserData);
+            console.log(
+              `Дані користувача додано до guildUsers в Firebase для користувача з userId: ${userId}`
+            );
           })
         );
 
