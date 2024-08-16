@@ -5,13 +5,15 @@ import AdminSettingsScreen from "./components/AdminSettingsScreen";
 import MainContent from "./components/MainContent4";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import UserSettingsScreen from "./components/UserSettingsScreen";
+import { database } from './firebaseConfig';
+import { ref, get, child } from 'firebase/database';
 
 export default function App() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedOption, setSelectedOption] = useState("Сервер");
   const [userData, setUserData] = useState(false);
   const [checked, setChecked] = useState(false);
-  const [selectedComponent, setSelectedComponent] = useState(null); // Додано
+  const [selectedComponent, setSelectedComponent] = useState(null);
 
   useEffect(() => {
     fetch();
@@ -29,11 +31,17 @@ export default function App() {
     try {
       const guildId = await AsyncStorage.getItem("guildId");
       const userId = await AsyncStorage.getItem("userId");
-      console.log(guildId, userId);
+
+      // Перевірка в Firebase базі даних
       if (guildId && userId) {
-        setUserData(true);
+        const dbRef = ref(database);
+        const snapshot = await get(child(dbRef, `guildUsers/${guildId}/users/${userId}`));
+        if (snapshot.exists()) {
+          setUserData(true);
+        }
       }
-    } catch {
+    } catch (error) {
+      console.error("Error fetching data: ", error);
     } finally {
       setChecked(true);
     }
