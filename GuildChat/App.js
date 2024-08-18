@@ -1,25 +1,27 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, ActivityIndicator, Text } from "react-native";
 import RoleSelectionScreen from "./components/RoleSelectionScreen";
 import AdminSettingsScreen from "./components/AdminSettingsScreen";
 import MainContent from "./components/MainContent4";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import UserSettingsScreen from "./components/UserSettingsScreen";
-import { database } from './firebaseConfig';
-import { ref, get, child } from 'firebase/database';
+import { database } from "./firebaseConfig";
+import { ref, onValue } from "firebase/database";
 
 export default function App() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedOption, setSelectedOption] = useState("Сервер");
   const [userData, setUserData] = useState(false);
   const [checked, setChecked] = useState(false);
-  const [selectedComponent, setSelectedComponent] = useState(null);
+  const [loading, setLoading] = useState(true); // Додано стан завантаження
 
   useEffect(() => {
-    fetch();
+    console.log("Запуск завантаження даних");
+    fetchUserData();
   }, []);
 
   const handleRoleSelect = (role) => {
+    console.log("Обрана роль:", role);
     setSelectedRole(role);
   };
 
@@ -27,38 +29,59 @@ export default function App() {
     setSelectedOption(country.name);
   };
 
-  const fetch = async () => {
+  const fetchUserData = async () => {
     try {
       const guildId = await AsyncStorage.getItem("guildId");
       const userId = await AsyncStorage.getItem("userId");
-
-      // Перевірка в Firebase базі даних
+  
+      console.log("Знайдено дані:", guildId, userId);
+  
       if (guildId && userId) {
-        const dbRef = ref(database);
-        const snapshot = await get(child(dbRef, `guildUsers/${guildId}/users/${userId}`));
-        if (snapshot.exists()) {
-          setUserData(true);
-        }
+        const userRef = ref(database, `users/${userId}`);
+        onValue(userRef, (snapshot) => {
+          if (snapshot.exists()) {
+            console.log("Користувач знайдений у Firebase");
+            setUserData(true);
+          } else {
+            console.log("Користувач не знайдений у Firebase");
+            setUserData(false);
+          }
+          setLoading(false); // Завершуємо завантаження тут
+        });
+      } else {
+        console.log("Дані у AsyncStorage відсутні");
+        setUserData(false);
+        setLoading(false); // Завершуємо завантаження тут
       }
     } catch (error) {
-      console.error("Error fetching data: ", error);
+      console.error("Помилка при отриманні даних: ", error);
+      setLoading(false); // Завершуємо завантаження у разі помилки
     } finally {
       setChecked(true);
     }
   };
+  
+
+  if (loading) {
+    console.log("Відображення спіннера завантаження");
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
 
   if (!checked) {
+    console.log("Дані ще не перевірені");
     return null;
   }
 
   if (userData) {
-    return (
-      <MainContent 
-        selectedComponent={selectedComponent}
-        setSelectedComponent={setSelectedComponent}
-      />
-    );
+    console.log("Перехід до MainContent");
+    return <MainContent />;
   }
+
+  console.log("Відображення RoleSelectionScreen або User/Admin Settings");
 
   return (
     <View style={styles.container}>
@@ -68,10 +91,13 @@ export default function App() {
         <AdminSettingsScreen
           selectedOption={selectedOption}
           onCountryPress={handleCountryPressApp}
-          fetch={fetch}
+          onConfirm={() => setUserData(true)}
         />
       ) : (
-        <UserSettingsScreen fetch={fetch} />
+        <UserSettingsScreen
+          selectedOption={selectedOption}
+          onCountryPress={handleCountryPressApp}
+        />
       )}
     </View>
   );

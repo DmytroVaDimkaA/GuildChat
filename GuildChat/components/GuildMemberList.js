@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import firestore from '@react-native-firebase/firestore';
+import { getDatabase, ref, get, child } from 'firebase/database';
 
 const GuildMembersList = () => {
   const [members, setMembers] = useState([]);
@@ -10,29 +10,40 @@ const GuildMembersList = () => {
   useEffect(() => {
     const fetchGuildMembers = async () => {
       try {
-        // Отримуємо guildId з AsyncStorage
+        // Отримуємо guildId та userId з AsyncStorage
         const guildId = await AsyncStorage.getItem('guildId');
-        if (!guildId) throw new Error('guildId not found');
+        const userId = await AsyncStorage.getItem('userId');
 
-        // Отримуємо список користувачів з Firebase
-        const usersSnapshot = await firestore().collection('users').get();
+        if (!guildId || !userId) {
+          throw new Error('guildId або userId не знайдено');
+        }
 
-        // Фільтруємо та формуємо список членів гільдії
-        const guildMembers = [];
-        usersSnapshot.forEach((doc) => {
-          const userData = doc.data();
-          if (userData[guildId]) {
-            guildMembers.push({
-              id: doc.id,
-              name: userData.userName,
-              avatarUrl: userData[guildId].imageUrl,
-            });
-          }
-        });
+        // Отримуємо посилання на базу даних Firebase
+        const db = getDatabase();
+        const guildRef = ref(db, `guilds/${guildId}/guildUsers`);
 
-        setMembers(guildMembers);
+        // Отримуємо дані з гілки guildUsers, крім гілки з userId
+        const snapshot = await get(guildRef);
+
+        if (snapshot.exists()) {
+          const guildMembers = [];
+          snapshot.forEach((childSnapshot) => {
+            if (childSnapshot.key !== userId) {
+              const memberData = childSnapshot.val();
+              guildMembers.push({
+                id: childSnapshot.key,
+                name: memberData.userName,
+                avatarUrl: memberData.imageUrl,
+              });
+            }
+          });
+
+          setMembers(guildMembers);
+        } else {
+          console.error('Дані не знайдено');
+        }
       } catch (error) {
-        console.error('Error fetching guild members: ', error);
+        console.error('Помилка при отриманні членів гільдії: ', error);
       } finally {
         setLoading(false);
       }

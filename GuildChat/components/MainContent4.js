@@ -16,15 +16,23 @@ import Chat from "./ico/Chat.svg";
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
 
+const defaultHeaderOptions = {
+    headerStyle: {
+      backgroundColor: '#517da2',  // Задає зелений колір хедера
+    },
+    headerTintColor: '#fff', // Колір тексту в хедері
+  };
+
 function ChatStack() {
     return (
-        <Stack.Navigator>
+        <Stack.Navigator screenOptions={defaultHeaderOptions}>
             <Stack.Screen
                 name="ChatScreen"
                 component={ChatScreen}
                 options={{
                     title: 'Альтанка',
-                    headerLeft: () => <DrawerToggleButton tintColor="black" />,
+                    headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
+
                 }}
             />
             <Stack.Screen 
@@ -40,13 +48,13 @@ function ChatStack() {
 
 function GBStack() {
     return (
-        <Stack.Navigator>
+        <Stack.Navigator screenOptions={defaultHeaderOptions}>
             <Stack.Screen
                 name="GBScreen"
                 component={GBScreen}
                 options={{
                     title: 'Прокачка Величних Споруд',
-                    headerLeft: () => <DrawerToggleButton tintColor="black" />,
+                    headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
                 }}
             />
         </Stack.Navigator>
@@ -100,7 +108,7 @@ function CustomDrawerContent(props) {
     }, []);
 
     return (
-        <DrawerContentScrollView {...props}>
+        <DrawerContentScrollView {...props} style={styles.drawerContent}>
             <View>
                 <View style={styles.header}>
                     {imageUrl ? (
@@ -111,11 +119,7 @@ function CustomDrawerContent(props) {
                     ) : null}
                     <Text style={styles.guildName}>{guildName}</Text>
                     <Text style={styles.userName}>{userName}</Text>
-                    <TouchableOpacity style={styles.chevronIcon}>
-                        <Animated.View>
-                            <MaterialIcons name="keyboard-arrow-down" size={30} color="#9ecbea" />
-                        </Animated.View>
-                    </TouchableOpacity>
+                    
                 </View>
                 <View style={styles.worldselect}></View>
             </View>
@@ -158,6 +162,9 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+    drawerContent: {
+        //width: 300, // Встановіть бажану ширину меню тут
+      },
     header: {
         height: 200,
         backgroundColor: '#517da2',
@@ -168,11 +175,6 @@ const styles = StyleSheet.create({
         marginVertical: 20,
     },
     worldselect: {},
-    stripText: {
-        color: 'white',
-        fontSize: 20,
-        marginTop: 10,
-    },
     profileImage: {
         width: 80,
         height: 80,
@@ -190,9 +192,5 @@ const styles = StyleSheet.create({
         color: "#9ecbea",
         fontSize: 20,
         marginRight: 40, // додатковий відступ для шеврона
-    },
-    chevronIcon: {
-        marginTop: 5,
-        //marginRight: 20,
     },
 });
