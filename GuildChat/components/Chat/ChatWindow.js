@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const ChatWindow = ({ route, navigation }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const { chatId, initialMessage, chatName, isGroupChat } = route.params || {};
+  const { chatId, initialMessage, isGroupChat } = route.params || {};
   const [userId, setUserId] = useState(null);
   const [guildId, setGuildId] = useState(null);
 
@@ -24,6 +24,24 @@ const ChatWindow = ({ route, navigation }) => {
 
     fetchUserIdAndGuildId();
   }, []);
+
+  // Fetching chat name from Firebase
+  useEffect(() => {
+    if (chatId && guildId) {
+      const db = getDatabase();
+      const chatRef = ref(db, `guilds/${guildId}/chats/${chatId}/name`);
+
+      onValue(chatRef, (snapshot) => {
+        const chatName = snapshot.val();
+        console.log('Chat Name:', chatName); // Виводимо назву чату в консоль
+        if (chatName) {
+          navigation.setOptions({ 
+            title: isGroupChat ? chatName : `Chat with ${chatName}`,
+          });
+        }
+      });
+    }
+  }, [chatId, guildId, isGroupChat, navigation]);
 
   useEffect(() => {
     const fetchMessages = () => {
@@ -50,11 +68,6 @@ const ChatWindow = ({ route, navigation }) => {
       handleSendMessage(); // Send the initial message if needed
     }
   }, [initialMessage]);
-
-  // Simplified Header Logic
-  useEffect(() => {
-    navigation.setOptions({ title: 'Test Title' }); // Static title for testing
-  }, [navigation]);
 
   const handleSendMessage = async () => {
     if (newMessage.trim() === '') return;
