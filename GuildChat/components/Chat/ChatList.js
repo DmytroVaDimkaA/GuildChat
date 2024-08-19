@@ -3,20 +3,23 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native
 import FloatingActionButton from '../FloatingActionButton';
 import { useNavigation } from '@react-navigation/native';
 
-const chatData = []; // Порожній список чатів
-
-const ChatList = ({ onSelectChat }) => {
+const ChatList = ({ chats }) => {
   const navigation = useNavigation();
 
   const handleFabPress = () => {
     navigation.navigate('GuildMembersList'); // Назва екрану в навігації
   };
+
+  const handleChatSelect = (chat) => {
+    navigation.navigate('ChatWindow', { chatId: chat.id });
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
-        data={chatData}
+        data={chats}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.chatItem} onPress={() => onSelectChat(item)}>
+          <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelect(item)}>
             <Text style={styles.chatName}>{item.name}</Text>
           </TouchableOpacity>
         )}

@@ -2,7 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 
-const chatData = []; // Порожній список чатів
+const chatData = [
+  { id: '1', name: 'Прокачка Величних Споруд' },
+  // Додайте інші чати сюди
+];
 
 const GBChatList = ({ onSelectChat }) => {
   return (
@@ -15,12 +18,12 @@ const GBChatList = ({ onSelectChat }) => {
           </TouchableOpacity>
         )}
         keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>} // Повідомлення про порожній список
+        ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>}
       />
       <TouchableOpacity style={styles.fab} onPress={() => console.log('Додати новий чат')}>
-      <View style={styles.icon}>
-        <FontAwesome name="pencil" size={26} color="#fff" style={styles.fabIcon} />
-      </View>
+        <View style={styles.icon}>
+          <FontAwesome name="pencil" size={26} color="#fff" style={styles.fabIcon} />
+        </View>
       </TouchableOpacity>
     </View>
   );

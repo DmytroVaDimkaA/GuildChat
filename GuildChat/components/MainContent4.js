@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, Image, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, Text, Image, TouchableOpacity, Animated, SafeAreaView } from 'react-native';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerToggleButton } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
@@ -8,8 +8,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ref, getDatabase, get } from "firebase/database";
 import { MaterialIcons } from '@expo/vector-icons';
 import GBScreen from "./GB/GBScreen";
+import MyGB from './GB/MyGB'; // Замініть на ваш шлях
 import GuildMembersList from "./GuildMemberList";
 import ChatScreen from "./Chat/ChatScreen";
+import ChatWindow from './Chat/ChatWindow';
 import GB from "./ico/GB.svg";
 import Chat from "./ico/Chat.svg";
 
@@ -42,6 +44,7 @@ function ChatStack() {
                     title: 'Нове повідомлення',
                 }}
             />
+             <Stack.Screen name="ChatWindow" component={ChatWindow} />
         </Stack.Navigator>
     );
 }
@@ -49,6 +52,7 @@ function ChatStack() {
 function GBStack() {
     return (
         <Stack.Navigator screenOptions={defaultHeaderOptions}>
+           
             <Stack.Screen
                 name="GBScreen"
                 component={GBScreen}
@@ -57,7 +61,13 @@ function GBStack() {
                     headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
                 }}
             />
+            <Stack.Screen 
+                name="MyGB" 
+                component={MyGB} 
+                options={{ title: 'Мої Величні Споруди' }} 
+            />
         </Stack.Navigator>
+        
     );
 }
 

@@ -46,8 +46,8 @@ const menuOptions = [
     icon: <Quant width="18" height="18" fill="#8C9093" />,
     keyDate: new Date(2024, 2, 21),
   },
-  { text: "Сервіси", icon: <Servise width="18" height="18" fill="#8C9093" /> },
-  { text: "Альтанка", icon: <Chat width="18" height="18" fill="#8C9093" /> },
+  { text: "Сервіси", icon: <Servise width="18" height="18" fill="#000" /> },
+  { text: "Альтанка", icon: <Chat width="18" height="18" fill="red" /> },
   { text: "Абетка", icon: <Azbook width="18" height="18" fill="#8C9093" /> },
   {
     text: "Налаштування",

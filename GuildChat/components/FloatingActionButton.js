@@ -17,17 +17,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    marginBottom: 16,
-    marginRight: 16,
+    marginBottom: 20,
+    marginRight: 20,
   },
   fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#007AFF', // Синій колір, як у Telegram
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#517da2', // Синій колір, як у Telegram
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4, // Тінь на Android
+    elevation: 8, // Тінь на Android
     shadowColor: '#000', // Тінь на iOS
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

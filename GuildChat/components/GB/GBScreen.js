@@ -23,14 +23,18 @@ const GBScreen = ({ navigation }) => {
   };
 
   const handleSelectChat = (chat) => {
-    setSelectedChat(chat);
-    // Завантажити повідомлення для вибраного чату
-    // Приклад: setMessages(fetchMessagesForChat(chat.id));
+    if (chat.name === "Прокачка Величних Споруд") {
+      navigation.navigate('MyGB'); // Навігація до MyGB
+    } else {
+      setSelectedChat(chat);
+      // Завантажити повідомлення для вибраного чату
+      // Приклад: setMessages(fetchMessagesForChat(chat.id));
+    }
   };
+  
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* <Header title="Прокачка Величних Споруд" navigation={navigation} /> */}
       <View style={styles.content}>
         {selectedChat ? (
           <>

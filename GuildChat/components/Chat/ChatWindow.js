@@ -2,15 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TextInput, Button } from 'react-native';
 import { getDatabase, ref, onValue, push, set } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
 
-const ChatWindow = ({ route }) => {
+const ChatWindow = ({ route, navigation }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const { chatId, initialMessage } = route.params || {};
+  const { chatId, initialMessage, chatName, isGroupChat } = route.params || {};
   const [userId, setUserId] = useState(null);
   const [guildId, setGuildId] = useState(null);
-  const navigation = useNavigation(); 
 
   useEffect(() => {
     const fetchUserIdAndGuildId = async () => {
@@ -53,6 +51,11 @@ const ChatWindow = ({ route }) => {
     }
   }, [initialMessage]);
 
+  // Simplified Header Logic
+  useEffect(() => {
+    navigation.setOptions({ title: 'Test Title' }); // Static title for testing
+  }, [navigation]);
+
   const handleSendMessage = async () => {
     if (newMessage.trim() === '') return;
 
@@ -76,12 +79,7 @@ const ChatWindow = ({ route }) => {
   };
 
   const renderItem = ({ item }) => (
-    <View
-      style={[
-        styles.messageContainer,
-        item.senderId === userId ? styles.sentMessage : styles.receivedMessage,
-      ]}
-    >
+    <View style={[styles.messageContainer, item.senderId === userId ? styles.myMessage : styles.theirMessage]}>
       <Text style={styles.messageText}>{item.text}</Text>
     </View>
   );
@@ -115,23 +113,21 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     flex: 1,
-    padding: 10,
+    paddingHorizontal: 10,
   },
   messageContainer: {
+    marginVertical: 5,
     padding: 10,
     borderRadius: 10,
-    marginBottom: 10,
     maxWidth: '80%',
   },
-  sentMessage: {
-    backgroundColor: '#dcf8c6', // Light green for sent messages
+  myMessage: {
     alignSelf: 'flex-end',
+    backgroundColor: '#DCF8C6',
   },
-  receivedMessage: {
-    backgroundColor: '#ffffff', // White for received messages
+  theirMessage: {
     alignSelf: 'flex-start',
-    borderColor: '#e5e5e5',
-    borderWidth: 1,
+    backgroundColor: '#ECECEC',
   },
   messageText: {
     fontSize: 16,
@@ -146,11 +142,11 @@ const styles = StyleSheet.create({
     flex: 1,
     borderColor: '#ddd',
     borderWidth: 1,
-    borderRadius: 4,
-    padding: 8,
-    marginRight: 10,
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    fontSize: 16,
   },
 });
 
 export default ChatWindow;
-

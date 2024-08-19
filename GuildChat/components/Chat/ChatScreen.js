@@ -1,30 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, SafeAreaView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ref, onValue } from "firebase/database";
 import ChatList from './ChatList'; // Компонент для відображення списку чатів
 import MessageList from './ChatMessageList'; // Компонент для відображення повідомлень в чаті
 import MessageInput from './ChatMessageInput'; // Компонент для введення нових повідомлень
+import { database } from '../../firebaseConfig'; // Імпорт Firebase конфігурації
 
 const ChatScreen = () => {
-  const [messages, setMessages] = useState([]);
-  const [selectedChat, setSelectedChat] = useState(null); // Додано для вибору чату
+  const [chats, setChats] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [guildId, setGuildId] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
-    // Завантаження початкових повідомлень із сервера або бази даних
-    // Приклад: setMessages(fetchMessagesFromServer());
+    // Завантаження guildId та userId з AsyncStorage
+    const fetchUserData = async () => {
+      const storedGuildId = await AsyncStorage.getItem('guildId');
+      const storedUserId = await AsyncStorage.getItem('userId');
+      setGuildId(storedGuildId);
+      setUserId(storedUserId);
+    };
+
+    fetchUserData();
   }, []);
 
-  const handleSendMessage = (message) => {
-    // Надіслати повідомлення на сервер або до бази даних
-    // Приклад: sendMessageToServer(message);
-   
-    // Додати повідомлення до локального стану
-    setMessages([...messages, { id: messages.length.toString(), text: message }]);
-  };
+  useEffect(() => {
+    if (guildId && userId) {
+      const chatsRef = ref(database, `guilds/${guildId}/chats`);
+      
+      // Зчитування чатів, де користувач є учасником
+      onValue(chatsRef, (snapshot) => {
+        const chatsData = snapshot.val();
+        const userChats = [];
+
+        if (chatsData) {
+          Object.keys(chatsData).forEach(chatId => {
+            const chat = chatsData[chatId];
+            if (chat.members && chat.members[userId]) {
+              userChats.push({ id: chatId, ...chat });
+            }
+          });
+        }
+
+        setChats(userChats);
+      });
+    }
+  }, [guildId, userId]);
 
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
-    // Завантажити повідомлення для вибраного чату
-    // Приклад: setMessages(fetchMessagesForChat(chat.id));
   };
 
   return (
@@ -32,11 +57,11 @@ const ChatScreen = () => {
       <View style={styles.content}>
         {selectedChat ? (
           <>
-            <MessageList messages={messages} />
-            <MessageInput onSendMessage={handleSendMessage} />
+            <MessageList messages={selectedChat.messages || []} />
+            <MessageInput onSendMessage={(message) => handleSendMessage(message, selectedChat.id)} />
           </>
         ) : (
-          <ChatList onSelectChat={handleSelectChat} /> // Відображення списку чатів
+          <ChatList chats={chats} onSelectChat={handleSelectChat} />
         )}
       </View>
     </SafeAreaView>
@@ -50,7 +75,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    marginTop: 100, // Якщо все ще потрібно опустити контент на 100 пікселів
+    marginTop: 100, // Якщо потрібно опустити контент на 100 пікселів
   },
 });
 
