@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons'; // Потрібно встановити react-native-vector-icons
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import FontAwesome from 'react-native-vector-icons/FontAwesome'; // Потрібно встановити react-native-vector-icons
 
-const FloatingActionButton = ({ onPress }) => {
+const FloatingActionButton = ({ onPress, iconName }) => {
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.fab} onPress={onPress}>
-        <Icon name="pencil" size={24} color="#fff" />
+        <FontAwesome name={iconName} size={24} color="#fff" />
       </TouchableOpacity>
     </View>
   );

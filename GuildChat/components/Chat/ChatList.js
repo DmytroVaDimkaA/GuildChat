@@ -26,7 +26,10 @@ const ChatList = ({ chats }) => {
         keyExtractor={(item) => item.id}
         ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>} // Повідомлення про порожній список
       />
-      <FloatingActionButton onPress={handleFabPress} />
+      <FloatingActionButton 
+        onPress={handleFabPress}  // Запуск функції handleFabPress
+        iconName="pencil"           // Іконка, яка буде відображатися
+      />
     </View>
   );
 };

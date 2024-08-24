@@ -5,84 +5,82 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ChatWindow = ({ route, navigation }) => {
   const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
-      const { chatId, initialMessage, isGroupChat } = route.params || {};
-        const [userId, setUserId] = useState(null);
-          const [guildId, setGuildId] = useState(null);
+  const [newMessage, setNewMessage] = useState('');
+  const { chatId, initialMessage, isGroupChat } = route.params || {};
+  const [userId, setUserId] = useState(null);
+  const [guildId, setGuildId] = useState(null);
 
-            useEffect(() => {
-                const fetchUserIdAndGuildId = async () => {
-                      try {
-                              const storedUserId = await AsyncStorage.getItem('userId');
-                                      const storedGuildId = await AsyncStorage.getItem('guildId');
-                                              setUserId(storedUserId);
-                                                      setGuildId(storedGuildId);
-                                                            } catch (error) {
-                                                                    console.error('Error fetching user or guild ID: ', error);
-                                                                          }
-                                                                              };
+  useEffect(() => {
+    const fetchUserIdAndGuildId = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem('userId');
+        const storedGuildId = await AsyncStorage.getItem('guildId');
+        setUserId(storedUserId);
+        setGuildId(storedGuildId);
+      } catch (error) {
+        console.error('Error fetching user or guild ID: ', error);
+      }
+    };
 
-                                                                                  fetchUserIdAndGuildId();
-                                                                                    }, []);
+    fetchUserIdAndGuildId();
+  }, []);
 
-                                                                                      // Fetching chat name from Firebase
-                                                                                        useEffect(() => {
-                                                                                            if (chatId && guildId) {
-                                                                                                  const db = getDatabase();
-                                                                                                        const chatRef = ref(db, `guilds/${guildId}/chats/${chatId}/name`);
+  // Fetching chat name from Firebase
+  useEffect(() => {
+    if (chatId && guildId) {
+      const db = getDatabase();
+      const chatRef = ref(db, `guilds/${guildId}/chats/${chatId}/name`);
 
-                                                                                                              onValue(chatRef, (snapshot) => {
-                                                                                                                      const chatName = snapshot.val();
-                                                                                                                              console.log('Chat Name:', chatName); // Виводимо назву чату в консоль
-                                                                                                                                      if (chatName) {
-                                                                                                                                                navigation.setOptions({ 
-                                                                                                                                                            title: isGroupChat ? chatName : `Chat with ${chatName}`,
-                                                                                                                                                                      });
-                                                                                                                                                                              }
-                                                                                                                                                                                    });
-                                                                                                                                                                                        }
-                                                                                                                                                                                          }, [chatId, guildId, isGroupChat, navigation]);
+      onValue(chatRef, (snapshot) => {
+        const chatName = snapshot.val();
+        console.log('Chat Name:', chatName); // Виводимо назву чату в консоль
+        if (chatName) {
+          navigation.setOptions({ 
+            title: isGroupChat ? chatName : `Chat with ${chatName}`,
+          });
+        }
+      });
+    }
+  }, [chatId, guildId, isGroupChat, navigation]);
 
-                                                                                                                                                                                            useEffect(() => {
-                                                                                                                                                                                                const fetchMessages = () => {
-                                                                                                                                                                                                      if (!chatId || !guildId) return;
+  useEffect(() => {
+    const fetchMessages = () => {
+      if (!chatId || !guildId) return;
 
-                                                                                                                                                                                                            const db = getDatabase();
-                                                                                                                                                                                                                  const messagesRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
+      const db = getDatabase();
+      const messagesRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
 
-                                                                                                                                                                                                                        onValue(messagesRef, (snapshot) => {
-                                                                                                                                                                                                                                const messagesData = snapshot.val() || {};
-                                                                                                                                                                                                                                        const messagesList = Object.keys(messagesData).map((key) => ({
-                                                                                                                                                                                                                                                  id: key,
-                                                                                                                                                                                                                                                            ...messagesData[key],
-                                                                                                                                                                                                                                                                    }));
-                                                                                                                                                                                                                                                                            setMessages(messagesList);
-                                                                                                                                                                                                                                                                                  });
-                                                                                                                                                                                                                                                                                      };
+      onValue(messagesRef, (snapshot) => {
+        const messagesData = snapshot.val() || {};
+        const messagesList = Object.keys(messagesData).map((key) => ({
+          id: key,
+          ...messagesData[key],
+        }));
+        setMessages(messagesList);
+      });
+    };
 
-                                                                                                                                                                                                                                                                                          fetchMessages();
-                                                                                                                                                                                                                                                                                            }, [chatId, guildId]);
+    fetchMessages();
+  }, [chatId, guildId]);
 
-                                                                                                                                                                                                                                                                                              useEffect(() => {
-                                                                                                                                                                                                                                                                                                  if (initialMessage) {
-                                                                                                                                                                                                                                                                                                        handleSendMessage(); // Send the initial message if needed
-                                                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                                                              }, [initialMessage]);
+  useEffect(() => {
+    if (initialMessage) {
+      handleSendMessage(); // Send the initial message if needed
+    }
+    
+  }, [initialMessage]);
 
-                                                                                                                                                                                                                                                                                                                const handleSendMessage = async () => {
-                                                                                                                                                                                                                                                                                                                    if (newMessage.trim() === '') return;
-
-                                                                                                                                                                                                                                                                                                                        try {
-                                                                                                                                                                                                                                                                                                                              const db = getDatabase();
-                                                                                                                                                                                                                                                                                                                                    if (!chatId || !userId || !guildId) throw new Error('Missing IDs');
-
-                                                                                                                                                                                                                                                                                                                                          const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
-                                                                                                                                                                                                                                                                                                                                                const newMessageRef = push(messageRef);
-
-                                                                                                                                                                                                                                                                                                                                                      await set(newMessageRef, {
-                                                                                                                                                                                                                                                                                                                                                              senderId: userId,
-                                                                                                                                                                                                                                                                                                                                                                      text: newMessage,
-                                                                                                                                                                                                                                                                                                                                                                              timestamp: Date.now(),
+  const handleSendMessage = async () => {
+    if (newMessage.trim() === '') return;
+    try {
+      const db = getDatabase();
+      if (!chatId || !userId || !guildId) throw new Error('Missing IDs');
+      const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
+      const newMessageRef = push(messageRef);
+      await set(newMessageRef, {
+        senderId: userId,
+        text: newMessage,
+                                                                                                                                                                    timestamp: Date.now(),
                                                                                                                                                                                                                                                                                                                                                                                     });
 
                                                                                                                                                                                                                                                                                                                                                                                           setNewMessage('');

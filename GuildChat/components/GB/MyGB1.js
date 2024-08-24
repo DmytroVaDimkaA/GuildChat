@@ -6,37 +6,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import Stepper from '../Stepper'; // Імпортуємо компонент степера
 
+// Компонент для відображення тексту з абзацами
+const ParagraphText = ({ text }) => {
+  return text.split("\n\n").map((para, index) => (
+    <Text key={index} style={{ marginBottom: 10 }}>{para}</Text>
+  ));
+};
+
 // Компонент для відображення бонусу
-const BonusView = ({ bonus }) => {
-    // Нормалізація тексту
-    const normalizedBonus = bonus
-      ? bonus
-          .replace(/\\n/g, '\n') // Замінюємо \\n на \n
-          .replace(/\r\n/g, '\n') // Замінюємо \r\n на \n
-          .replace(/\r/g, '\n') // Замінюємо \r на \n
-          .trim() // Обрізаємо пробіли на початку та в кінці
-      : '';
-  
-    // Розбиття на абзаци
-    const paragraphs = normalizedBonus.split('\n\n').map(paragraph => paragraph.trim());
-  
-    // Перевірка кількості абзаців
-    console.log('Paragraphs:', paragraphs);
-  
-    return (
-      <View style={styles.bonusContainer}>
-        {paragraphs.length === 0 ? (
-          <Text>No bonus information available</Text>
-        ) : (
-          paragraphs.map((paragraph, index) => (
-            <Text key={index} style={styles.buildBonus}>
-              {paragraph}
-            </Text>
-          ))
-        )}
-      </View>
-    );
-  };
+const BonusView = ({ bonus }) => (
+  <View style={styles.bonusContainer}>
+    <ParagraphText text={`${bonus}`} />
+  </View>
+);
 
 // Компонент для відображення решти інформації
 const DetailsView = ({ build }) => (
@@ -44,8 +26,7 @@ const DetailsView = ({ build }) => (
     {Object.keys(build).map((key, index) =>
       key !== 'id' && key !== 'bonus' && key !== 'buildingImage' && key !== 'buildingName' && (
         <View key={index} style={styles.detailContainer}>
-          <Text style={styles.detailKey}>{key}:</Text>
-          <Text style={styles.detailValue}>{JSON.stringify(build[key])}</Text>
+          <ParagraphText text={`${key}:\n\n${JSON.stringify(build[key])}`} />
         </View>
       )
     )}
@@ -86,7 +67,7 @@ const MyGB = () => {
 
             const mergedBuilds = buildsList.map(build => ({
               ...build,
-              ...(buildingsData[build.id] || {})
+              ...buildingsData[build.id] || {}
             }));
 
             setGreatBuilds(mergedBuilds);
@@ -153,7 +134,7 @@ const MyGB = () => {
                     <Text>Рівень:</Text>
                   </View>
                   <View style={styles.additionalLevelStepper}>
-                    <Stepper initialValue={build.level} step={1}  maxValue={200} />
+                    <Stepper initialValue={build.level} step={1} maxValue={200} />
                   </View>
                 </View>
               </View>
@@ -289,9 +270,7 @@ const styles = StyleSheet.create({
   buildBonus: {
     fontSize: 16,
     color: '#333',
-    textIndent: 10, // Додати відступ на початку кожного абзацу
   },
-
   detailContainer: {
     marginBottom: 5,
   },
