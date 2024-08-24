@@ -1,18 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { ref, set } from 'firebase/database';
+import { database } from '../firebaseConfig';
 
-const Stepper = ({ initialValue = 0, step = 1, maxValue = Infinity }) => {
+const Stepper = ({ initialValue = 0, step = 1, maxValue = Infinity, buildId, onValueChange }) => {
   const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
 
   const handleIncrement = () => {
     if (value + step <= maxValue) {
-      setValue(value + step);
+      const newValue = value + step;
+      setValue(newValue);
+      onValueChange(buildId, newValue);
     }
   };
 
   const handleDecrement = () => {
     if (value - step >= 0) {
-      setValue(value - step);
+      const newValue = value - step;
+      setValue(newValue);
+      onValueChange(buildId, newValue);
     }
   };
 
@@ -20,6 +30,7 @@ const Stepper = ({ initialValue = 0, step = 1, maxValue = Infinity }) => {
     const newValue = parseInt(text, 10);
     if (!isNaN(newValue) && newValue <= maxValue && newValue >= 0) {
       setValue(newValue);
+      onValueChange(buildId, newValue);
     }
   };
 
@@ -42,7 +53,6 @@ const Stepper = ({ initialValue = 0, step = 1, maxValue = Infinity }) => {
 };
 
 const styles = StyleSheet.create({
-  
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -76,4 +86,3 @@ const styles = StyleSheet.create({
 });
 
 export default Stepper;
-

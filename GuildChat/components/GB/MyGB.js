@@ -1,57 +1,121 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Image, TouchableOpacity } from 'react-native';
-import { ref, get } from 'firebase/database';
+import { ref, get, update } from 'firebase/database';
 import { database } from '../../firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import Stepper from '../Stepper'; // Імпортуємо компонент степера
 
 // Компонент для відображення бонусу
-const BonusView = ({ bonus }) => {
-    // Нормалізація тексту
-    const normalizedBonus = bonus
-      ? bonus
-          .replace(/\\n/g, '\n') // Замінюємо \\n на \n
-          .replace(/\r\n/g, '\n') // Замінюємо \r\n на \n
-          .replace(/\r/g, '\n') // Замінюємо \r на \n
-          .trim() // Обрізаємо пробіли на початку та в кінці
-      : '';
-  
-    // Розбиття на абзаци
-    const paragraphs = normalizedBonus.split('\n\n').map(paragraph => paragraph.trim());
-  
-    // Перевірка кількості абзаців
-    console.log('Paragraphs:', paragraphs);
-  
-    return (
-      <View style={styles.bonusContainer}>
-        {paragraphs.length === 0 ? (
-          <Text>No bonus information available</Text>
-        ) : (
-          paragraphs.map((paragraph, index) => (
-            <Text key={index} style={styles.buildBonus}>
-              {paragraph}
-            </Text>
-          ))
-        )}
-      </View>
-    );
-  };
+const BonusView = ({ bonus, build }) => {
+  const [parsedBonus, setParsedBonus] = useState('');
+
+  useEffect(() => {
+    // Функція для заміни закладок у тексті
+    const replaceBookmarks = async () => {
+      if (!bonus || !build) return;
+
+      try {
+        // Перевірка наявності build
+        if (!build.levelBase || !build.level) {
+          console.error('Invalid build data');
+          return;
+        }
+
+        // Формування URL для JSON файлу
+        const jsonFileURLNow = `${build.levelBase}${build.level}`;
+        
+        // Завантаження JSON файлу
+        const response = await fetch(jsonFileURLNow);
+        if (!response.ok) {
+          console.error('Failed to fetch JSON data');
+          return;
+        }
+        const data = await response.json();
+
+        // Отримання значень для заміни
+        const { rewards } = data.response;
+
+        // Регулярний вираз для знаходження закладок
+        const bookmarkPattern = /{([^{}]+)}/g;
+
+        // Замінюємо закладки на значення з JSON
+        const updatedBonus = bonus.replace(bookmarkPattern, (match, p1) => {
+          if (p1 === 'bookmark') return match; // Пропускаємо закладки з текстом "bookmark"
+          const keys = p1.split('/');
+          let value = data.response;
+          for (const key of keys) {
+            value = value[key];
+            if (value === undefined) return match;
+          }
+          return value !== undefined ? value : match;
+        });
+
+        setParsedBonus(updatedBonus);
+      } catch (error) {
+        console.error('Error fetching or processing JSON:', error);
+      }
+    };
+
+    replaceBookmarks();
+  }, [bonus, build]);
+
+  // Нормалізація тексту
+  const normalizedBonus = parsedBonus
+    ? parsedBonus
+        .replace(/\\n/g, '\n') // Замінюємо \\n на \n
+        .replace(/\r\n/g, '\n') // Замінюємо \r\n на \n
+        .replace(/\r/g, '\n') // Замінюємо \r на \n
+        .trim() // Обрізаємо пробіли на початку та в кінці
+    : '';
+
+  // Розбиття на абзаци
+  const paragraphs = normalizedBonus.split('\n\n').map(paragraph => paragraph.trim());
+
+  return (
+    <View style={styles.bonusContainer}>
+      {paragraphs.length === 0 ? (
+        <Text>No bonus information available</Text>
+      ) : (
+        paragraphs.map((paragraph, index) => (
+          <Text key={index} style={styles.buildBonus}>
+            {paragraph}
+          </Text>
+        ))
+      )}
+    </View>
+  );
+};
 
 // Компонент для відображення решти інформації
-const DetailsView = ({ build }) => (
-  <View style={styles.detailsContainer}>
-    {Object.keys(build).map((key, index) =>
-      key !== 'id' && key !== 'bonus' && key !== 'buildingImage' && key !== 'buildingName' && (
-        <View key={index} style={styles.detailContainer}>
-          <Text style={styles.detailKey}>{key}:</Text>
-          <Text style={styles.detailValue}>{JSON.stringify(build[key])}</Text>
-        </View>
-      )
-    )}
-  </View>
-);
+const DetailsView = ({ build }) => {
+  useEffect(() => {
+    if (build.levelBase !== undefined && build.level !== undefined) {
+      const baseURL = 'https://example.com/json/';
+      
+      // Конкатенація для поточного рівня
+      const jsonFileURLNow = `${baseURL}${build.levelBase}_level_${build.level}.json`;
+      console.log('Current JSON File URL:', jsonFileURLNow);
 
+      // Конкатенація для наступного рівня
+      const jsonFileURLNext = `${baseURL}${build.levelBase}_level_${build.level + 1}.json`;
+      console.log('Next JSON File URL:', jsonFileURLNext);
+    }
+  }, [build.levelBase, build.level]);
+
+  return (
+    <View style={styles.detailsContainer}>
+      {Object.keys(build).map((key, index) =>
+        key !== 'id' && key !== 'bonus' && key !== 'buildingImage' && key !== 'buildingName' && (
+          <View key={index} style={styles.detailContainer}>
+            <Text style={styles.detailKey}>{key}:</Text>
+            <Text style={styles.detailValue}>{JSON.stringify(build[key])}</Text>
+          </View>
+        )
+      )}
+    </View>
+  );
+};
 const MyGB = () => {
   const [greatBuilds, setGreatBuilds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,14 +155,12 @@ const MyGB = () => {
 
             setGreatBuilds(mergedBuilds);
           } else {
-            console.log('No greatBuildings data found');
             setGreatBuilds(Object.keys(buildData).map(key => ({
               id: key,
               ...buildData[key]
             })));
           }
         } else {
-          console.log('No greatBuild found for this user');
           setGreatBuilds([]);
         }
         setLoading(false);
@@ -116,6 +178,28 @@ const MyGB = () => {
 
   const handleToggle = (id) => {
     setExpandedBuildId(expandedBuildId === id ? null : id);
+  };
+
+  const handleValueChange = async (buildId, newValue) => {
+    try {
+      const storedGuildId = await AsyncStorage.getItem('guildId');
+      const storedUserId = await AsyncStorage.getItem('userId');
+
+      if (!storedGuildId || !storedUserId) {
+        throw new Error('Guild ID or User ID not found in AsyncStorage');
+      }
+
+      const buildRef = ref(database, `guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild/${buildId}`);
+      await update(buildRef, { level: newValue });
+
+      setGreatBuilds(prevBuilds =>
+        prevBuilds.map(build =>
+          build.id === buildId ? { ...build, level: newValue } : build
+        )
+      );
+    } catch (err) {
+      console.error('Error updating build level:', err);
+    }
   };
 
   if (loading) {
@@ -153,7 +237,13 @@ const MyGB = () => {
                     <Text>Рівень:</Text>
                   </View>
                   <View style={styles.additionalLevelStepper}>
-                    <Stepper initialValue={build.level} step={1}  maxValue={200} />
+                    <Stepper
+                      initialValue={build.level}
+                      step={1}
+                      maxValue={200}
+                      buildId={build.id}
+                      onValueChange={handleValueChange}
+                    />
                   </View>
                 </View>
               </View>
@@ -167,7 +257,7 @@ const MyGB = () => {
             </TouchableOpacity>
             {expandedBuildId === build.id && (
               <>
-                <BonusView bonus={build.bonus} />
+                <BonusView bonus={build.bonus} build={build} />
                 <DetailsView build={build} />
               </>
             )}
