@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Image, TouchableOpacity, Modal } from 'react-native';
 import { ref, get, update } from 'firebase/database';
 import { database } from '../../firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import Stepper from '../Stepper'; // Імпортуємо компонент степера
+import FloatingActionButton from '../FloatingActionButton';
 
 // Компонент для відображення бонусу
 const BonusView = ({ bonus, build }) => {
   const [parsedBonus, setParsedBonus] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [tooltipContent, setTooltipContent] = useState('');
+
+  
 
   useEffect(() => {
     // Функція для заміни закладок у тексті
@@ -33,22 +39,18 @@ const BonusView = ({ bonus, build }) => {
         }
         const data = await response.json();
 
-        // Отримання значень для заміни
-        const { rewards } = data.response;
-
         // Регулярний вираз для знаходження закладок
         const bookmarkPattern = /{([^{}]+)}/g;
 
         // Замінюємо закладки на значення з JSON
         const updatedBonus = bonus.replace(bookmarkPattern, (match, p1) => {
-          if (p1 === 'bookmark') return match; // Пропускаємо закладки з текстом "bookmark"
           const keys = p1.split('/');
           let value = data.response;
           for (const key of keys) {
             value = value[key];
             if (value === undefined) return match;
           }
-          return value !== undefined ? value : match;
+          return value !== undefined ? `<b><u>${value}:${p1}</u></b>` : match;
         });
 
         setParsedBonus(updatedBonus);
@@ -72,6 +74,11 @@ const BonusView = ({ bonus, build }) => {
   // Розбиття на абзаци
   const paragraphs = normalizedBonus.split('\n\n').map(paragraph => paragraph.trim());
 
+  const handlePress = (tooltipText) => {
+    setTooltipContent(tooltipText);
+    setModalVisible(true);
+  };
+
   return (
     <View style={styles.bonusContainer}>
       {paragraphs.length === 0 ? (
@@ -79,13 +86,39 @@ const BonusView = ({ bonus, build }) => {
       ) : (
         paragraphs.map((paragraph, index) => (
           <Text key={index} style={styles.buildBonus}>
-            {paragraph}
+            {paragraph.split(/(<b><u>.*?<\/u><\/b>)/g).map((part, i) =>
+              /<b><u>.*<\/u><\/b>/.test(part) ? (
+                <TouchableOpacity key={i} onPress={() => handlePress(part.replace(/<\/?b>|<\/?u>/g, '').split(':')[1])}>
+                  <Text style={styles.highlightedText}>{part.replace(/<\/?b>|<\/?u>/g, '').split(':')[0]}</Text>
+                </TouchableOpacity>
+              ) : (
+                <Text key={i}>{part}</Text>
+              )
+            )}
           </Text>
         ))
       )}
+
+      {/* Модальне вікно для підказки */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.tooltipContainer}>
+            <Text style={styles.tooltipText}>{tooltipContent}</Text>
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.closeButton}>Закрити</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
+
 
 // Компонент для відображення решти інформації
 const DetailsView = ({ build }) => {
@@ -121,6 +154,7 @@ const MyGB = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedBuildId, setExpandedBuildId] = useState(null);
+  const navigation = useNavigation();
 
   useEffect(() => {
     const fetchGreatBuilds = async () => {
@@ -180,6 +214,10 @@ const MyGB = () => {
     setExpandedBuildId(expandedBuildId === id ? null : id);
   };
 
+  const handleFabPress = () => {
+    navigation.navigate('AddGBComponent'); // Перехід до AddGBComponent
+  };
+
   const handleValueChange = async (buildId, newValue) => {
     try {
       const storedGuildId = await AsyncStorage.getItem('guildId');
@@ -211,60 +249,69 @@ const MyGB = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {greatBuilds.length === 0 ? (
-        <Text>No great builds available</Text>
-      ) : (
-        greatBuilds.map(build => (
-          <View key={build.id} style={styles.buildItem}>
-            <TouchableOpacity style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="black" />
-            </TouchableOpacity>
-            <View style={styles.imageNameContainer}>
-              <View style={styles.imageContainer}>
-                {build.buildingImage ? (
-                  <Image source={{ uri: build.buildingImage }} style={styles.buildingImage} />
-                ) : (
-                  <Text>Image not available</Text>
-                )}
-              </View>
-              <View style={styles.nameContainer}>
-                <View style={styles.nameBlock}>
-                  <Text style={styles.buildName}>{build.buildingName}</Text>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollView}>
+        {greatBuilds.length === 0 ? (
+          <Text>No great builds available</Text>
+        ) : (
+          greatBuilds.map(build => (
+            <View key={build.id} style={styles.buildItem}>
+              <TouchableOpacity style={styles.deleteButton}>
+                <Ionicons name="close" size={24} color="black" />
+              </TouchableOpacity>
+              <View style={styles.imageNameContainer}>
+                <View style={styles.imageContainer}>
+                  {build.buildingImage ? (
+                    <Image source={{ uri: build.buildingImage }} style={styles.buildingImage} />
+                  ) : (
+                    <Text>Image not available</Text>
+                  )}
                 </View>
-                <View style={styles.additionalLevelBlock}>
-                  <View style={styles.additionalLevelText}>
-                    <Text>Рівень:</Text>
+                <View style={styles.nameContainer}>
+                  <View style={styles.nameBlock}>
+                    <Text style={styles.buildName}>{build.buildingName}</Text>
                   </View>
-                  <View style={styles.additionalLevelStepper}>
-                    <Stepper
-                      initialValue={build.level}
-                      step={1}
-                      maxValue={200}
-                      buildId={build.id}
-                      onValueChange={handleValueChange}
-                    />
+                  <View style={styles.additionalLevelBlock}>
+                    <View style={styles.additionalLevelText}>
+                      <Text>Рівень:</Text>
+                    </View>
+                    <View style={styles.additionalLevelStepper}>
+                      <Stepper
+                        initialValue={build.level}
+                        step={1}
+                        maxValue={200}
+                        buildId={build.id}
+                        onValueChange={handleValueChange}
+                      />
+                    </View>
                   </View>
                 </View>
               </View>
+              <TouchableOpacity onPress={() => handleToggle(build.id)} style={styles.chevronContainer}>
+                <Ionicons
+                  name={expandedBuildId === build.id ? "chevron-up" : "chevron-down"}
+                  size={24}
+                  color="black"
+                />
+              </TouchableOpacity>
+              {expandedBuildId === build.id && (
+                <>
+                  <BonusView bonus={build.bonus} build={build} />
+                  <DetailsView build={build} />
+                </>
+              )}
             </View>
-            <TouchableOpacity onPress={() => handleToggle(build.id)} style={styles.chevronContainer}>
-              <Ionicons
-                name={expandedBuildId === build.id ? "chevron-up" : "chevron-down"}
-                size={24}
-                color="black"
-              />
-            </TouchableOpacity>
-            {expandedBuildId === build.id && (
-              <>
-                <BonusView bonus={build.bonus} build={build} />
-                <DetailsView build={build} />
-              </>
-            )}
-          </View>
-        ))
-      )}
-    </ScrollView>
+          ))
+        )}
+      </ScrollView>
+      <View style={styles.fabContainer}>
+        <FloatingActionButton 
+          onPress={handleFabPress} 
+          iconName="plus" 
+        />
+      </View>
+    </View>
+    
   );
 };
 
@@ -283,7 +330,7 @@ const styles = StyleSheet.create({
     padding: 10,
     position: 'relative',
   },
-  closeButton: {
+  deleteButton: {
     position: 'absolute',
     top: 5,
     right: 5,
@@ -306,7 +353,7 @@ const styles = StyleSheet.create({
   buildingImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   nameContainer: {
     flex: 1,
@@ -392,6 +439,37 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 16,
     color: '#555',
+  },
+  highlightedText: {
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
+  },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  tooltipContainer: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  tooltipText: {
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  closeButton: {
+    fontSize: 14,
+    color: '#007bff',
+    textDecorationLine: 'underline',
+  },
+  floatingActionButton: {
+    position: 'absolute',
+    bottom: 16, // Відстань від нижнього краю екрану
+    right: 16,  // Відстань від правого краю екрану
+    zIndex: 1,  // Забезпечує, що кнопка буде поверх інших елементів
   },
 });
 

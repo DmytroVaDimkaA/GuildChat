@@ -9,11 +9,14 @@ import { ref, getDatabase, get } from "firebase/database";
 import { MaterialIcons } from '@expo/vector-icons';
 import GBScreen from "./GB/GBScreen";
 import MyGB from './GB/MyGB'; // Замініть на ваш шлях
+import NewGBChat from './GB/NewGBChat';
+import AddGBComponent from './GB/AddGBComponent';
 import GuildMembersList from "./GuildMemberList";
 import ChatScreen from "./Chat/ChatScreen";
 import ChatWindow from './Chat/ChatWindow';
 import GB from "./ico/GB.svg";
 import Chat from "./ico/Chat.svg";
+
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -65,6 +68,16 @@ function GBStack() {
                 name="MyGB" 
                 component={MyGB} 
                 options={{ title: 'Мої Величні Споруди' }} 
+            />
+            <Stack.Screen 
+                name="NewGBChat" 
+                component={NewGBChat} 
+                options={{ title: 'Нова гілка прокачки ВС' }}
+            />
+            <Stack.Screen 
+                name="AddGBComponent" 
+                component={AddGBComponent} 
+                options={{ title: 'Додайте ВС до свого списку' }}
             />
         </Stack.Navigator>
         

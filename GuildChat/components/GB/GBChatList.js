@@ -1,30 +1,46 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import FloatingActionButton from '../FloatingActionButton';
+import { useNavigation } from '@react-navigation/native';
 
 const chatData = [
   { id: '1', name: 'Прокачка Величних Споруд' },
-  // Додайте інші чати сюди
+  // Додайте інші чати тут за потреби
 ];
 
-const GBChatList = ({ onSelectChat }) => {
+const GBChatList = ({ chats }) => {
+  const navigation = useNavigation();
+
+  const handleFabPress = () => {
+    navigation.navigate('NewGBChat'); // Перехід до NewGBChat
+  };
+
+  const handleChatSelect = (chat) => {
+    if (chat.id === '1') {
+      // Перехід на сторінку MyGB для чату з індексом 1
+      navigation.navigate('MyGB');
+    } else {
+      // Перехід на ChatWindow для всіх інших чатів
+      navigation.navigate('ChatWindow', { chatId: chat.id });
+    }
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
-        data={chatData}
+        data={chats || chatData} // Використання chatData, якщо chats не передано
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.chatItem} onPress={() => onSelectChat(item)}>
+          <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelect(item)}>
             <Text style={styles.chatName}>{item.name}</Text>
           </TouchableOpacity>
         )}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>}
       />
-      <TouchableOpacity style={styles.fab} onPress={() => console.log('Додати новий чат')}>
-        <View style={styles.icon}>
-          <FontAwesome name="pencil" size={26} color="#fff" style={styles.fabIcon} />
-        </View>
-      </TouchableOpacity>
+      <FloatingActionButton 
+        onPress={handleFabPress} 
+        iconName="pencil" 
+      />
     </View>
   );
 };
@@ -46,28 +62,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#888',
     fontSize: 16,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#517da2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-  },
-  fabIcon: {
-    width: 24,
-    height: 24,
-    tintColor: 'white',
-  },
-  icon: {
-    flex: 1,
-    marginTop: 15,
-    alignItems: 'center',
   },
 });
 
