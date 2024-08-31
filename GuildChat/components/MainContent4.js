@@ -37,7 +37,6 @@ function ChatStack() {
                 options={{
                     title: 'Альтанка',
                     headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
-
                 }}
             />
             <Stack.Screen 
@@ -55,7 +54,6 @@ function ChatStack() {
 function GBStack() {
     return (
         <Stack.Navigator screenOptions={defaultHeaderOptions}>
-           
             <Stack.Screen
                 name="GBScreen"
                 component={GBScreen}
@@ -80,7 +78,6 @@ function GBStack() {
                 options={{ title: 'Додайте ВС до свого списку' }}
             />
         </Stack.Navigator>
-        
     );
 }
 
@@ -101,7 +98,7 @@ function CustomDrawerContent(props) {
 
                 const db = getDatabase();
 
-                // Отримуємо guildName
+                // Отримання guildName
                 const guildRef = ref(db, `guilds/${guildId}/guildName`);
                 const guildSnapshot = await get(guildRef);
 
@@ -111,7 +108,7 @@ function CustomDrawerContent(props) {
                     console.error('guildName не знайдено');
                 }
 
-                // Отримуємо userName та imageUrl
+                // Отримання userName та imageUrl
                 const userRef = ref(db, `guilds/${guildId}/guildUsers/${userId}`);
                 const userSnapshot = await get(userRef);
 
@@ -122,6 +119,50 @@ function CustomDrawerContent(props) {
                 } else {
                     console.error('Дані користувача не знайдено');
                 }
+
+                // Отримання гілки, яка відповідає userId
+                const userBranchRef = ref(db, `users/${userId}`);
+                const userBranchSnapshot = await get(userBranchRef);
+
+                if (userBranchSnapshot.exists()) {
+                    const childBranches = userBranchSnapshot.val();
+                    for (const childKey in childBranches) {
+                        if (childBranches.hasOwnProperty(childKey)) {
+                            // Пропускаємо гілку, що відповідає guildId
+                            if (childKey !== guildId) {
+                                // Перевіряємо, чи має дочірня гілка свої підключення
+                                const childBranchRef = ref(db, `users/${userId}/${childKey}`);
+                                const childBranchSnapshot = await get(childBranchRef);
+                                
+                                if (childBranchSnapshot.exists()) {
+                                    const grandChildBranches = childBranchSnapshot.val();
+                                    if (typeof grandChildBranches === 'object' && grandChildBranches !== null) {
+                                        console.log(`Назва гілки: ${childKey}`); // Виводимо назву гілки
+
+                                        // Виводимо значення imageUrl з кожної підгілки
+                                        for (const grandChildKey in grandChildBranches) {
+                                            if (grandChildBranches.hasOwnProperty(grandChildKey)) {
+                                                const grandChildData = grandChildBranches[grandChildKey];
+                                                if (grandChildData && grandChildData.imageUrl) {
+                                                    console.log(`imageUrl з гілки ${grandChildKey}: ${grandChildData.imageUrl}`);
+                                                } else {
+                                                    console.log(`Немає imageUrl у ${grandChildKey}`);
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        console.log(`Гілка ${childKey} не є об'єктом або порожня.`);
+                                    }
+                                } else {
+                                    console.log(`Дані для гілки ${childKey} не існують.`);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    console.error('Гілка не знайдена');
+                }
+
             } catch (error) {
                 console.error('Помилка при отриманні даних: ', error);
             }
@@ -140,8 +181,8 @@ function CustomDrawerContent(props) {
                             style={styles.profileImage}
                         />
                     ) : null}
-                    <Text style={styles.guildName}>{guildName}</Text>
                     <Text style={styles.userName}>{userName}</Text>
+                    <Text style={styles.guildName}>{guildName}</Text>
                     
                 </View>
                 <View style={styles.worldselect}></View>
@@ -150,6 +191,7 @@ function CustomDrawerContent(props) {
         </DrawerContentScrollView>
     );
 }
+
 
 export default function App() {
     return (
@@ -187,7 +229,7 @@ export default function App() {
 const styles = StyleSheet.create({
     drawerContent: {
         //width: 300, // Встановіть бажану ширину меню тут
-      },
+    },
     header: {
         height: 200,
         backgroundColor: '#517da2',
@@ -203,17 +245,14 @@ const styles = StyleSheet.create({
         height: 80,
         borderRadius: 40,
         marginRight: 20,
-        overflow: "hidden",
-    },
-    guildName: {
-        fontSize: 22,
-        fontWeight: "bold",
-        color: "white",
     },
     userName: {
-        marginTop: 10,
-        color: "#9ecbea",
-        fontSize: 20,
-        marginRight: 40, // додатковий відступ для шеврона
+        fontSize: 18,
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    guildName: {
+        fontSize: 16,
+        color: '#fff',
     },
 });

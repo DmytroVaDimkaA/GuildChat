@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { StyleSheet, View, ActivityIndicator, Text } from "react-native";
 import RoleSelectionScreen from "./components/RoleSelectionScreen";
 import AdminSettingsScreen from "./components/AdminSettingsScreen";
-import MainContent from "./components/MainContent4";
+import MainContent from "./components/MainContent5";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import UserSettingsScreen from "./components/UserSettingsScreen";
 import { database } from "./firebaseConfig";
