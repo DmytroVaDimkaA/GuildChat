@@ -449,6 +449,7 @@ const Menu = ({ menuOpen, toggleMenu, setSelectedTitle, setSelectedComponent }) 
               />
             </View>
             <View style={styles.profileDetails}>
+              
               <Text style={styles.profileName}>{userName}</Text>
               <View style={styles.profileContainer}>
 
