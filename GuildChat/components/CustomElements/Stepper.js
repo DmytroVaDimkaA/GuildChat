@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { ref, set } from 'firebase/database';
-import { database } from '../firebaseConfig';
+import { database } from '../../firebaseConfig';
 
 const Stepper = ({ initialValue = 0, step = 1, maxValue = Infinity, buildId, onValueChange }) => {
   const [value, setValue] = useState(initialValue);

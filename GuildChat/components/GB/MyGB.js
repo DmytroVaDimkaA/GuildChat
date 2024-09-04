@@ -5,8 +5,8 @@ import { ref, get, update } from 'firebase/database';
 import { database } from '../../firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import Stepper from '../Stepper'; // Імпортуємо компонент степера
-import FloatingActionButton from '../FloatingActionButton';
+import Stepper from '../CustomElements/Stepper';
+import FloatingActionButton from '../CustomElements/FloatingActionButton';
 
 // Компонент для відображення бонусу
 const BonusView = ({ bonus, build }) => {

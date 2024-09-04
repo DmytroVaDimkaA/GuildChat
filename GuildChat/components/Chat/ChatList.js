@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import FloatingActionButton from '../FloatingActionButton';
+import FloatingActionButton from '../CustomElements/FloatingActionButton';
 import { useNavigation } from '@react-navigation/native';
 
 const ChatList = ({ chats }) => {

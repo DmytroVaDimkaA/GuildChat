@@ -56,7 +56,7 @@ function GBStack() {
                 name="GBScreen"
                 component={GBScreen}
                 options={{
-                    title: 'Прокачка Величних Споруд',
+                    title: 'Прокачка личних Споруд',
                     headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
                 }}
             />
@@ -86,6 +86,7 @@ function CustomDrawerContent(props) {
     const [guildImageUrl, setGuildImageUrl] = useState('');
     const [tempData, setTempData] = useState({});
     const [isWorldSelectVisible, setIsWorldSelectVisible] = useState(false);
+    const [selectedGuildId, setSelectedGuildId] = useState('');
 
     // Animated values for the height and rotation of worldselect
     const animatedHeight = useRef(new Animated.Value(0)).current;
@@ -154,7 +155,7 @@ function CustomDrawerContent(props) {
         };
 
         fetchGuildAndUserData();
-    }, []);
+    }, [selectedGuildId]); // Додати залежність від selectedGuildId
 
     useEffect(() => {
         Animated.timing(animatedHeight, {
@@ -176,8 +177,13 @@ function CustomDrawerContent(props) {
         setIsWorldSelectVisible(!isWorldSelectVisible);
     };
 
-    const handleGuildPress = (guildId) => {
-        console.log(`Selected Guild ID: ${guildId}`);
+    const handleGuildPress = async (guildId) => {
+        try {
+            await AsyncStorage.setItem('guildId', guildId);
+            setSelectedGuildId(guildId);
+        } catch (error) {
+            console.error('Помилка при збереженні guildId в AsyncStorage: ', error);
+        }
     };
 
     const rotationInterpolate = rotation.interpolate({

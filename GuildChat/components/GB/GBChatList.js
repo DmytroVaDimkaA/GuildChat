@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import FloatingActionButton from '../FloatingActionButton';
+import FloatingActionButton from '../CustomElements/FloatingActionButton';
 import { useNavigation } from '@react-navigation/native';
 
 const chatData = [
-  { id: '1', name: 'Прокачка Величних Споруд' },
+  { id: '1', name: 'Мої Величні Споруди' },
   // Додайте інші чати тут за потреби
 ];
 
@@ -44,6 +44,7 @@ const GBChatList = ({ chats }) => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
