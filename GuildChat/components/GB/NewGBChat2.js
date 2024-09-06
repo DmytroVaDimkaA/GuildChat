@@ -150,21 +150,7 @@ style={[styles.stepButton, { width: buttonSize, height: buttonSize }]}
 
 const handleNodeRatioChange = (value) => {
 setNodeRatio(value);
-fetchContributionBoost(value); // Виклик функції для запиту до API
-};
-
-const fetchContributionBoost = async (level) => {
-const url = `https://api.foe-helper.com/v1/LegendaryBuilding/get?id=X_FutureEra_Landmark1&level=${level}`;
-try {
-const response = await fetch(url);
-const data = await response.json();
-const contributionBoost = data.response.rewards.contribution_boost;
-const coefficient = contributionBoost / 100 + 1;
-console.log(`Отримане значення: ${contributionBoost}, Коефіцієнт: ${coefficient}`);
-setContributionMultiplier(coefficient.toString());
-} catch (error) {
-console.error('Помилка при отриманні даних:', error);
-}
+setModalVisible(true);
 };
 
 return (
@@ -265,28 +251,13 @@ onRequestClose={() => setModalVisible(false)}
 >
 <View style={styles.modalContainer}>
 <View style={styles.modalContent}>
-<Text style={styles.modalText}>Зберегти дані та закрити?</Text>
-<View style={styles.modalButtons}>
-<TouchableOpacity
-style={[styles.modalButton, styles.cancelButton]}
-onPress={() => setModalVisible(false)}
->
-<Text style={styles.modalButtonText}>Скасувати</Text>
+<Text style={styles.modalText}>Значення коефіцієнту внеску (nodeRatio) змінено на: {nodeRatio}</Text>
+<TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
+<Text style={styles.closeButtonText}>Закрити</Text>
 </TouchableOpacity>
-<TouchableOpacity
-style={[styles.modalButton, styles.confirmButton]}
-onPress={() => {
-setModalVisible(false);
-handleCreateChat();
-}}
->
-<Text style={styles.modalButtonText}>Зберегти</Text>
-</TouchableOpacity>
-</View>
 </View>
 </View>
 </Modal>
-
 </ScrollView>
 );
 };
@@ -294,46 +265,79 @@ handleCreateChat();
 const styles = StyleSheet.create({
 block: {
 backgroundColor: '#f2f2f2',
-borderRadius: 5,
-padding: 15,
-marginBottom: 15
+padding: 10,
+marginBottom: 20,
+borderRadius: 8,
+borderWidth: 1,
+borderColor: '#cccccc'
 },
 input: {
 borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
+backgroundColor: '#ffffff',
 padding: 10,
-marginBottom: 10
+borderRadius: 6,
+fontSize: 16,
+borderColor: '#007AFF',
+color: '#333333'
 },
 dropdown: {
-backgroundColor: '#fff',
-borderRadius: 5,
+borderWidth: 1,
+backgroundColor: '#ffffff',
+padding: 10,
+borderRadius: 6,
+borderColor: '#007AFF'
+},
+selectedStyle: {
+marginTop: 10,
+borderRadius: 6,
+backgroundColor: '#f0f0f0'
+},
+item: {
+flexDirection: 'row',
+alignItems: 'center',
 padding: 10
+},
+image: {
+width: 40,
+height: 40,
+marginRight: 10,
+borderRadius: 4
 },
 checkboxContainer: {
 flexDirection: 'row',
-justifyContent: 'space-around'
+justifyContent: 'space-between',
+alignItems: 'center'
 },
 stepperContainer: {
 flexDirection: 'row',
 alignItems: 'center',
-justifyContent: 'center'
+justifyContent: 'center',
+borderWidth: 1,
+borderColor: '#007AFF',
+borderRadius: 6,
+backgroundColor: '#ffffff'
 },
 stepButton: {
-backgroundColor: '#ddd',
-justifyContent: 'center',
 alignItems: 'center',
-borderRadius: 5
+justifyContent: 'center',
+borderWidth: 1,
+borderColor: '#007AFF',
+borderRadius: 6,
+backgroundColor: '#f0f0f0'
 },
 stepButtonText: {
-fontSize: 20,
-color: '#333'
+fontSize: 18,
+color: '#007AFF',
+fontWeight: '600'
 },
 valueInput: {
+textAlign: 'center',
+fontSize: 18,
+color: '#333333',
+borderRadius: 6,
 borderWidth: 1,
-borderColor: '#ddd',
-borderRadius: 5,
-textAlign: 'center'
+borderColor: '#007AFF',
+paddingVertical: 5
 },
 modalContainer: {
 flex: 1,
@@ -342,47 +346,28 @@ alignItems: 'center',
 backgroundColor: 'rgba(0, 0, 0, 0.5)'
 },
 modalContent: {
-backgroundColor: '#fff',
-borderRadius: 5,
-padding: 20,
 width: '80%',
-alignItems: 'center'
+backgroundColor: '#ffffff',
+padding: 20,
+borderRadius: 8,
+alignItems: 'center',
+borderWidth: 1,
+borderColor: '#007AFF'
 },
 modalText: {
 fontSize: 16,
+color: '#333333',
 marginBottom: 20
 },
-modalButtons: {
-flexDirection: 'row'
+closeButton: {
+backgroundColor: '#007AFF',
+paddingVertical: 10,
+paddingHorizontal: 20,
+borderRadius: 6
 },
-modalButton: {
-padding: 10,
-borderRadius: 5,
-margin: 5
-},
-cancelButton: {
-backgroundColor: '#f44336'
-},
-confirmButton: {
-backgroundColor: '#4caf50'
-},
-modalButtonText: {
-color: '#fff',
-fontWeight: 'bold'
-},
-item: {
-flexDirection: 'row',
-alignItems: 'center',
-marginBottom: 10
-},
-image: {
-width: 40,
-height: 40,
-borderRadius: 20,
-marginRight: 10
-},
-selectedStyle: {
-backgroundColor: '#e1e1e1'
+closeButtonText: {
+fontSize: 16,
+color: '#ffffff'
 }
 });
 
