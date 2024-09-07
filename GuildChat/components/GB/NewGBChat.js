@@ -22,6 +22,7 @@ const comparisonOptions = [
 { label: 'Не менше', value: 'more' }
 ];
 const [stepperWidth, setStepperWidth] = useState(200);
+const [coefficientText, setCoefficientText] = useState('Оберіть рівень арки вкладника');
 
 useEffect(() => {
 const db = getDatabase();
@@ -35,17 +36,33 @@ label: data[key].buildingName,
 value: key,
 image: data[key].buildingImage
 }));
+buildingsArray.unshift({ label: 'Обрати все', value: 'selectAll', image: null });
 setGreatBuildings(buildingsArray);
 }
 });
 }, []);
 
 const renderBuildingItem = (item) => (
-<View style={styles.item}>
-<Image source={{ uri: item.image }} style={styles.image} />
-<Text>{item.label}</Text>
-</View>
+  <View style={styles.item}>
+    <Image source={{ uri: item.image }} style={styles.image} />
+    <Text style={styles.itemLabel}>{item.label}</Text>
+    {allowedGBs.includes(item.value) && (
+      <Text style={styles.checkmark}>✔</Text>  
+    )}
+  </View>
 );
+
+const handleSelectAll = (items) => {
+  if (items.includes('selectAll')) {
+    // Якщо "Обрати все" вибрано, вибрати всі елементи
+    const allBuildingValues = greatBuildings
+      .filter((item) => item.value !== 'selectAll')
+      .map((item) => item.value);
+    setAllowedGBs(allBuildingValues);
+  } else {
+    setAllowedGBs(items);
+  }
+};
 
 const handleCheckBoxChange = (index) => {
 const newPlaceLimit = [...placeLimit];
@@ -148,24 +165,34 @@ style={[styles.stepButton, { width: buttonSize, height: buttonSize }]}
 );
 };
 
+
+
 const handleNodeRatioChange = (value) => {
 setNodeRatio(value);
 fetchContributionBoost(value); // Виклик функції для запиту до API
 };
 
 const fetchContributionBoost = async (level) => {
-const url = `https://api.foe-helper.com/v1/LegendaryBuilding/get?id=X_FutureEra_Landmark1&level=${level}`;
-try {
-const response = await fetch(url);
-const data = await response.json();
-const contributionBoost = data.response.rewards.contribution_boost;
-const coefficient = contributionBoost / 100 + 1;
-console.log(`Отримане значення: ${contributionBoost}, Коефіцієнт: ${coefficient}`);
-setContributionMultiplier(coefficient.toString());
-} catch (error) {
-console.error('Помилка при отриманні даних:', error);
-}
+  if (level === 0) {
+    setCoefficientText('Оберіть рівень арки вкладника');
+    return;
+  }
+
+  try {
+    const response = await fetch(`https://api.foe-helper.com/v1/LegendaryBuilding/get?id=X_FutureEra_Landmark1&level=${level}`);
+    const data = await response.json();
+    const contributionBoost = data.response.rewards.contribution_boost;
+    const coefficient = contributionBoost / 100 + 1;
+
+    // Оновлення тексту
+    setCoefficientText(`Рівень арки вкладника (коефіцієнт ${coefficient.toFixed(3)})`);
+    
+  } catch (error) {
+    console.error('Помилка при отриманні даних з API:', error);
+  }
 };
+
+  
 
 return (
 <ScrollView contentContainerStyle={{ padding: 20, backgroundColor: '#ffffff' }}>
@@ -186,9 +213,20 @@ style={styles.dropdown}
 data={comparisonOptions}
 labelField="label"
 valueField="value"
-placeholder="Оберіть умову внеску"
 value={nodeComparison}
 onChange={(item) => setNodeComparison(item.value)}
+/>
+</View>
+
+<View style={styles.block}>
+<Text style={{ marginBottom: 10 }}>Коефіцієнт внеску (nodeRatio):</Text>
+<Text style={{ marginBottom: 10 }}>{coefficientText}</Text>
+<Stepper
+value={parseInt(nodeRatio, 10) || 0}
+onValueChange={handleNodeRatioChange}
+buttonSize={40}
+minValue={0}
+maxValue={200}
 />
 </View>
 
@@ -201,23 +239,14 @@ labelField="label"
 valueField="value"
 placeholder="Оберіть ВС"
 value={allowedGBs}
-onChange={(items) => setAllowedGBs(items)}
+onChange={handleSelectAll}  // Додати обробник
 renderItem={renderBuildingItem}
 selectedStyle={styles.selectedStyle}
 multiple={true}
 />
 </View>
 
-<View style={styles.block}>
-<Text style={{ marginBottom: 10 }}>Коефіцієнт внеску (nodeRatio):</Text>
-<Stepper
-value={parseInt(nodeRatio, 10) || 0}
-onValueChange={handleNodeRatioChange}
-buttonSize={40}
-minValue={0}
-maxValue={200}
-/>
-</View>
+
 
 <View style={styles.block}>
 <Text style={{ marginBottom: 10 }}>Мінімальний рівень ВС (levelThreshold):</Text>
@@ -244,48 +273,10 @@ onPress={() => handleCheckBoxChange(index)}
 </View>
 </View>
 
-<View style={styles.block}>
-<Text style={{ marginBottom: 10 }}>Множник внеску (contributionMultiplier):</Text>
-<TextInput
-value={contributionMultiplier}
-onChangeText={setContributionMultiplier}
-placeholder="Множник внеску"
-keyboardType="numeric"
-style={styles.input}
-/>
-</View>
 
 <Button title="Створити новий чат" onPress={handleCreateChat} />
 
-<Modal
-animationType="slide"
-transparent={true}
-visible={modalVisible}
-onRequestClose={() => setModalVisible(false)}
->
-<View style={styles.modalContainer}>
-<View style={styles.modalContent}>
-<Text style={styles.modalText}>Зберегти дані та закрити?</Text>
-<View style={styles.modalButtons}>
-<TouchableOpacity
-style={[styles.modalButton, styles.cancelButton]}
-onPress={() => setModalVisible(false)}
->
-<Text style={styles.modalButtonText}>Скасувати</Text>
-</TouchableOpacity>
-<TouchableOpacity
-style={[styles.modalButton, styles.confirmButton]}
-onPress={() => {
-setModalVisible(false);
-handleCreateChat();
-}}
->
-<Text style={styles.modalButtonText}>Зберегти</Text>
-</TouchableOpacity>
-</View>
-</View>
-</View>
-</Modal>
+
 
 </ScrollView>
 );
@@ -293,97 +284,87 @@ handleCreateChat();
 
 const styles = StyleSheet.create({
 block: {
-backgroundColor: '#f2f2f2',
-borderRadius: 5,
-padding: 15,
-marginBottom: 15
+    backgroundColor: '#f2f2f2',
+    padding: 10,
+    marginBottom: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cccccc',
 },
 input: {
-borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
-padding: 10,
-marginBottom: 10
+    borderWidth: 1,
+    backgroundColor: '#ffffff',
+    padding: 10,
+    borderRadius: 6,
+    fontSize: 16,
+    borderColor: '#007AFF',
+    color: '#333333',
 },
 dropdown: {
-backgroundColor: '#fff',
-borderRadius: 5,
-padding: 10
+    borderWidth: 1,
+    backgroundColor: '#ffffff',
+    padding: 10,
+    borderRadius: 6,
+    borderColor: '#007AFF',
 },
 checkboxContainer: {
-flexDirection: 'row',
-justifyContent: 'space-around'
+    flexDirection: 'row',
+    justifyContent: 'space-around'
 },
 stepperContainer: {
-flexDirection: 'row',
-alignItems: 'center',
-justifyContent: 'center'
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: '#007AFF',
+  borderRadius: 4,
+  overflow: 'hidden',
 },
 stepButton: {
-backgroundColor: '#ddd',
-justifyContent: 'center',
-alignItems: 'center',
-borderRadius: 5
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#007AFF',
 },
 stepButtonText: {
-fontSize: 20,
-color: '#333'
+  color: '#fff',
+  fontSize: 12,
 },
 valueInput: {
-borderWidth: 1,
-borderColor: '#ddd',
-borderRadius: 5,
-textAlign: 'center'
-},
-modalContainer: {
-flex: 1,
-justifyContent: 'center',
-alignItems: 'center',
-backgroundColor: 'rgba(0, 0, 0, 0.5)'
-},
-modalContent: {
-backgroundColor: '#fff',
-borderRadius: 5,
-padding: 20,
-width: '80%',
-alignItems: 'center'
-},
-modalText: {
-fontSize: 16,
-marginBottom: 20
-},
-modalButtons: {
-flexDirection: 'row'
-},
-modalButton: {
-padding: 10,
-borderRadius: 5,
-margin: 5
-},
-cancelButton: {
-backgroundColor: '#f44336'
-},
-confirmButton: {
-backgroundColor: '#4caf50'
-},
-modalButtonText: {
-color: '#fff',
-fontWeight: 'bold'
+  textAlign: 'center',
+  backgroundColor: '#fff',
+  borderColor: '#007AFF',
+  borderLeftWidth: 1,
+  borderRightWidth: 1,
+  fontSize: 16,
+  color: '#000',
 },
 item: {
-flexDirection: 'row',
-alignItems: 'center',
-marginBottom: 10
+  flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    justifyContent: 'space-between',  // Розташовуємо текст ліворуч, а галочку праворуч
 },
 image: {
-width: 40,
-height: 40,
-borderRadius: 20,
-marginRight: 10
+  width: 40,
+  height: 40,
+  marginRight: 10,
+  marginLeft: 10,
+  borderRadius: 4,
+  resizeMode: 'contain',
+},
+itemLabel: {
+  flex: 1,  // Займає доступний простір для тексту
+  marginLeft: 10,
 },
 selectedStyle: {
-backgroundColor: '#e1e1e1'
-}
+  marginTop: 10,
+  borderRadius: 6,
+  backgroundColor: 'transparen',
+},
+checkmark: {
+  marginRight: 10,
+  color: '#007AFF',  // колір галочки
+  fontSize: 16,
+},
 });
 
 export default NewGBChat;

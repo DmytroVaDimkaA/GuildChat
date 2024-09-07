@@ -278,6 +278,37 @@ padding: 10,
 borderRadius: 6,
 borderColor: '#007AFF',
 },
+checkboxContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+},
+stepperContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: '#007AFF',
+  borderRadius: 4,
+  overflow: 'hidden',
+},
+stepButton: {
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: '#007AFF',
+},
+stepButtonText: {
+  color: '#fff',
+  fontSize: 12,
+},
+valueInput: {
+  textAlign: 'center',
+  backgroundColor: '#fff',
+  borderColor: '#007AFF',
+  borderLeftWidth: 1,
+  borderRightWidth: 1,
+  fontSize: 16,
+  color: '#000',
+},
+
 selectedStyle: {
 marginTop: 10,
 borderRadius: 6,
@@ -294,37 +325,12 @@ height: 40,
 marginRight: 10,
 borderRadius: 4,
 },
-stepperContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  stepButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-  },
-  stepButtonText: {
-    color: '#fff',
-    fontSize: 12,
-  },
-  valueInput: {
-    textAlign: 'center',
-    backgroundColor: '#fff',
-    borderColor: '#007AFF',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    fontSize: 16,
-    color: '#000',
-  },
+
   
-checkboxContainer: {
-flexDirection: 'row',
-justifyContent: 'space-between',
-},
+  
+  
+  
+
 });
 
 export default NewGBChat;

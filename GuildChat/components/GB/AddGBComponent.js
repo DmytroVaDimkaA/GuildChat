@@ -79,6 +79,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     marginRight: 15,
+    resizeMode: 'contain',
   },
   gbName: {
     fontSize: 18,
