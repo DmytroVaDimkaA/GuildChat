@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Image, TouchableOpacity, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Image, TouchableOpacity, Modal } from 'react-native';
 import Tooltip from 'react-native-walkthrough-tooltip';
-import { ref, get, update, remove } from 'firebase/database';
+import { ref, get, update } from 'firebase/database';
 import { database } from '../../firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +30,7 @@ const BonusView = ({ bonus, build }) => {
         }
 
         // Формування URL для JSON файлу
-        const jsonFileURLNow = `${build.levelBase}${build.level}`;
+        const jsonFileURLNow = ${build.levelBase}${build.level};
         
         // Завантаження JSON файлу
         const response = await fetch(jsonFileURLNow);
@@ -51,7 +51,7 @@ const BonusView = ({ bonus, build }) => {
             value = value[key];
             if (value === undefined) return match;
           }
-          return value !== undefined ? `<b><u>${value}:${p1}</u></b>` : match;
+          return value !== undefined ? <b><u>${value}:${p1}</u></b> : match;
         });
 
         setParsedBonus(updatedBonus);
@@ -93,7 +93,7 @@ const BonusView = ({ bonus, build }) => {
     // Перевірка типів даних
     if (typeof levelBase === 'string' && typeof level === 'number') {
       // Формуємо посилання
-      const link = `${levelBase}${level + 1}`;
+      const link = ${levelBase}${level + 1};
       console.log('Сформоване посилання:', link);
   
       try {
@@ -130,7 +130,7 @@ const BonusView = ({ bonus, build }) => {
           console.log('Отримане значення:', value);
           
           // Формування рядка для setTooltipContent з вирівнюванням по центру
-          const tooltipContent = `На наступному рівні:\n${value}`;
+          const tooltipContent = На наступному рівні:\n${value};
           
           // Встановлення контенту
           setTooltipContent(tooltipContent);
@@ -154,7 +154,6 @@ const BonusView = ({ bonus, build }) => {
   
   
   
-  
 
   return (
     <View style={styles.bonusContainer}>
@@ -165,7 +164,7 @@ const BonusView = ({ bonus, build }) => {
           <Text key={index} style={styles.buildBonus}>
             {paragraph.split(/(<b><u>.*?<\/u><\/b>)/g).map((part, i) =>
               /<b><u>.*<\/u><\/b>/.test(part) ? (
-                 <TouchableOpacity key={i} onPress={() => handlePress(part.replace(/<\/?b>|<\/?u>/g, '').split(':')[1])}>
+                <TouchableOpacity key={i} onPress={() => handlePress(part.replace(/<\/?b>|<\/?u>/g, '').split(':')[1])}>
                   <Text style={styles.highlightedText}>{part.replace(/<\/?b>|<\/?u>/g, '').split(':')[0]}</Text>
                 </TouchableOpacity>
               ) : (
@@ -204,11 +203,11 @@ const DetailsView = ({ build }) => {
       const baseURL = 'https://example.com/json/';
       
       // Конкатенація для поточного рівня
-      const jsonFileURLNow = `${baseURL}${build.levelBase}_level_${build.level}.json`;
+      const jsonFileURLNow = ${baseURL}${build.levelBase}_level_${build.level}.json;
       console.log('Current JSON File URL:', jsonFileURLNow);
 
       // Конкатенація для наступного рівня
-      const jsonFileURLNext = `${baseURL}${build.levelBase}_level_${build.level + 1}.json`;
+      const jsonFileURLNext = ${baseURL}${build.levelBase}_level_${build.level + 1}.json;
       console.log('Next JSON File URL:', jsonFileURLNext);
     }
   }, [build.levelBase, build.level]);
@@ -243,7 +242,7 @@ const MyGB = () => {
           throw new Error('Guild ID or User ID not found in AsyncStorage');
         }
 
-        const guildsRef = ref(database, `guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild`);
+        const guildsRef = ref(database, guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild);
         const greatBuildingsRef = ref(database, 'greatBuildings');
 
         const buildSnapshot = await get(guildsRef);
@@ -287,45 +286,6 @@ const MyGB = () => {
     return () => {};
   }, []);
 
-  const handleDelete = async (buildId) => {
-    try {
-        // Виведення вікна підтвердження
-        Alert.alert(
-            'Підтвердження видалення',
-            'Ви впевнені, що хочете видалити цей об\'єкт?',
-            [
-                {
-                    text: 'Скасувати',
-                    style: 'cancel',
-                },
-                {
-                    text: 'Видалити',
-                    onPress: async () => {
-                        const storedGuildId = await AsyncStorage.getItem('guildId');
-                        const storedUserId = await AsyncStorage.getItem('userId');
-
-                        if (!storedGuildId || !storedUserId) {
-                            throw new Error('Guild ID або User ID не знайдено в AsyncStorage');
-                        }
-
-                        const buildRef = ref(database, `guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild/${buildId}`);
-                        console.log(buildRef);
-
-                        await remove(buildRef); // Видаляємо запис
-                        
-                        // Оновлюємо стан, видаляючи об'єкт з масиву
-                        setGreatBuilds(prevBuilds => prevBuilds.filter(build => build.id !== buildId));
-                    }
-                }
-            ],
-            { cancelable: false }
-        );
-    } catch (err) {
-        console.error('Error deleting build:', err);
-    }
-  };
-
-
   const handleToggle = (id) => {
     setExpandedBuildId(expandedBuildId === id ? null : id);
   };
@@ -343,7 +303,7 @@ const MyGB = () => {
         throw new Error('Guild ID or User ID not found in AsyncStorage');
       }
 
-      const buildRef = ref(database, `guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild/${buildId}`);
+      const buildRef = ref(database, guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild/${buildId});
       await update(buildRef, { level: newValue });
 
       setGreatBuilds(prevBuilds =>
@@ -372,7 +332,7 @@ const MyGB = () => {
         ) : (
           greatBuilds.map(build => (
             <View key={build.id} style={styles.buildItem}>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(build.id)}>
+              <TouchableOpacity style={styles.deleteButton}>
                 <Ionicons name="close" size={24} color="black" />
               </TouchableOpacity>
               <View style={styles.imageNameContainer}>
