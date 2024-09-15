@@ -32,7 +32,7 @@ container: {
     position: 'relative', // Необхідно для позиціонування "хвостиків"
   },
   messageInnerContainer: {
-    padding: 10,
+    padding: 2,
   },
 
   myMessage: {
@@ -121,3 +121,10 @@ container: {
     bottom: -25,
     left: -15,
   },
+});
+
+export default ChatWindow;
+
+
+
+  users/${userId}/setting/language

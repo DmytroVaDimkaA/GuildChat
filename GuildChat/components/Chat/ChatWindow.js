@@ -15,9 +15,19 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { faFaceSmile } from '@fortawesome/free-regular-svg-icons';
 import { format } from 'date-fns';
-import { uk } from 'date-fns/locale'; // Для локалізації українською
+import { uk, ru, es, fr, de } from 'date-fns/locale'; // Імпортуємо всі потрібні локалі
 
-const { width: screenWidth } = Dimensions.get('window'); // Отримання ширини екрану
+const { width: screenWidth } = Dimensions.get('window');
+
+// Об'єкт для керування локалями
+const locales = {
+  uk: uk,
+  ru: ru,
+  es: es,
+  fr: fr,
+  de: de,
+  // Додайте інші локалі за потреби
+};
 
 const ChatWindow = ({ route, navigation }) => {
   const [messages, setMessages] = useState([]);
@@ -29,6 +39,7 @@ const ChatWindow = ({ route, navigation }) => {
   const [guildId, setGuildId] = useState(null);
   const [contactAvatar, setContactAvatar] = useState(null);
   const [contactName, setContactName] = useState(null);
+  const [locale, setLocale] = useState(uk); // Локаль за замовчуванням
 
   useEffect(() => {
     const fetchUserIdAndGuildId = async () => {
@@ -46,6 +57,22 @@ const ChatWindow = ({ route, navigation }) => {
   }, []);
 
   useEffect(() => {
+    if (userId) {
+      const db = getDatabase();
+      const localeRef = ref(db, `users/${userId}/setting/language`);
+
+      onValue(localeRef, (snapshot) => {
+        const localeCode = snapshot.val();
+        if (locales[localeCode]) {
+          setLocale(locales[localeCode]); // Вибір відповідної локалі
+        } else {
+          setLocale(uk); // Локаль за замовчуванням
+        }
+      });
+    }
+  }, [userId]);
+
+  useEffect(() => {
     if (chatId && guildId) {
       const db = getDatabase();
       const chatRef = ref(db, `guilds/${guildId}/chats/${chatId}/name`);
@@ -54,9 +81,7 @@ const ChatWindow = ({ route, navigation }) => {
         const chatName = snapshot.val();
         if (chatName) {
           if (isGroupChat) {
-            navigation.setOptions({
-              title: chatName,
-            });
+            navigation.setOptions({ title: chatName });
           } else {
             const chatMembersRef = ref(db, `guilds/${guildId}/chats/${chatId}/members`);
             onValue(chatMembersRef, (snapshot) => {
@@ -78,9 +103,7 @@ const ChatWindow = ({ route, navigation }) => {
                               style={styles.avatar}
                             />
                           )}
-                          <Text style={styles.headerTitle}>
-                            {contactName}
-                          </Text>
+                          <Text style={styles.headerTitle}>{contactName}</Text>
                         </View>
                       ),
                     });
@@ -108,17 +131,13 @@ const ChatWindow = ({ route, navigation }) => {
           ...messagesData[key],
         }));
 
-        // Групування повідомлень за датою
         const groupedMessages = messagesList.reduce((acc, message) => {
-          const date = format(new Date(message.timestamp), 'd MMMM', { locale: uk });
-          if (!acc[date]) {
-            acc[date] = [];
-          }
+          const date = format(new Date(message.timestamp), 'd MMMM', { locale });
+          if (!acc[date]) acc[date] = [];
           acc[date].push(message);
           return acc;
         }, {});
 
-        // Перетворення групованих повідомлень в масив для FlatList
         const groupedMessagesArray = Object.keys(groupedMessages).map(date => ({
           date,
           messages: groupedMessages[date]
@@ -129,13 +148,7 @@ const ChatWindow = ({ route, navigation }) => {
     };
 
     fetchMessages();
-  }, [chatId, guildId]);
-
-  useEffect(() => {
-    if (initialMessage) {
-      handleSendMessage(); // Send the initial message if needed
-    }
-  }, [initialMessage]);
+  }, [chatId, guildId, locale]);
 
   const handleSendMessage = async () => {
     if (newMessage.trim() === "") return;
@@ -151,7 +164,7 @@ const ChatWindow = ({ route, navigation }) => {
       });
 
       setNewMessage("");
-      setInputHeight(40); // Повернення до початкової висоти після надсилання
+      setInputHeight(40);
     } catch (error) {
       console.error("Error sending message: ", error);
     }
@@ -159,7 +172,7 @@ const ChatWindow = ({ route, navigation }) => {
 
   const handleContentSizeChange = (event) => {
     const { height } = event.nativeEvent.contentSize;
-    setInputHeight(Math.min(height, maxInputHeight)); // Обмеження висоти
+    setInputHeight(Math.min(height, maxInputHeight));
   };
 
   const renderItem = ({ item }) => (
@@ -169,8 +182,6 @@ const ChatWindow = ({ route, navigation }) => {
       </View>
       {item.messages.map((message, index) => {
         const isCurrentUser = message.senderId === userId;
-
-        // Перевірка, чи це останнє повідомлення від одного користувача
         const isLastMessageFromUser = (
           index === item.messages.length - 1 ||
           (item.messages[index + 1] && item.messages[index + 1].senderId !== message.senderId)
@@ -187,7 +198,7 @@ const ChatWindow = ({ route, navigation }) => {
             <View style={styles.messageInnerContainer}>
               <Text style={styles.messageText}>{message.text}</Text>
               <Text style={styles.messageDate}>
-                {format(new Date(message.timestamp), 'H:mm')}
+                {format(new Date(message.timestamp), 'H:mm', { locale })}
               </Text>
             </View>
             {isLastMessageFromUser && (
@@ -275,7 +286,7 @@ const styles = StyleSheet.create({
     position: 'relative', // Необхідно для позиціонування "хвостиків"
   },
   messageInnerContainer: {
-    padding: 10,
+    padding: 2,
   },
 
   myMessage: {
@@ -367,3 +378,5 @@ const styles = StyleSheet.create({
 });
 
 export default ChatWindow;
+
+
