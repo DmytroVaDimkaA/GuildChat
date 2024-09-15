@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Tooltip from 'react-native-walkthrough-tooltip'; // Імпорт Tooltip
+import Tooltip from 'react-native-walkthrough-tooltip';
 
-// Компонент для відображення бонусу
 const BonusView = ({ bonus, build }) => {
   const [parsedBonus, setParsedBonus] = useState('');
-  const [tooltipVisibleArray, setTooltipVisibleArray] = useState({}); // Об'єкт для відстеження станів видимості
-  const [tooltipContentArray, setTooltipContentArray] = useState({}); // Об'єкт для вмісту підказок
+  const [tooltipVisibleArray, setTooltipVisibleArray] = useState({}); // Стан видимості для кожної закладки
+  const [tooltipContentArray, setTooltipContentArray] = useState({}); // Стан змісту підказки для кожної закладки
 
   useEffect(() => {
     const replaceBookmarks = async () => {
@@ -57,8 +56,11 @@ const BonusView = ({ bonus, build }) => {
   const paragraphs = normalizedBonus.split('\n\n').map(paragraph => paragraph.trim());
 
   const handlePress = async (index, tooltipText) => {
+    console.log(`handlePress викликано для індексу ${index} з текстом: ${tooltipText}`);
+
     const getDetailsViewData = () => {
       const detailsBuild = build;
+      console.log('Деталі build:', detailsBuild);
       return detailsBuild;
     };
 
@@ -97,6 +99,8 @@ const BonusView = ({ bonus, build }) => {
           }
           console.log('Отримане значення:', value);
           const tooltipContent = `На наступному рівні:\n${value}`;
+          console.log(`Підказка для індексу ${index}:`, tooltipContent);
+
           setTooltipContentArray(prevState => ({
             ...prevState,
             [index]: tooltipContent
@@ -126,7 +130,7 @@ const BonusView = ({ bonus, build }) => {
     // Оновлюємо стан видимості для підказки з конкретним індексом
     setTooltipVisibleArray(prevState => ({
       ...prevState,
-      [index]: true
+      [index]: true // Відкриваємо конкретну підказку
     }));
   };
 
@@ -148,7 +152,7 @@ const BonusView = ({ bonus, build }) => {
                       <TouchableOpacity onPress={() => {
                         setTooltipVisibleArray(prevState => ({
                           ...prevState,
-                          [index]: false
+                          [index]: false // Закриваємо конкретну підказку
                         }));
                       }}>
                         <Text style={styles.closeButton}>Закрити</Text>

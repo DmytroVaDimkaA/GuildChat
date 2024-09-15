@@ -93,7 +93,7 @@ alignItems: 'center',
 padding: 10,
 backgroundColor: '#f2f2f2',
     
-    marginBottom: 20,
+    marginBottom: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#cccccc',

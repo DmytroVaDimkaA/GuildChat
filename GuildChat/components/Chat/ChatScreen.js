@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, SafeAreaView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ref, onValue } from "firebase/database";
+import { ref, onValue } from 'firebase/database';
 import ChatList from './ChatList'; // Компонент для відображення списку чатів
 import MessageList from './ChatMessageList'; // Компонент для відображення повідомлень в чаті
 import MessageInput from './ChatMessageInput'; // Компонент для введення нових повідомлень
@@ -61,7 +61,7 @@ const ChatScreen = () => {
             <MessageInput onSendMessage={(message) => handleSendMessage(message, selectedChat.id)} />
           </>
         ) : (
-          <ChatList chats={chats} onSelectChat={handleSelectChat} />
+          <ChatList chats={chats} guildId={guildId} userId={userId} onSelectChat={handleSelectChat} />
         )}
       </View>
     </SafeAreaView>
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    marginTop: 100, // Якщо потрібно опустити контент на 100 пікселів
+    //marginTop: 100, // Якщо потрібно опустити контент на 100 пікселів
   },
 });
 

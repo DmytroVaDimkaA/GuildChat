@@ -7,6 +7,7 @@ import {
   TextInput,
   Image,
   TouchableOpacity,
+  Dimensions
 } from "react-native";
 import { getDatabase, ref, onValue, push, set } from "firebase/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -14,12 +15,15 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { faFaceSmile } from '@fortawesome/free-regular-svg-icons';
 import { format } from 'date-fns';
+import { uk } from 'date-fns/locale'; // Для локалізації українською
+
+const { width: screenWidth } = Dimensions.get('window'); // Отримання ширини екрану
 
 const ChatWindow = ({ route, navigation }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [inputHeight, setInputHeight] = useState(40); // Висота поля для вводу
-  const maxInputHeight = 120; // Максимальна висота поля для вводу
+  const [inputHeight, setInputHeight] = useState(40);
+  const maxInputHeight = 120;
   const { chatId, initialMessage, isGroupChat } = route.params || {};
   const [userId, setUserId] = useState(null);
   const [guildId, setGuildId] = useState(null);
@@ -103,7 +107,24 @@ const ChatWindow = ({ route, navigation }) => {
           id: key,
           ...messagesData[key],
         }));
-        setMessages(messagesList);
+
+        // Групування повідомлень за датою
+        const groupedMessages = messagesList.reduce((acc, message) => {
+          const date = format(new Date(message.timestamp), 'd MMMM', { locale: uk });
+          if (!acc[date]) {
+            acc[date] = [];
+          }
+          acc[date].push(message);
+          return acc;
+        }, {});
+
+        // Перетворення групованих повідомлень в масив для FlatList
+        const groupedMessagesArray = Object.keys(groupedMessages).map(date => ({
+          date,
+          messages: groupedMessages[date]
+        }));
+
+        setMessages(groupedMessagesArray);
       });
     };
 
@@ -141,46 +162,54 @@ const ChatWindow = ({ route, navigation }) => {
     setInputHeight(Math.min(height, maxInputHeight)); // Обмеження висоти
   };
 
-  const renderItem = ({ item, index }) => {
-    const isCurrentUser = item.senderId === userId;
-
-    // Перевірка, чи це останнє повідомлення від одного користувача
-    const isLastMessageFromUser = (
-      index === messages.length - 1 ||
-      (messages[index + 1] && messages[index + 1].senderId !== item.senderId)
-    );
-
-    return (
-      <View
-        style={[
-          styles.messageContainer,
-          isCurrentUser ? styles.myMessage : styles.theirMessage,
-        ]}
-      >
-        <View style={styles.messageInnerContainer}>
-          <Text style={styles.messageText}>{item.text}</Text>
-          <Text style={styles.messageDate}>
-            {format(new Date(item.timestamp), 'MMM d, yyyy h:mm a')}
-          </Text>
-        </View>
-        {isLastMessageFromUser && (
-          <View
-            style={[
-              styles.triangle,
-              isCurrentUser ? styles.triangleMy : styles.triangleTheir,
-            ]}
-          />
-        )}
+  const renderItem = ({ item }) => (
+    <View style={styles.dateGroup}>
+      <View style={styles.dateBlock}>
+        <Text style={styles.date}>{item.date}</Text>
       </View>
-    );
-  };
+      {item.messages.map((message, index) => {
+        const isCurrentUser = message.senderId === userId;
+
+        // Перевірка, чи це останнє повідомлення від одного користувача
+        const isLastMessageFromUser = (
+          index === item.messages.length - 1 ||
+          (item.messages[index + 1] && item.messages[index + 1].senderId !== message.senderId)
+        );
+
+        return (
+          <View
+            key={message.id}
+            style={[
+              styles.messageContainer,
+              isCurrentUser ? styles.myMessage : styles.theirMessage,
+            ]}
+          >
+            <View style={styles.messageInnerContainer}>
+              <Text style={styles.messageText}>{message.text}</Text>
+              <Text style={styles.messageDate}>
+                {format(new Date(message.timestamp), 'H:mm')}
+              </Text>
+            </View>
+            {isLastMessageFromUser && (
+              <View
+                style={[
+                  styles.triangle,
+                  isCurrentUser ? styles.triangleMy : styles.triangleTheir,
+                ]}
+              />
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={messages}
+        data={messages.length > 0 ? messages : []}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.date + item.messages[0].id}
         style={styles.messagesList}
       />
       <View style={styles.inputContainer}>
@@ -189,10 +218,10 @@ const ChatWindow = ({ route, navigation }) => {
             <FontAwesomeIcon icon={faFaceSmile} size={24} />
           </TouchableOpacity>
           <TextInput
-            style={[styles.input, { height: inputHeight }]} // Висота поля динамічна
+            style={[styles.input, { height: inputHeight }]}
             value={newMessage}
             onChangeText={setNewMessage}
-            onContentSizeChange={handleContentSizeChange} // Відстеження зміни контенту
+            onContentSizeChange={handleContentSizeChange}
             multiline
             placeholder="Write a message..."
           />
@@ -218,6 +247,21 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     justifyContent: "space-between",
   },
+  dateGroup: {
+    marginBottom: 10,
+  },
+  dateBlock: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  date: {
+    fontSize: 14,
+    color: "#fff",
+    backgroundColor: "#999",
+    padding: 5,
+    borderRadius: 10,
+  },
+
   messagesList: {
     flex: 1,
     paddingHorizontal: 10,
@@ -227,11 +271,13 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
     maxWidth: "80%",
+    minWidth: screenWidth / 2, // Мінімальна ширина повідомлення
     position: 'relative', // Необхідно для позиціонування "хвостиків"
   },
   messageInnerContainer: {
     padding: 10,
   },
+
   myMessage: {
     alignSelf: "flex-end",
     backgroundColor: "#DCF8C6",
@@ -321,5 +367,3 @@ const styles = StyleSheet.create({
 });
 
 export default ChatWindow;
-
-
