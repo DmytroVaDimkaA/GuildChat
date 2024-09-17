@@ -16,6 +16,8 @@ import { faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { faFaceSmile } from '@fortawesome/free-regular-svg-icons';
 import { format } from 'date-fns';
 import { uk, ru, es, fr, de } from 'date-fns/locale'; // Імпортуємо всі потрібні локалі
+import { Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
+import translateMessage from '../../translateMessage'; // Імпорт функції перекладу
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -40,6 +42,7 @@ const ChatWindow = ({ route, navigation }) => {
   const [contactAvatar, setContactAvatar] = useState(null);
   const [contactName, setContactName] = useState(null);
   const [locale, setLocale] = useState(uk); // Локаль за замовчуванням
+  const [selectedMessageId, setSelectedMessageId] = useState(null);
 
   useEffect(() => {
     const fetchUserIdAndGuildId = async () => {
@@ -150,6 +153,54 @@ const ChatWindow = ({ route, navigation }) => {
     fetchMessages();
   }, [chatId, guildId, locale]);
 
+  
+  const handleMenuOptionSelect = async (option) => {
+    console.log("selectedMessageId:", selectedMessageId);
+    if (selectedMessageId) {
+        const selectedMessage = messages
+            .flatMap(group => group.messages)
+            .find(message => message.id === selectedMessageId);
+
+        if (!selectedMessage) return;
+
+        if (option === 'translate') {
+            try {
+                // Виклик функції перекладу з текстом повідомлення та локаллю
+                const translatedText = await translateMessage(selectedMessage.text, locale);
+                console.log("Translated Message:", translatedText);
+            } catch (error) {
+                console.error("Error translating message:", error);
+            }
+        }
+
+        // Очистіть вибраний ID після обробки
+        setSelectedMessageId(null);
+    }
+};
+
+
+
+
+  const isPersonalMessage = async (message) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (userId === null) {
+        // Якщо немає userId в AsyncStorage, можна повернути false або обробити випадок
+        return false;
+      }
+      return message.senderId === userId || message.receiverId === userId;
+    } catch (error) {
+      console.error("Помилка при отриманні userId з AsyncStorage:", error);
+      return false;
+    }
+  };
+
+  const handlePressMessage = (messageId) => {
+    console.log("Message pressed:", messageId);
+    setSelectedMessageId(messageId);
+  };
+  
+
   const handleSendMessage = async () => {
     if (newMessage.trim() === "") return;
     try {
@@ -180,40 +231,95 @@ const ChatWindow = ({ route, navigation }) => {
       <View style={styles.dateBlock}>
         <Text style={styles.date}>{item.date}</Text>
       </View>
-      {item.messages.map((message, index) => {
+      {item.messages.map(async (message, index) => {
         const isCurrentUser = message.senderId === userId;
         const isLastMessageFromUser = (
           index === item.messages.length - 1 ||
           (item.messages[index + 1] && item.messages[index + 1].senderId !== message.senderId)
         );
-
+    
+        // Перевірка, чи є повідомлення особистим
+        const isPersonal = await isPersonalMessage(message);
+    
+        
+    
         return (
-          <View
+          <Menu
+            style={styles.menu}
             key={message.id}
-            style={[
-              styles.messageContainer,
-              isCurrentUser ? styles.myMessage : styles.theirMessage,
-            ]}
           >
-            <View style={styles.messageInnerContainer}>
-              <Text style={styles.messageText}>{message.text}</Text>
-              <Text style={styles.messageDate}>
-                {format(new Date(message.timestamp), 'H:mm', { locale })}
-              </Text>
-            </View>
-            {isLastMessageFromUser && (
+            <MenuTrigger
+              onPress={() => handlePressMessage(message.id)}
+            >
               <View
                 style={[
-                  styles.triangle,
-                  isCurrentUser ? styles.triangleMy : styles.triangleTheir,
+                  styles.messageContainer,
+                  isCurrentUser ? styles.myMessage : styles.theirMessage,
                 ]}
-              />
-            )}
-          </View>
+              >
+                <View style={styles.messageInnerContainer}>
+                  <Text style={styles.messageText}>{message.text}</Text>
+                  <Text 
+                    style={[
+                      styles.messageDate, 
+                      isCurrentUser ? styles.messageDateMy : null
+                    ]}
+                  >
+                    {format(new Date(message.timestamp), 'H:mm', { locale })}
+                  </Text>
+                </View>
+                {isLastMessageFromUser && (
+                  <View
+                    style={[
+                      styles.triangle,
+                      isCurrentUser ? styles.triangleMy : styles.triangleTheir,
+                    ]}
+                  />
+                )}
+              </View>
+            </MenuTrigger>
+            <MenuOptions style={isPersonal ? styles.popupMenuPersonal : styles.popupMenuInterlocutor}>
+              {isCurrentUser ? (
+                <>
+                  <MenuOption value="reply" onSelect={() => handleMenuOptionSelect('reply')}>
+                    <Text>Відповісти</Text>
+                  </MenuOption>
+                  <MenuOption value="copy" onSelect={() => handleMenuOptionSelect('copy')}>
+                    <Text>Копіювати</Text>
+                  </MenuOption>
+                  <MenuOption value="attach" onSelect={() => handleMenuOptionSelect('attach')}>
+                    <Text>Прикріпити</Text>
+                  </MenuOption>
+                  <MenuOption value="edit" onSelect={() => handleMenuOptionSelect('edit')}>
+                    <Text>Редагувати</Text>
+                  </MenuOption>
+                  <MenuOption value="delete" onSelect={() => handleMenuOptionSelect('delete')}>
+                    <Text>Видалити</Text>
+                  </MenuOption>
+                </>
+              ) : (
+                <>
+                  <MenuOption value="reply" onSelect={() => handleMenuOptionSelect('reply')}>
+                    <Text>Відповісти</Text>
+                  </MenuOption>
+                  <MenuOption value="copy" onSelect={() => handleMenuOptionSelect('copy')}>
+                    <Text>Копіювати</Text>
+                  </MenuOption>
+                  <MenuOption value="attach" onSelect={() => handleMenuOptionSelect('attach')}>
+                    <Text>Прикріпити</Text>
+                  </MenuOption>
+                  <MenuOption value="translate" onSelect={() => handleMenuOptionSelect('translate')}>
+                    <Text>Перекласти</Text>
+                  </MenuOption>
+                </>
+              )}
+            </MenuOptions>
+          </Menu>
         );
       })}
     </View>
   );
+  
 
   return (
     <View style={styles.container}>
@@ -222,6 +328,7 @@ const ChatWindow = ({ route, navigation }) => {
         renderItem={renderItem}
         keyExtractor={(item) => item.date + item.messages[0].id}
         style={styles.messagesList}
+        
       />
       <View style={styles.inputContainer}>
         <View style={styles.inputWrapper}>
@@ -375,8 +482,43 @@ const styles = StyleSheet.create({
     bottom: -25,
     left: -15,
   },
+  messageDateMy: {
+    alignSelf: 'flex-end', // Вирівнювання по правому краю
+    marginTop: 4, // Можна додати додатковий відступ для відокремлення часу від тексту
+    color: '#aaa', // Можна налаштувати колір часу
+  },
+  menu: {
+    position: 'relative',
+    
+    //bottom: 50, // Можна змінити для відповідності з вашим дизайном
+    
+  },
+  popupMenuInterlocutor: {
+    
+    position: 'absolute',
+    left: 10,  // Відступ зліва для співрозмовника
+    top: 0,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#cccccc',
+    // Інші стилі
+  },
+  // Стиль для попап меню особистих повідомлень
+  popupMenuPersonal: {
+    backgroundColor:  'red',
+    position: 'absolute',
+    right: -155,  // Відступ справа для особистих повідомлень
+    top: 0,
+    fontSize: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#cccccc',
+    // Інші стилі, такі ж як для співрозмовника
+  },
 });
 
 export default ChatWindow;
-
-

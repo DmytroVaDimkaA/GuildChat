@@ -17,6 +17,7 @@ import MapComponent from './Quant/MapComponent';
 import GB from "./ico/GB.svg";
 import Chat from "./ico/Chat.svg";
 import Quant from "./ico/quant.svg";
+import { MenuProvider } from 'react-native-popup-menu'; // Додано імпорт MenuProvider
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -92,7 +93,6 @@ function QuantStack() {
                     headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
                 }}
             />
-            
         </Stack.Navigator>
     );
 }
@@ -254,6 +254,7 @@ function CustomDrawerContent(props) {
 
 export default function App() {
     return (
+        <MenuProvider>
         <NavigationContainer>
             <Drawer.Navigator drawerContent={props => <CustomDrawerContent {...props} />} initialRouteName="Home">
                 <Drawer.Screen
@@ -293,6 +294,7 @@ export default function App() {
                 
             </Drawer.Navigator>
         </NavigationContainer>
+</MenuProvider>
     );
 }
 

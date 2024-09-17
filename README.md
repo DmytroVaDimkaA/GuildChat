@@ -121,7 +121,43 @@ container: {
     bottom: -25,
     left: -15,
   },
-});
+  messageDateMy: {
+    alignSelf: 'flex-end', // Вирівнювання по правому краю
+    marginTop: 4, // Можна додати додатковий відступ для відокремлення часу від тексту
+    color: '#aaa', // Можна налаштувати колір часу
+  },
+  menu: {
+    position: 'relative',
+    
+    //bottom: 50, // Можна змінити для відповідності з вашим дизайном
+    
+  },
+  popupMenuInterlocutor: {
+    
+    position: 'absolute',
+    left: 10,  // Відступ зліва для співрозмовника
+    top: 0,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#cccccc',
+    // Інші стилі
+  },
+  // Стиль для попап меню особистих повідомлень
+  popupMenuPersonal: {
+    backgroundColor:  'red',
+    position: 'absolute',
+    right: -155,  // Відступ справа для особистих повідомлень
+    top: 0,
+    fontSize: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#cccccc',
+    // Інші стилі, такі ж як для співрозмовника
+  },
 
 export default ChatWindow;
 
