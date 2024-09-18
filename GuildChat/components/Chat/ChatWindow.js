@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   Dimensions
 } from "react-native";
-import { getDatabase, ref, onValue, push, set } from "firebase/database";
+import { getDatabase, ref, onValue, push, set, get } from "firebase/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
@@ -18,7 +18,9 @@ import { format } from 'date-fns';
 import { uk, ru, es, fr, de } from 'date-fns/locale'; // Імпортуємо всі потрібні локалі
 import { Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
 import translateMessage from '../../translateMessage'; // Імпорт функції перекладу
-
+//import firebase from '../../firebaseConfig'; // Імпортуйте Firebase
+//import { ref, get, set } from "firebase/database"; // Імпорт методів для роботи з базою даних
+import { database } from '../../firebaseConfig'; // Імпортуйте Firebase
 const { width: screenWidth } = Dimensions.get('window');
 
 // Об'єкт для керування локалями
@@ -155,7 +157,8 @@ const ChatWindow = ({ route, navigation }) => {
 
   
   const handleMenuOptionSelect = async (option) => {
-    console.log("selectedMessageId:", selectedMessageId);
+    console.log("selectedChatId:", chatId);
+    
     if (selectedMessageId) {
         const selectedMessage = messages
             .flatMap(group => group.messages)
@@ -165,11 +168,26 @@ const ChatWindow = ({ route, navigation }) => {
 
         if (option === 'translate') {
             try {
-                // Виклик функції перекладу з текстом повідомлення та локаллю
-                const translatedText = await translateMessage(selectedMessage.text, locale);
-                console.log("Translated Message:", translatedText);
+                // Отримання посилання на переклад у Firebase Realtime Database
+                const translationRef = ref(database, `guilds/${guildId}/chats/${chatId}/messages/${selectedMessageId}/translate/${locale.code}`);
+
+                // Перевірка наявності перекладу
+                const snapshot = await get(translationRef);
+                if (snapshot.exists()) {
+                    // Якщо переклад існує, виводимо його
+                    console.log("Existing Translation:", snapshot.val());
+                } else {
+                    // Якщо перекладу немає, викликаємо функцію перекладу
+                    const translatedText = await translateMessage(selectedMessage.text, locale.code);
+                    console.log("Translated Message:", translatedText);
+
+                    // Зберігаємо переклад у Firebase
+                    await set(translationRef, translatedText);
+                    console.log("Translation saved successfully");
+                }
+
             } catch (error) {
-                console.error("Error translating message:", error);
+                console.error("Error translating or saving message:", error);
             }
         }
 
@@ -177,6 +195,9 @@ const ChatWindow = ({ route, navigation }) => {
         setSelectedMessageId(null);
     }
 };
+
+
+
 
 
 
