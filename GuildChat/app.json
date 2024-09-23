@@ -1,5 +1,9 @@
 {
   "expo": {
+    "permissions": [
+      "camera",
+      "cameraRoll"
+    ],
     "name": "GuildChat",
     "slug": "GuildChat",
     "version": "1.0.0",

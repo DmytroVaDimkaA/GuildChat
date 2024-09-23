@@ -10,7 +10,8 @@ import GBScreen from "./GB/GBScreen";
 import MyGB from './GB/MyGB';
 import NewGBChat from './GB/NewGBChat';
 import AddGBComponent from './GB/AddGBComponent';
-import GuildMembersList from "./GuildMemberList";
+import GuildMembersList from "./Chat/GuildMemberList";
+import NewGroupChat from "./Chat/NewGroupChat";
 import ChatScreen from "./Chat/ChatScreen";
 import ChatWindow from './Chat/ChatWindow';
 import MapComponent from './Quant/MapComponent';
@@ -18,6 +19,8 @@ import GB from "./ico/GB.svg";
 import Chat from "./ico/Chat.svg";
 import Quant from "./ico/quant.svg";
 import { MenuProvider } from 'react-native-popup-menu'; // Додано імпорт MenuProvider
+import Ionicons from 'react-native-vector-icons/Ionicons';
+
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -47,10 +50,35 @@ function ChatStack() {
                     title: 'Нове повідомлення',
                 }}
             />
-            <Stack.Screen name="ChatWindow" component={ChatWindow} />
+            <Stack.Screen
+                name="NewGroupChat"
+                component={NewGroupChat}
+                options={{
+                    title: 'Створити групу',
+                }}
+            />
+            <Stack.Screen 
+                name="ChatWindow" 
+                component={ChatWindow} 
+                options={({ navigation }) => ({
+                    title: 'Чат',
+                    // Використовуємо стандартну стрілку назад
+                    headerLeft: () => (
+                        <TouchableOpacity onPress={() => navigation.navigate('ChatScreen')}>
+                            <Ionicons
+                            name="arrow-back"
+                            size={24}
+                            color="#fff"
+                            style={{ marginLeft: 10 }}
+                        />
+                        </TouchableOpacity>
+                    ),
+                })}
+            />
         </Stack.Navigator>
     );
 }
+
 
 function GBStack() {
     return (

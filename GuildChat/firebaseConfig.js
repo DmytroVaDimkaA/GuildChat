@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
+import { getStorage } from "firebase/storage"; // Імпорт для сховища
 
 // TODO: Replace with your app's Firebase project configuration
 const firebaseConfig = {
@@ -13,7 +14,11 @@ const firebaseConfig = {
   appId: "1:220187331504:web:74d825c9652d2977946475",
 };
 
+// Ініціалізація Firebase
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
 
-export { database };
+// Експорт бази даних і сховища
+const database = getDatabase(app);
+const storage = getStorage(app);
+
+export { database, storage };

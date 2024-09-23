@@ -7,7 +7,10 @@ import {
   TextInput,
   Image,
   TouchableOpacity,
-  Dimensions
+  Dimensions,
+  Modal, ScrollView,
+  Button,
+  Alert
 } from "react-native";
 import { getDatabase, ref, onValue, push, set, get } from "firebase/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -18,11 +21,14 @@ import { format } from 'date-fns';
 import { uk, ru, es, fr, de } from 'date-fns/locale'; // Імпортуємо всі потрібні локалі
 import { Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
 import translateMessage from '../../translateMessage'; // Імпорт функції перекладу
-//import firebase from '../../firebaseConfig'; // Імпортуйте Firebase
-//import { ref, get, set } from "firebase/database"; // Імпорт методів для роботи з базою даних
-import { database } from '../../firebaseConfig'; // Імпортуйте Firebase
-const { width: screenWidth } = Dimensions.get('window');
+import { database, storage } from '../../firebaseConfig'; // Імпортуйте Firebase
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import uuid from 'react-native-uuid'; // Для генерації унікальних ID
 
+
+const { width: screenWidth } = Dimensions.get('window');
 // Об'єкт для керування локалями
 const locales = {
   uk: uk,
@@ -39,12 +45,16 @@ const ChatWindow = ({ route, navigation }) => {
   const [inputHeight, setInputHeight] = useState(40);
   const maxInputHeight = 120;
   const { chatId, initialMessage, isGroupChat } = route.params || {};
+  console.log('chatId:', chatId); // Додайте цей рядок
+
   const [userId, setUserId] = useState(null);
   const [guildId, setGuildId] = useState(null);
   const [contactAvatar, setContactAvatar] = useState(null);
   const [contactName, setContactName] = useState(null);
   const [locale, setLocale] = useState(uk); // Локаль за замовчуванням
   const [selectedMessageId, setSelectedMessageId] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [translatedText, setTranslatedText] = useState('');
 
   useEffect(() => {
     const fetchUserIdAndGuildId = async () => {
@@ -156,45 +166,128 @@ const ChatWindow = ({ route, navigation }) => {
   }, [chatId, guildId, locale]);
 
   
+  
+  // Отримання guildId та chatId з AsyncStorage
+const getChatData = async () => {
+  try {
+    //const guildId = await AsyncStorage.getItem('guildId'); // Замість 'guildId' використайте правильний ключ
+    //const chatId = await AsyncStorage.getItem('chatId');   // Замість 'chatId' використайте правильний ключ
+    console.log("guildId:", guildId);
+    return { guildId, chatId };
+  } catch (error) {
+    console.error("Не вдалося отримати дані з AsyncStorage:", error);
+  }
+};
+
+const uploadImageAndSaveMessage = async (messageText) => {
+  try {
+    // Перевірка наявності даних
+    const guildId = await AsyncStorage.getItem('guildId');
+    const userId = await AsyncStorage.getItem('userId');
+    const { chatId } = route.params || {};
+
+    if (!guildId || !chatId) {
+      console.error('Не вдалося отримати guildId або chatId.', { guildId, chatId });
+      Alert.alert('Помилка', 'Не вдалося отримати guildId або chatId.');
+      return;
+    }
+
+    // Запит дозволу на доступ до медіа
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Увага", "Доступ до медіа-ресурсів не надано.");
+      return;
+    }
+
+    // Вибір кількох зображень
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true, // Дозволяє вибирати кілька зображень
+      quality: 1, // Висока якість зображення
+    });
+
+    if (result.canceled) {
+      Alert.alert("Увага", "Зображення не вибрано.");
+      return;
+    }
+
+    const imageUris = result.assets.map(asset => asset.uri); // Отримання URI всіх вибраних зображень
+
+    // Завантаження зображень до Firebase Storage
+    const imageUrls = await Promise.all(imageUris.map(async (imageUri) => {
+      const imageId = uuid.v4(); // Генерація унікального ID для кожного зображення
+      const imageRef = storageRef(getStorage(), `images/${imageId}.jpeg`);
+
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      await uploadBytes(imageRef, blob);
+
+      // Отримання URL зображення
+      return await getDownloadURL(imageRef);
+    }));
+
+    // Збереження повідомлення разом із URL зображень у базу даних
+    const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
+
+    await set(messageRef, {
+      text: messageText,
+      imageUrls: imageUrls, // Збереження масиву зображень
+      timestamp: Date.now(),
+      senderId: userId
+    });
+
+    Alert.alert("Повідомлення успішно додано!");
+
+  } catch (error) {
+    Alert.alert("Помилка", `Не вдалося завантажити зображення: ${error.message}`);
+  }
+};
+
+  
+  
+
   const handleMenuOptionSelect = async (option) => {
     console.log("selectedChatId:", chatId);
-    
+  
     if (selectedMessageId) {
-        const selectedMessage = messages
-            .flatMap(group => group.messages)
-            .find(message => message.id === selectedMessageId);
-
-        if (!selectedMessage) return;
-
-        if (option === 'translate') {
-            try {
-                // Отримання посилання на переклад у Firebase Realtime Database
-                const translationRef = ref(database, `guilds/${guildId}/chats/${chatId}/messages/${selectedMessageId}/translate/${locale.code}`);
-
-                // Перевірка наявності перекладу
-                const snapshot = await get(translationRef);
-                if (snapshot.exists()) {
-                    // Якщо переклад існує, виводимо його
-                    console.log("Existing Translation:", snapshot.val());
-                } else {
-                    // Якщо перекладу немає, викликаємо функцію перекладу
-                    const translatedText = await translateMessage(selectedMessage.text, locale.code);
-                    console.log("Translated Message:", translatedText);
-
-                    // Зберігаємо переклад у Firebase
-                    await set(translationRef, translatedText);
-                    console.log("Translation saved successfully");
-                }
-
-            } catch (error) {
-                console.error("Error translating or saving message:", error);
-            }
+      const selectedMessage = messages
+        .flatMap(group => group.messages)
+        .find(message => message.id === selectedMessageId);
+  
+      if (!selectedMessage) return;
+  
+      if (option === 'translate') {
+        try {
+          // Отримання посилання на переклад у Firebase Realtime Database
+          const translationRef = ref(database, `guilds/${guildId}/chats/${chatId}/messages/${selectedMessageId}/translate/${locale.code}`);
+  
+          // Перевірка наявності перекладу
+          const snapshot = await get(translationRef);
+          if (snapshot.exists()) {
+            // Якщо переклад існує, відображаємо його в модальному вікні
+            setTranslatedText(snapshot.val());
+            setModalVisible(true);
+          } else {
+            // Якщо перекладу немає, викликаємо функцію перекладу
+            const translatedText = await translateMessage(selectedMessage.text, locale.code);
+  
+            // Зберігаємо переклад у Firebase
+            await set(translationRef, translatedText);
+  
+            // Відображаємо перекладений текст у модальному вікні
+            setTranslatedText(translatedText);
+            setModalVisible(true);
+          }
+        } catch (error) {
+          console.error("Error translating or saving message:", error);
         }
-
-        // Очистіть вибраний ID після обробки
-        setSelectedMessageId(null);
+      }
+  
+      // Очистіть вибраний ID після обробки
+      setSelectedMessageId(null);
     }
-};
+  };
+  
 
 
 
@@ -366,7 +459,13 @@ const ChatWindow = ({ route, navigation }) => {
           />
           <TouchableOpacity 
             style={styles.iconButton}
-            onPress={newMessage.trim() ? handleSendMessage : null}
+            onPress={() => {
+              if (newMessage.trim()) {
+                handleSendMessage();
+              } else {
+                uploadImageAndSaveMessage("hghghj", chatId);
+              }
+            }}
           >
             <FontAwesomeIcon 
               icon={newMessage.trim() ? faPaperPlane : faPaperclip} 
@@ -376,6 +475,23 @@ const ChatWindow = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalHeader}>Переклад</Text>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+              <Text style={styles.translatedText}>{translatedText}</Text>
+            </ScrollView>
+            <Button title="Закрити" onPress={() => setModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 };
@@ -539,6 +655,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cccccc',
     // Інші стилі, такі ж як для співрозмовника
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '50%', // Модальне вікно займає не більше половини екрану
+  },
+  modalHeader: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  scrollContent: {
+    paddingVertical: 10,
+  },
+  translatedText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
   },
 });
 

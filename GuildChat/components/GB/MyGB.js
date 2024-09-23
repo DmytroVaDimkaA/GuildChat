@@ -275,12 +275,14 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: 100,
     height: 100,
-    borderWidth: 2,
-    borderColor: 'red',
+    borderWidth: 1,
+    //borderColor: 'red',
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
     backgroundColor: '#e0e0e0',
+    backgroundColor: '#fff',
   },
   buildingImage: {
     width: '100%',
@@ -289,15 +291,15 @@ const styles = StyleSheet.create({
   },
   nameContainer: {
     flex: 1,
-    borderWidth: 2,
-    borderColor: 'blue',
+    //borderWidth: 2,
+    //borderColor: 'blue',
     justifyContent: 'flex-start', // Вирівнювання блоків по верхньому краю
     alignItems: 'stretch', // Розтягує блоки на всю ширину
     backgroundColor: '#e0e0e0',
   },
   nameBlock: {
-    borderWidth: 1,
-    borderColor: 'green', // Колір рамки для nameBlock
+    //borderWidth: 1,
+    //borderColor: 'green', // Колір рамки для nameBlock
     padding: 5,
     alignItems: 'center',
     // Висота буде автоматично підганятися під висоту тексту
@@ -305,7 +307,7 @@ const styles = StyleSheet.create({
   additionalLevelBlock: {
     flex: 1,
     flexDirection: 'row',
-    borderWidth: 1,
+    //borderWidth: 1,
     borderColor: 'orange', // Колір рамки для additionalLevelBlock
     
     alignItems: 'center'
@@ -315,7 +317,7 @@ const styles = StyleSheet.create({
     flex: 1,
     //margin: 5,
     //padding: 10,
-    backgroundColor: '#f0f0f0',
+    //backgroundColor: '#f0f0f0',
     borderWidth: 1,
     borderColor: '#ddd',
     alignItems: 'center',
@@ -324,7 +326,7 @@ const styles = StyleSheet.create({
     flex: 1,
     //margin: 5,
     //padding: 10,
-    backgroundColor: '#f0f0f0',
+    //backgroundColor: '#f0f0f0',
     borderWidth: 1,
     borderColor: '#ddd',
     alignItems: 'center',
