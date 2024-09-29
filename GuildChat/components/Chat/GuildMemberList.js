@@ -94,9 +94,10 @@ const GuildMembersList = () => {
       console.error('Error creating or opening chat: ', error);
     }
   };
-  
 
-  
+  const handleCreateGroupChat = () => {
+    navigation.navigate('NewGroupChat');
+  };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity onPress={() => handlePress(item)}>
@@ -115,11 +116,16 @@ const GuildMembersList = () => {
   }
 
   return (
-    <FlatList
-      data={members}
-      renderItem={renderItem}
-      keyExtractor={(item) => item.id}
-    />
+    <View style={{ flex: 1 }}>
+      <TouchableOpacity onPress={handleCreateGroupChat}>
+        <Text style={styles.createGroupChatText}>Створити груповий чат</Text>
+      </TouchableOpacity>
+      <FlatList
+        data={members}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+      />
+    </View>
   );
 };
 
@@ -145,6 +151,12 @@ const styles = StyleSheet.create({
   memberStatus: {
     fontSize: 14,
     color: 'gray',
+  },
+  createGroupChatText: {
+    fontSize: 16,
+    color: '#007BFF', // колір для підкреслення, можна змінити
+    textAlign: 'center',
+    padding: 15,
   },
 });
 

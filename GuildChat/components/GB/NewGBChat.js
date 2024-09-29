@@ -5,6 +5,8 @@ import { getAuth } from 'firebase/auth';
 import { MultiSelect } from 'react-native-element-dropdown';
 import { Dropdown } from 'react-native-element-dropdown';
 import CustomCheckBox from '../CustomElements/CustomCheckBox3';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path } from 'react-native-svg';
 
 const NewGBChat = ({ navigation }) => {
 const [chatName, setChatName] = useState('');
@@ -23,6 +25,7 @@ const comparisonOptions = [
 ];
 const [stepperWidth, setStepperWidth] = useState(200);
 const [coefficientText, setCoefficientText] = useState('Оберіть рівень арки вкладника');
+const checkmarkSize = 22;
 
 useEffect(() => {
 const db = getDatabase();
@@ -47,7 +50,9 @@ const renderBuildingItem = (item) => (
     <Image source={{ uri: item.image }} style={styles.image} />
     <Text style={styles.itemLabel}>{item.label}</Text>
     {allowedGBs.includes(item.value) && (
-      <Text style={styles.checkmark}>✔</Text>  
+      <Svg width={checkmarkSize} height={checkmarkSize} viewBox="0 0 24 24" fill="none" style={styles.checkmark}>
+      <Path d={`M${(checkmarkSize * 20) / 24} ${(checkmarkSize * 6) / 24}L${(checkmarkSize * 9) / 24} ${(checkmarkSize * 17) / 24}L${(checkmarkSize * 4) / 24} ${(checkmarkSize * 12) / 24}`} stroke="#007AFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
     )}
   </View>
 );
@@ -71,35 +76,42 @@ setPlaceLimit(newPlaceLimit);
 };
 
 const handleCreateChat = async () => {
-try {
-const db = getDatabase();
-const auth = getAuth();
-const user = auth.currentUser;
+  try {
+    const db = getDatabase();
+    const auth = getAuth();
+    const user = auth.currentUser;
 
-const selectedPlaceLimits = placeLimit
-.map((selected, index) => (selected ? index + 1 : null))
-.filter((value) => value !== null);
+    const selectedPlaceLimits = placeLimit
+      .map((selected, index) => (selected ? index + 1 : null))
+      .filter((value) => value !== null);
 
-const newChat = {
-chatName,
-rules: {
-nodeComparison,
-nodeRatio: parseFloat(nodeRatio),
-levelThreshold: parseInt(levelThreshold),
-allowedGBs,
-placeLimit: selectedPlaceLimits,
-contributionMultiplier: parseFloat(contributionMultiplier)
-},
-createdBy: user ? user.uid : null,
-createdAt: new Date().toISOString()
+    const newChat = {
+      chatName,
+      rules: {
+        nodeComparison,
+        ArcLevel: parseFloat(nodeRatio) || 0,
+        levelThreshold: parseInt(levelThreshold, 10) || 0,
+        allowedGBs,
+        placeLimit: selectedPlaceLimits,
+        contributionMultiplier: contributionMultiplier || 0, // Використовуємо значення з стану
+      },
+      createdBy: user ? user.uid : null,
+    };
+
+    const guildId = await AsyncStorage.getItem('guildId');
+
+    if (guildId) {
+      await push(ref(db, `guilds/${guildId}/GBChat`), newChat);
+      navigation.goBack();
+    } else {
+      console.error('Guild ID не знайдено');
+    }
+  } catch (error) {
+    console.error('Помилка при створенні чату:', error);
+  }
 };
 
-await push(ref(db, 'chats'), newChat);
-navigation.goBack();
-} catch (error) {
-console.error('Помилка при створенні чату:', error);
-}
-};
+
 
 const Stepper = ({ value, onValueChange, buttonSize = 20, minValue = 0, maxValue = 200 }) => {
 const inputWidth = stepperWidth - buttonSize * 2;
@@ -186,7 +198,8 @@ const fetchContributionBoost = async (level) => {
 
     // Оновлення тексту
     setCoefficientText(`Рівень арки вкладника (коефіцієнт ${coefficient.toFixed(3)})`);
-    
+    setContributionMultiplier(coefficient); // Збереження значення в стані
+
   } catch (error) {
     console.error('Помилка при отриманні даних з API:', error);
   }

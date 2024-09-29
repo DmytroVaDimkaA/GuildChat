@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, ActivityIndicator, TouchableOpacity, Button } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDatabase, ref, get, push, set } from 'firebase/database';
+import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 
 const GuildMembersList = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMembers, setSelectedMembers] = useState([]);
+  const checkmarkSize = 26;
 
   useEffect(() => {
     const fetchGuildMembers = async () => {
@@ -77,7 +79,10 @@ const GuildMembersList = () => {
         <View style={styles.textContainer}>
           <Text style={styles.memberName}>{item.name}</Text>
           {selectedMembers.includes(item.id) && (
-            <Text style={styles.checkmark}>✔️</Text> // Відображення галочки
+            
+            <Svg width={checkmarkSize} height={checkmarkSize} viewBox="0 0 24 24" fill="none" style={styles.checkmark}>
+              <Path d={`M${(checkmarkSize * 20) / 24} ${(checkmarkSize * 6) / 24}L${(checkmarkSize * 9) / 24} ${(checkmarkSize * 17) / 24}L${(checkmarkSize * 4) / 24} ${(checkmarkSize * 12) / 24}`} stroke="#007AFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
           )}
           <Text style={styles.memberStatus}>активність — недавно</Text>
         </View>

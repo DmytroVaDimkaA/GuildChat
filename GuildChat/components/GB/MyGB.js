@@ -8,7 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import Stepper from '../CustomElements/Stepper';
 import FloatingActionButton from '../CustomElements/FloatingActionButton';
-import BonusView from './BonusView'; // Імпорт компонента
+//import BonusView from './BonusView'; // Імпорт компонента
+import BonusView from './ContributionsComponent'; // Імпорт компонента
 
 
 
