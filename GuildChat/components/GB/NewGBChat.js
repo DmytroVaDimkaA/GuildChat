@@ -7,6 +7,7 @@ import { Dropdown } from 'react-native-element-dropdown';
 import CustomCheckBox from '../CustomElements/CustomCheckBox3';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Path } from 'react-native-svg';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 
 const NewGBChat = ({ navigation }) => {
 const [chatName, setChatName] = useState('');
@@ -220,15 +221,23 @@ style={styles.input}
 </View>
 
 <View style={styles.block}>
-<Text style={{ marginBottom: 10 }}>Умова внеску (nodeComparison):</Text>
-<Dropdown
-style={styles.dropdown}
-data={comparisonOptions}
-labelField="label"
-valueField="value"
-value={nodeComparison}
-onChange={(item) => setNodeComparison(item.value)}
-/>
+  <Text style={{ marginBottom: 10 }}>Умова внеску (nodeComparison):</Text>
+  <Dropdown
+    style={styles.dropdown}
+    containerStyle={styles.dropdownContainer} // Стиль для списку вибору
+    data={comparisonOptions}
+    labelField="label"
+    valueField="value"
+    value={nodeComparison}
+    onChange={(item) => setNodeComparison(item.value)}
+    renderRightIcon={() => (
+      <FontAwesome
+        name="chevron-down" // Назва іконки
+        size={12}
+        color="#007AFF" // Колір шеврона
+      />
+    )}
+  />
 </View>
 
 <View style={styles.block}>
@@ -246,16 +255,24 @@ maxValue={200}
 <View style={styles.block}>
 <Text style={{ marginBottom: 10 }}>Дозволені в гілці ВС (allowedGBs):</Text>
 <MultiSelect
-style={styles.dropdown}
-data={greatBuildings}
-labelField="label"
-valueField="value"
-placeholder="Оберіть ВС"
-value={allowedGBs}
-onChange={handleSelectAll}  // Додати обробник
-renderItem={renderBuildingItem}
-selectedStyle={styles.selectedStyle}
-multiple={true}
+  style={styles.dropdown}
+  containerStyle={styles.dropdownContainer} // Стиль для списку вибору
+  data={greatBuildings}
+  labelField="label"
+  valueField="value"
+  placeholder="Оберіть ВС"
+  value={allowedGBs}
+  onChange={handleSelectAll}  // Додати обробник
+  renderItem={renderBuildingItem}
+  selectedStyle={styles.selectedStyle}
+  multiple={true}
+  renderRightIcon={() => (
+    <FontAwesome
+      name="chevron-down" // Назва іконки
+      size={12}
+      color="#007AFF" // Колір шеврона
+    />
+  )}
 />
 </View>
 
@@ -319,6 +336,11 @@ dropdown: {
     padding: 10,
     borderRadius: 6,
     borderColor: '#007AFF',
+},
+dropdownContainer: {
+  borderWidth: 1,
+  borderColor: '#007AFF', // Колір рамки для самого списку вибору
+  borderRadius: 8,
 },
 checkboxContainer: {
     flexDirection: 'row',

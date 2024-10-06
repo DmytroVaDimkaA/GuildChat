@@ -104,6 +104,10 @@ const MyGB = () => {
     return () => {};
   }, []);
 
+  const handlePress = (gbName) => {
+    navigation.navigate('GBGuarant', { gbName });
+};
+
   const handleDelete = async (buildId) => {
     try {
         // Виведення вікна підтвердження
@@ -184,59 +188,70 @@ const MyGB = () => {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollView}>
-        {greatBuilds.length === 0 ? (
-          <Text>No great builds available</Text>
-        ) : (
-          greatBuilds.map(build => (
-            <View key={build.id} style={styles.buildItem}>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(build.id)}>
-                <Ionicons name="close" size={24} color="black" />
-              </TouchableOpacity>
-              <View style={styles.imageNameContainer}>
-                <View style={styles.imageContainer}>
-                  {build.buildingImage ? (
-                    <Image source={{ uri: build.buildingImage }} style={styles.buildingImage} />
-                  ) : (
-                    <Text>Image not available</Text>
-                  )}
-                </View>
-                <View style={styles.nameContainer}>
-                  <View style={styles.nameBlock}>
-                    <Text style={styles.buildName}>{build.buildingName}</Text>
-                  </View>
-                  <View style={styles.additionalLevelBlock}>
-                    <View style={styles.additionalLevelText}>
-                      <Text>Рівень:</Text>
-                    </View>
-                    <View style={styles.additionalLevelStepper}>
-                      <Stepper
-                        initialValue={build.level}
-                        step={1}
-                        maxValue={200}
-                        buildId={build.id}
-                        onValueChange={handleValueChange}
-                      />
-                    </View>
-                  </View>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => handleToggle(build.id)} style={styles.chevronContainer}>
-                <Ionicons
-                  name={expandedBuildId === build.id ? "chevron-up" : "chevron-down"}
-                  size={24}
-                  color="black"
-                />
-              </TouchableOpacity>
-              {expandedBuildId === build.id && (
-                <>
-                  <BonusView bonus={build.bonus} build={build} />
-                  <DetailsView build={build} />
-                </>
+  {greatBuilds.length === 0 ? (
+    <Text>No great builds available</Text>
+  ) : (
+    greatBuilds.map(build => (
+      <TouchableOpacity 
+        key={build.id} 
+        onPress={() => navigation.navigate('GBGuarant', {
+          buildingName: build.buildingName,
+          buildingId: build.id,
+          buildingImage: build.buildingImage
+        })}
+      >
+        <View style={styles.buildItem}>
+          <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(build.id)}>
+            <Ionicons name="close" size={24} color="black" />
+          </TouchableOpacity>
+          <View style={styles.imageNameContainer}>
+            <View style={styles.imageContainer}>
+              {build.buildingImage ? (
+                <Image source={{ uri: build.buildingImage }} style={styles.buildingImage} />
+              ) : (
+                <Text>Image not available</Text>
               )}
             </View>
-          ))
-        )}
-      </ScrollView>
+            <View style={styles.nameContainer}>
+              <View style={styles.nameBlock}>
+                <Text style={styles.buildName}>{build.buildingName}</Text>
+              </View>
+              <View style={styles.additionalLevelBlock}>
+                <View style={styles.additionalLevelText}>
+                  <Text>Рівень:</Text>
+                </View>
+                <View style={styles.additionalLevelStepper}>
+                  <Stepper
+                    initialValue={build.level}
+                    step={1}
+                    maxValue={200}
+                    buildId={build.id}
+                    onValueChange={handleValueChange}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+          <TouchableOpacity onPress={() => handleToggle(build.id)} style={styles.chevronContainer}>
+            <Ionicons
+              name={expandedBuildId === build.id ? "chevron-up" : "chevron-down"}
+              size={24}
+              color="black"
+            />
+          </TouchableOpacity>
+          {expandedBuildId === build.id && (
+            <>
+              <BonusView bonus={build.bonus} build={build} />
+              <DetailsView build={build} />
+            </>
+          )}
+        </View>
+      </TouchableOpacity>
+    ))
+  )}
+</ScrollView>
+
+
       <View style={styles.fabContainer}>
         <FloatingActionButton 
           onPress={handleFabPress} 
@@ -282,7 +297,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
-    backgroundColor: '#e0e0e0',
     backgroundColor: '#fff',
   },
   buildingImage: {

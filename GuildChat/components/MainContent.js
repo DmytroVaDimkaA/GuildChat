@@ -10,6 +10,7 @@ import GBScreen from "./GB/GBScreen";
 import MyGB from './GB/MyGB';
 import NewGBChat from './GB/NewGBChat';
 import AddGBComponent from './GB/AddGBComponent';
+import GBGuarant from './GB/GBGuarant';
 import GuildMembersList from "./Chat/GuildMemberList";
 import NewGroupChat from "./Chat/NewGroupChat";
 import ChatScreen from "./Chat/ChatScreen";
@@ -97,6 +98,10 @@ function GBStack() {
                 options={{ title: 'Мої Величні Споруди' }}
             />
             <Stack.Screen
+                name="GBGuarant"
+                component={GBGuarant}
+            />
+            <Stack.Screen
                 name="NewGBChat"
                 component={NewGBChat}
                 options={{ title: 'Нова гілка прокачки ВС' }}
@@ -106,6 +111,7 @@ function GBStack() {
                 component={AddGBComponent}
                 options={{ title: 'Додайте ВС до свого списку' }}
             />
+            
         </Stack.Navigator>
     );
 }
