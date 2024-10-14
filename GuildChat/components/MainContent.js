@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Animated, Image } from 'react-native';
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerToggleButton } from '@react-navigation/drawer';
+import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerToggleButton, DrawerItem } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -19,6 +19,11 @@ import MapComponent from './Quant/MapComponent';
 import GB from "./ico/GB.svg";
 import Chat from "./ico/Chat.svg";
 import Quant from "./ico/quant.svg";
+import GVG from "./ico/GVG.svg";
+import Azbook from "./ico/azbook.svg";
+import Servise from "./ico/servise.svg";
+import Profile from "./ico/profile.svg";
+import Admin from "./ico/admin.svg";
 import { MenuProvider } from 'react-native-popup-menu'; // Додано імпорт MenuProvider
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -245,44 +250,72 @@ function CustomDrawerContent(props) {
 
     return (
         <DrawerContentScrollView {...props} style={styles.drawerContent}>
-            <View style={styles.header}>
-                {guildImageUrl ? (
-                    <Image
-                        source={{ uri: guildImageUrl }}
-                        style={styles.profileImage}
-                    />
-                ) : null}
-                <Text style={styles.userName}>{userName}</Text>
-                <View style={styles.profileContainer}>
-                    <Text style={styles.guildName}>{guildName}</Text>
-                    <TouchableOpacity style={styles.chevronIcon} onPress={handleChevronPress}>
-                        <Animated.View style={{ transform: [{ rotate: rotationInterpolate }] }}>
-                            <MaterialIcons
-                                name="keyboard-arrow-down"
-                                size={30}
-                                color="#9ecbea"
-                            />
-                        </Animated.View>
-                    </TouchableOpacity>
-                </View>
-            </View>
-            <Animated.View style={[styles.worldselect, { height: animatedHeight, overflow: 'hidden' }]}>
-                <View style={styles.guildContainer}>
-                    <MaterialIcons name="add" size={24} color="white" style={styles.guildImage} />
-                    <Text style={styles.guildText}>Додати світ</Text>
-                </View>
-                {Object.keys(tempData).map(key => (
-                    <TouchableOpacity key={key} style={styles.guildContainer} onPress={() => handleGuildPress(key)}>
-                        <Image
-                            source={{ uri: tempData[key].imageUrl }}
-                            style={styles.guildImage}
+        {/* Ваш заголовок та аватар */}
+        <View style={styles.header}>
+            {guildImageUrl ? (
+                <Image
+                    source={{ uri: guildImageUrl }}
+                    style={styles.profileImage}
+                />
+            ) : null}
+            <Text style={styles.userName}>{userName}</Text>
+            <View style={styles.profileContainer}>
+                <Text style={styles.guildName}>{guildName}</Text>
+                <TouchableOpacity style={styles.chevronIcon} onPress={handleChevronPress}>
+                    <Animated.View style={{ transform: [{ rotate: rotationInterpolate }] }}>
+                        <MaterialIcons
+                            name="keyboard-arrow-down"
+                            size={30}
+                            color="#9ecbea"
                         />
-                        <Text style={styles.guildText}>{tempData[key].guildName}</Text>
-                    </TouchableOpacity>
-                ))}
-            </Animated.View>
-            <DrawerItemList {...props} />
-        </DrawerContentScrollView>
+                    </Animated.View>
+                </TouchableOpacity>
+            </View>
+        </View>
+
+        {/* Анімований вибір світу */}
+        <Animated.View style={[styles.worldselect, { height: animatedHeight, overflow: 'hidden' }]}>
+            <View style={styles.guildContainer}>
+                <MaterialIcons name="add" size={24} color="white" style={styles.guildImage} />
+                <Text style={styles.guildText}>Додати світ</Text>
+            </View>
+            {Object.keys(tempData).map(key => (
+                <TouchableOpacity key={key} style={styles.guildContainer} onPress={() => handleGuildPress(key)}>
+                    <Image
+                        source={{ uri: tempData[key].imageUrl }}
+                        style={styles.guildImage}
+                    />
+                    <Text style={styles.guildText}>{tempData[key].guildName}</Text>
+                </TouchableOpacity>
+            ))}
+        <View style={styles.separator} />
+        </Animated.View>
+        {isWorldSelectVisible && <View style={styles.separator} />}
+        {/* Сепаратор */}
+        
+
+        {/* Пункти меню з Drawer */}
+        {props.state.routes.map((route, index) => {
+                const isServiceItem = route.name === 'servise'; // Перевіряємо, чи це пункт Сервіси
+                const { drawerIcon } = props.descriptors[route.key].options; // Отримуємо іконку з дескриптора
+
+                return (
+                    <View key={route.key}>
+                        <DrawerItem
+                            label={props.descriptors[route.key].options.drawerLabel || route.name}
+                            onPress={() => props.navigation.navigate(route.name)}
+                            icon={({ color, size }) =>
+                                drawerIcon ? drawerIcon({ color, size }) : null
+                            } // Рендеримо іконку
+                            activeBackgroundColor="#000" // Наприклад, '#FFEB3B'
+                        />
+                        
+                        {/* Вставляємо сепаратор після пункту Сервіси */}
+                        {isServiceItem && <View style={styles.separator} />}
+                    </View>
+                );
+            })}
+    </DrawerContentScrollView>
     );
 }
 
@@ -290,7 +323,10 @@ export default function App() {
     return (
         <MenuProvider>
         <NavigationContainer>
-            <Drawer.Navigator drawerContent={props => <CustomDrawerContent {...props} />} initialRouteName="Home">
+            <Drawer.Navigator 
+                drawerContent={props => <CustomDrawerContent {...props} />} 
+                initialRouteName="Home"
+            >
                 <Drawer.Screen
                     name="GB"
                     component={GBStack}
@@ -325,7 +361,62 @@ export default function App() {
                         ),
                     }}
                 />
+                <Drawer.Screen
+                    name="PBG"
+                    component={QuantStack}
+                    options={{
+                        headerShown: false,
+                        drawerLabel: 'Поле битви гільдій',
+                        drawerIcon: ({ color, size }) => (
+                            <GVG width={size} height={size} fill={color} />
+                        ),
+                    }}
+                />
+                <Drawer.Screen
+                    name="azbook"
+                    component={QuantStack}
+                    options={{
+                        headerShown: false,
+                        drawerLabel: 'Абетка',
+                        drawerIcon: ({ color, size }) => (
+                            <Azbook width={size} height={size} fill={color} />
+                        ),
+                    }}
+                />
+                <Drawer.Screen
+                    name="servise"
+                    component={QuantStack}
+                    options={{
+                        headerShown: false,
+                        drawerLabel: 'Сервіси',
+                        drawerIcon: ({ color, size }) => (
+                            <Servise width={size} height={size} fill={color} />
+                        ),
+                    }}
+                />
                 
+                <Drawer.Screen
+                    name="profile"
+                    component={QuantStack}
+                    options={{
+                        headerShown: false,
+                        drawerLabel: 'Профіль',
+                        drawerIcon: ({ color, size }) => (
+                            <Profile width={size} height={size} fill={color} />
+                        ),
+                    }}
+                />
+                <Drawer.Screen
+                    name="admin"
+                    component={QuantStack}
+                    options={{
+                        headerShown: false,
+                        drawerLabel: 'Адміністративна панель',
+                        drawerIcon: ({ color, size }) => (
+                            <Admin width={size} height={size} fill={color} />
+                        ),
+                    }}
+                />
             </Drawer.Navigator>
         </NavigationContainer>
 </MenuProvider>
@@ -390,5 +481,10 @@ const styles = StyleSheet.create({
     guildText: {
         fontSize: 16,
         marginLeft: 10,
+    },
+    separator: {
+        height: 1,
+        backgroundColor: '#BDBDBD',
+        marginVertical: 10,
     },
 });

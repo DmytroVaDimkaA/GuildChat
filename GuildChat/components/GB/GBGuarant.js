@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '../../firebaseConfig';
 import { Dropdown } from 'react-native-element-dropdown';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import GBPatrons from './GBPatrons';
 
 const Stepper = ({ value, onValueChange, buttonSize = 14, minValue = 0, maxValue }) => {
   const [inputValue, setInputValue] = useState(String(value));
@@ -89,6 +90,7 @@ const GBGuarant = ({ route, navigation }) => {
   const [contributionAmount, setContributionAmount] = useState('');
   const [selectedValue, setSelectedValue] = useState(null);
   const [guildMembers, setGuildMembers] = useState([]); // Стан для членів гільдії
+  const [buildAPI, setBuildAPI] = useState('');
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -117,20 +119,33 @@ const GBGuarant = ({ route, navigation }) => {
             get(investmentRef),
           ]);
 
+          let level = null;
+          let base = null;
+
+          // Отримання рівня будівлі
           if (buildingLevelSnapshot.exists()) {
-            const level = buildingLevelSnapshot.val();
+            level = buildingLevelSnapshot.val();
             setBuildingLevel(level);
           } else {
             setBuildingLevel('Рівень не знайдено');
           }
 
+          // Отримання базового рівня
           if (levelBaseSnapshot.exists()) {
-            const base = levelBaseSnapshot.val();
+            base = levelBaseSnapshot.val();
             setLevelBase(base);
           } else {
             setLevelBase('levelBase не знайдено');
           }
 
+          if (base && level !== null) {
+            const buildAPIResult = `${base}${level + 1}`;
+            setBuildAPI(buildAPIResult); // Зберігаємо результат в buildAPI
+            
+          }
+
+
+          // Отримання вкладень користувача
           const personalValue = investmentSnapshot.exists() && investmentSnapshot.val().personal
             ? parseInt(investmentSnapshot.val().personal, 10)
             : 0;
@@ -144,6 +159,7 @@ const GBGuarant = ({ route, navigation }) => {
 
     fetchBuildingData();
   }, [buildingId]);
+
 
   const fetchGuildMembers = async (guildId) => {
     try {
@@ -160,7 +176,7 @@ const GBGuarant = ({ route, navigation }) => {
                     imageUrl: memberData.imageUrl, // Додаємо поле з URL зображення
                 });
                 // Виводимо дані про кожного члена гільдії в консоль
-                console.log('User:', memberData.userName, 'Image URL:', memberData.imageUrl);
+                //console.log('User:', memberData.userName, 'Image URL:', memberData.imageUrl);
             });
             setGuildMembers(members);
         }
@@ -256,7 +272,9 @@ const GBGuarant = ({ route, navigation }) => {
         >
           <Text style={styles.addButtonText}>Додати вкладника</Text>
         </TouchableOpacity>
+        
       </View>
+      <GBPatrons buildId={buildingId} level={buildingLevel} buildAPI={buildAPI}/>
 
       {/* Модальне вікно для вибору вкладника */}
       <Modal
