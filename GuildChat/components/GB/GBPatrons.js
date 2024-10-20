@@ -233,7 +233,6 @@ const styles = StyleSheet.create({
     borderColor: '#000',
     borderRadius: 10,
     height: 'auto',
-    overflow: 'visible',
     zIndex: 1,
   },
   tableContainer: {
@@ -244,7 +243,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     maxHeight: 800,
-    zIndex: 1,
   },
   fixedColumn: {
     width: 70,
@@ -276,14 +274,11 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     minHeight: 50,
-    zIndex: 1,
   },
   cell: {
     minWidth: 120,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRightWidth: 1,
-    borderColor: '#000',
     padding: 10,
   },
   cellText: {

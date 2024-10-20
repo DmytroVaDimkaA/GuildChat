@@ -53,7 +53,7 @@ const db = getDatabase();
 const gbRef = ref(db, `guilds/${guildId}/guildUsers/${userId}/greatBuild/${id}`);
 set(gbRef, { level: 1 })
 .then(() => {
-navigation.goBack(); // Повернення на попередню сторінку
+  navigation.replace('MyGB');
 })
 .catch((error) => {
 console.error('Помилка при додаванні ВС:', error);

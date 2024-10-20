@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   separator: {
-    height: 1,
+    height: 10,
     backgroundColor: '#dddddd', // Колір сепаратора
     //marginVertical: 10, // Відстань зверху і знизу
     alignItems: 'center',

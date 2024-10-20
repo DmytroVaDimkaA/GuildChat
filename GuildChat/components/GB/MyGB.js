@@ -152,7 +152,7 @@ const MyGB = () => {
   };
 
   const handleFabPress = () => {
-    navigation.navigate('AddGBComponent'); // Перехід до AddGBComponent
+    navigation.replace('AddGBComponent'); // Перехід до AddGBComponent
   };
 
   const handleValueChange = async (buildId, newValue) => {

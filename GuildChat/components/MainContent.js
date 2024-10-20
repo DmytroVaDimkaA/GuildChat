@@ -93,7 +93,7 @@ function GBStack() {
                 name="GBScreen"
                 component={GBScreen}
                 options={{
-                    title: 'Прокачка личних Споруд',
+                    title: 'Прокачка Величних Споруд',
                     headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
                 }}
             />
