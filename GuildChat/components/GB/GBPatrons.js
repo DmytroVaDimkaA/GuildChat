@@ -162,7 +162,7 @@ const GBPatrons = ({ buildId, level, buildAPI }) => {
               </View>
             ))}
           </View>
-
+  
           <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.scroll}>
             <View>
               <View style={styles.headerRow}>
@@ -172,7 +172,7 @@ const GBPatrons = ({ buildId, level, buildAPI }) => {
                   </View>
                 ))}
               </View>
-
+  
               {rows.map((row, rowIndex) => (
                 <View style={styles.tableRow} key={rowIndex}>
                   {row.slice(1, 4).map((cell, cellIndex) => (
@@ -181,7 +181,6 @@ const GBPatrons = ({ buildId, level, buildAPI }) => {
                     </View>
                   ))}
                   <View style={styles.cell}>
-                    {/* Кнопка для відкриття Dropdown для конкретного рядка */}
                     <TouchableOpacity
                       onPress={isDropdownDisabled(rowIndex) ? null : () => toggleDropdown(rowIndex)} // Перевірка на активність кнопки для конкретного рядка
                       style={[styles.button, { opacity: isDropdownDisabled(rowIndex) ? 0.5 : 1 }]} // Зменшуємо непрозорість, якщо кнопка пасивна
@@ -193,10 +192,16 @@ const GBPatrons = ({ buildId, level, buildAPI }) => {
                           : 'Виберіть коефіціент'}
                       </Text>
                     </TouchableOpacity>
-
+  
                     {/* Dropdown List для конкретного рядка */}
                     {dropdownVisibility[rowIndex] && (
-                      <View style={[styles.dropdown, { width: buttonWidths[rowIndex] }]}>
+                      <View style={[
+                        styles.dropdown, 
+                        {
+                          width: buttonWidths[rowIndex],
+                          top: rowIndex === rows.length - 1 ? -30 : '130%' // логіка для останньої кнопки
+                        }
+                      ]}>
                         {suitableChats
                           .map((chat) => chat.rules.contributionMultiplier.toFixed(2))
                           .filter((value, i) => 
@@ -223,7 +228,7 @@ const GBPatrons = ({ buildId, level, buildAPI }) => {
       </ScrollView>
     </View>
   );
-};
+};  
 
 const styles = StyleSheet.create({
   container: {
@@ -233,6 +238,7 @@ const styles = StyleSheet.create({
     borderColor: '#000',
     borderRadius: 10,
     height: 'auto',
+    overflow: 'visible',
     zIndex: 1,
   },
   tableContainer: {
@@ -243,6 +249,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     maxHeight: 800,
+    zIndex: 1,
   },
   fixedColumn: {
     width: 70,
