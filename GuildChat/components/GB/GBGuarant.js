@@ -15,6 +15,7 @@ import { database } from '../../firebaseConfig';
 import { Dropdown } from 'react-native-element-dropdown';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import GBPatrons from './GBPatrons';
+import { v4 as uuidv4 } from 'uuid'; // Імпортуємо uuid
 
 const Stepper = ({ value, onValueChange, buttonSize = 14, minValue = 0, maxValue }) => {
   const [inputValue, setInputValue] = useState(String(value));
@@ -91,6 +92,39 @@ const GBGuarant = ({ route, navigation }) => {
   const [selectedValue, setSelectedValue] = useState(null);
   const [guildMembers, setGuildMembers] = useState([]); // Стан для членів гільдії
   const [buildAPI, setBuildAPI] = useState('');
+
+  useEffect(() => {
+    const fetchPatrons = async () => {
+      const guildId = await AsyncStorage.getItem('guildId');
+      const userId = await AsyncStorage.getItem('userId');
+  
+      if (guildId && userId) {
+        const investmentRef = ref(database, `guilds/${guildId}/guildUsers/${userId}/greatBuild/${buildingId}/investment/patrons`);
+  
+        try {
+          const snapshot = await get(investmentRef);
+          if (snapshot.exists()) {
+            const patrons = [];
+            snapshot.forEach((childSnapshot) => {
+              const patronData = childSnapshot.val();
+              // Перевіряємо, чи не є вкладник "friend" або "stranger"
+              if (patronData.patron !== 'friend' && patronData.patron !== 'stranger') {
+                patrons.push(patronData.patron); // Зберігаємо тільки значення "patron"
+              }
+            });
+            console.log('Вкладники (крім friend та stranger):', patrons); // Виводимо в консоль
+          }
+        } catch (error) {
+          console.error('Помилка отримання вкладників:', error);
+        }
+      }
+    };
+  
+    if (modalVisible) {
+      fetchPatrons(); // Викликаємо функцію при відкритті модального вікна
+    }
+  }, [modalVisible]);
+  
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -220,10 +254,38 @@ const GBGuarant = ({ route, navigation }) => {
     }
   };
 
-  const handleSaveContributor = () => {
-    console.log('Вкладник:', contributorName, 'Розмір вкладу:', contributionAmount, 'Вибрано:', selectedValue);
-    setModalVisible(false);
-  };
+  const handleSaveContributor = async () => {
+    if (!selectedValue || !contributionAmount) {
+        alert("Будь ласка, заповніть всі поля.");
+        return; // Переконуємось, що всі поля заповнені
+    }
+    
+    try {
+        const guildId = await AsyncStorage.getItem('guildId');
+        const userId = await AsyncStorage.getItem('userId');
+        const patronId = uuidv4(); // Генеруємо унікальний ID для вкладника
+
+        if (guildId && userId) {
+            const patronRef = ref(database, `guilds/${guildId}/guildUsers/${userId}/greatBuild/${buildingId}/investment/patrons/${patronId}`);
+            
+            // Створюємо об'єкт для збереження
+            const patronData = {
+                patron: selectedValue, // Використовуємо значення замість імені
+                invest: contributionAmount,
+                timestamp: Date.now(), // Час створення запису
+            };
+            
+            // Зберігаємо дані у Firebase
+            await set(patronRef, patronData);
+            
+            console.log('Дані вкладника успішно збережено:', patronData);
+            setModalVisible(false); // Закриваємо модальне вікно
+        }
+    } catch (error) {
+        console.error('Помилка при збереженні вкладника:', error);
+    }
+};
+
 
   const nextLevel = buildingLevel !== null && typeof buildingLevel === 'number' ? buildingLevel + 1 : null;
 
@@ -274,7 +336,12 @@ const GBGuarant = ({ route, navigation }) => {
         </TouchableOpacity>
         
       </View>
-      <GBPatrons buildId={buildingId} level={buildingLevel} buildAPI={buildAPI}/>
+      <GBPatrons
+        buildId={buildingId}
+        level={buildingLevel}
+        buildAPI={buildAPI}
+        personalContribution={stepValue} // Передаємо значення степпера
+      />
 
       {/* Модальне вікно для вибору вкладника */}
       <Modal

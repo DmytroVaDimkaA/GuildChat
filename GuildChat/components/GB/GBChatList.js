@@ -54,7 +54,7 @@ const GBChatList = () => {
     if (chat.id === '1') {
       navigation.navigate('MyGB'); // Перехід на MyGB для чату з індексом 1
     } else {
-      navigation.navigate('ChatWindow', { chatId: chat.id }); // Перехід до ChatWindow для інших чатів
+      navigation.navigate('GBChatWindow', { chatId: chat.id }); // Перехід до GBChatWindow з передачею chatId
     }
   };
 

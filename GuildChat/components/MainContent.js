@@ -12,6 +12,7 @@ import NewGBChat from './GB/NewGBChat';
 import AddGBComponent from './GB/AddGBComponent';
 import GBGuarant from './GB/GBGuarant';
 import GuildMembersList from "./Chat/GuildMemberList";
+import GBChatWindow from './GB/GBChatWindow';
 import NewGroupChat from "./Chat/NewGroupChat";
 import ChatScreen from "./Chat/ChatScreen";
 import ChatWindow from './Chat/ChatWindow';
@@ -116,7 +117,11 @@ function GBStack() {
                 component={AddGBComponent}
                 options={{ title: 'Додайте ВС до свого списку' }}
             />
-            
+            <Stack.Screen
+                name="GBChatWindow"
+                component={GBChatWindow}
+                options={{ title: 'GBChatWindow' }}
+            />
         </Stack.Navigator>
     );
 }
