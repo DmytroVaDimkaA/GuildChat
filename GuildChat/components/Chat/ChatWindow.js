@@ -16,7 +16,6 @@ import { getDatabase, ref, onValue, push, set, get } from "firebase/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
-import { faFileCirclePlus, faFileImage, faFilePen, faFileCircleMinus } from '@fortawesome/free-solid-svg-icons';
 import { format } from 'date-fns';
 import { uk, ru, es, fr, de } from 'date-fns/locale'; // Імпортуємо всі потрібні локалі
 import { Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
@@ -55,11 +54,6 @@ const ChatWindow = ({ route, navigation }) => {
   const [selectedMessageId, setSelectedMessageId] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [translatedText, setTranslatedText] = useState('');
-
-  const [images, setImages] = useState([]);
-  //const [text, setText] = useState('');
-  const [showAdditionalIcons, setShowAdditionalIcons] = useState(false);
-  const [selectedImages, setSelectedImages] = useState([]);
 
   useEffect(() => {
     const fetchUserIdAndGuildId = async () => {
@@ -169,10 +163,18 @@ const ChatWindow = ({ route, navigation }) => {
 
     fetchMessages();
   }, [chatId, guildId, locale]);
-
   
-  
- 
+  // Отримання guildId та chatId з AsyncStorage
+const getChatData = async () => {
+  try {
+    //const guildId = await AsyncStorage.getItem('guildId'); // Замість 'guildId' використайте правильний ключ
+    //const chatId = await AsyncStorage.getItem('chatId');   // Замість 'chatId' використайте правильний ключ
+    console.log("guildId:", guildId);
+    return { guildId, chatId };
+  } catch (error) {
+    console.error("Не вдалося отримати дані з AsyncStorage:", error);
+  }
+};
 
 const uploadImageAndSaveMessage = async (messageText) => {
   try {
@@ -238,9 +240,6 @@ const uploadImageAndSaveMessage = async (messageText) => {
   }
 };
 
-  
-  
-
   const handleMenuOptionSelect = async (option) => {
     console.log("selectedChatId:", chatId);
   
@@ -283,13 +282,6 @@ const uploadImageAndSaveMessage = async (messageText) => {
     }
   };
   
-
-
-
-
-
-
-
   const isPersonalMessage = async (message) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
@@ -309,7 +301,6 @@ const uploadImageAndSaveMessage = async (messageText) => {
     setSelectedMessageId(messageId);
   };
   
-
   const handleSendMessage = async () => {
     if (newMessage.trim() === "") return;
     try {
@@ -335,45 +326,6 @@ const uploadImageAndSaveMessage = async (messageText) => {
     setInputHeight(Math.min(height, maxInputHeight));
   };
 
-
-  const pickImages = async () => {
-  const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permissionResult.granted) {
-    alert('Доступ до медіатеки не надано.');
-    return;
-  }
-
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsMultipleSelection: true,
-    quality: 1,
-  });
-
-  if (!result.canceled) {
-    const newImages = result.assets.map(asset => asset.uri);
-
-    // Оновлюємо список вибраних зображень
-    const uniqueImages = newImages.filter(uri => !selectedImages.includes(uri));
-    setImages(prevImages => [...prevImages, ...uniqueImages]);
-    
-    // Оновлюємо стан відмічених зображень
-    setSelectedImages(prevSelected => [...prevSelected, ...newImages]);
-  }
-};
-
-  const renderImageItem = ({ item }) => (
-    <Image source={{ uri: item }} style={{ width: 100, height: 100, marginRight: 10 }} />
-  );
-
-  const handleIconPress = () => {
-    setShowAdditionalIcons(!showAdditionalIcons);
-  };
-
-  const handleResetIcons = () => {
-    setShowAdditionalIcons(false); // Повертаємо початковий стан
-  };
-
-
   const renderItem = ({ item }) => (
     <View style={styles.dateGroup}>
       <View style={styles.dateBlock}>
@@ -388,9 +340,7 @@ const uploadImageAndSaveMessage = async (messageText) => {
     
         // Перевірка, чи є повідомлення особистим
         const isPersonal = await isPersonalMessage(message);
-    
         
-    
         return (
           <Menu
             style={styles.menu}
@@ -467,7 +417,6 @@ const uploadImageAndSaveMessage = async (messageText) => {
       })}
     </View>
   );
-  
 
   return (
     <View style={styles.container}>
@@ -479,38 +428,7 @@ const uploadImageAndSaveMessage = async (messageText) => {
         
       />
       <View style={styles.inputContainer}>
-      <FlatList
-        data={images}
-        horizontal
-        renderItem={renderImageItem}
-        keyExtractor={(item, index) => index.toString()}
-        style={{ marginBottom: 20 }}
-      />
-<View style={styles.inputMy}>        
-<View style={styles.iconsRow}>
-        {!showAdditionalIcons ? (
-          <TouchableOpacity onPress={handleIconPress} style={styles.icon}>
-            <FontAwesomeIcon icon={faFileCirclePlus} size={24} style={styles.addIcon} />
-          </TouchableOpacity>
-        ) : (
-          <>
-            <TouchableOpacity onPress={() => pickImages()} style={styles.icon}>
-        {/* Функція передається всередині анонімної функції, що забезпечує її запуск по кліку */}
-        <FontAwesomeIcon icon={faFileImage} size={24} style={styles.addIcon} />
-      </TouchableOpacity>
-            <TouchableOpacity style={styles.icon}>
-              <FontAwesomeIcon icon={faFilePen} size={24} style={styles.addIcon} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleResetIcons} style={styles.icon}>
-              <FontAwesomeIcon icon={faFileCircleMinus} size={24} style={styles.addIcon} />
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
         <View style={styles.inputWrapper}>
-        
-
-          
           <TextInput
             style={[styles.input, { height: inputHeight }]}
             value={newMessage}
@@ -525,7 +443,7 @@ const uploadImageAndSaveMessage = async (messageText) => {
               if (newMessage.trim()) {
                 handleSendMessage();
               } else {
-                pickImages();
+                uploadImageAndSaveMessage("hghghj", chatId);
               }
             }}
           >
@@ -535,7 +453,6 @@ const uploadImageAndSaveMessage = async (messageText) => {
               style={newMessage.trim() ? styles.blueIcon : styles.defaultIcon}
             />
           </TouchableOpacity>
-        </View>
         </View>
       </View>
       <Modal
@@ -616,21 +533,6 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "#fff",
   },
-  inputMy: {
-    flexDirection: "row",
-    alignItems: "center",
-    //borderWidth: 1,
-    //borderColor: "#ddd",
-    
-    paddingHorizontal: 10,
-  },
-  iconsRow: {
-    flexDirection: 'row',
-    alignItems: 'center', // Іконки вирівнюються по центру вертикально
-    //marginRight: 10,
-    
-  },
-  
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -650,12 +552,6 @@ const styles = StyleSheet.create({
   blueIcon: {
     color: "#007bff",
   },
-  addIcon: {
-    color: "#007bff",
-    marginRight: 10,
-  },
-
-
   defaultIcon: {
     color: "#ccc",
   },
@@ -670,9 +566,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: `#fff`
   },
   triangle: {
     width: 0,
