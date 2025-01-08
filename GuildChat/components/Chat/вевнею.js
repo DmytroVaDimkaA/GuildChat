@@ -256,6 +256,11 @@ const uploadImageAndSaveMessage = async (messageText) => {
   
       if (!selectedMessage) return;
   
+      if (option === 'reply') {
+        setReplyToMessage(selectedMessage);
+        setReplyToMessageText(selectedMessage.text);
+      }
+      
       if (option === 'translate') {
         try {
           // Отримання посилання на переклад у Firebase Realtime Database
@@ -326,10 +331,13 @@ const uploadImageAndSaveMessage = async (messageText) => {
         senderId: userId,
         text: newMessage,
         timestamp: Date.now(),
+        replyTo: replyToMessage ? replyToMessage.id : null,
+        replyToText: replyToMessage ? replyToMessage.text : null,
       });
-
+  
       setNewMessage("");
       setInputHeight(40);
+      setReplyToMessage(null); // Clear the reply state after sending the message
     } catch (error) {
       console.error("Error sending message: ", error);
     }
@@ -354,8 +362,6 @@ const uploadImageAndSaveMessage = async (messageText) => {
     
         // Перевірка, чи є повідомлення особистим
         const isPersonal = await isPersonalMessage(message);
-    
-        
     
         return (
           <Menu

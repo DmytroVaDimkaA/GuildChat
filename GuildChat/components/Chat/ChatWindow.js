@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -25,7 +25,9 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "fire
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import uuid from 'react-native-uuid'; // Для генерації унікальних ID
-
+import { faClock, faCheck, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import { Clipboard } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 // Об'єкт для керування локалями
@@ -54,6 +56,64 @@ const ChatWindow = ({ route, navigation }) => {
   const [selectedMessageId, setSelectedMessageId] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [translatedText, setTranslatedText] = useState('');
+
+  const [selectedImageUri, setSelectedImageUri] = useState(null);
+  const [imageCaption, setImageCaption] = useState("");
+  const [captionModalVisible, setCaptionModalVisible] = useState(false);
+  const [fullSizeImageUri, setFullSizeImageUri] = useState(null);
+  const [fullSizeImageModalVisible, setFullSizeImageModalVisible] = useState(false);
+
+  const [replyToMessage, setReplyToMessage] = useState(null);
+  const [replyToMessageText, setReplyToMessageText] = useState('');
+  const handleReply = (message) => {
+    setReplyToMessage(message);
+    setReplyToMessageText(message.text);
+  };
+  const flatListRef = useRef(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState(null);
+  const [editMessage, setEditMessage] = useState(null);
+  const [editMessageText, setEditMessageText] = useState('');
+  const [attachedMessage, setAttachedMessage] = useState(null);
+  const [attachedMessageText, setAttachedMessageText] = useState('');
+  const [messageLayouts, setMessageLayouts] = useState({});
+  const messageLayoutsRef = useRef({});
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const measureMessage = (messageId, layout) => {
+    setMessageLayouts(prev => ({
+      ...prev,
+      [messageId]: layout
+    }));
+  };
+  useEffect(() => {
+    if (chatId && guildId) {
+      const db = getDatabase();
+      const pinnedMessageRef = ref(db, `guilds/${guildId}/chats/${chatId}/pinnedMessage`);
+
+      const unsubscribe = onValue(pinnedMessageRef, async (snapshot) => {
+        const pinnedData = snapshot.val();
+
+        if (pinnedData) {
+          const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages/${pinnedData.id}`);
+          const messageSnapshot = await get(messageRef);
+
+          if (messageSnapshot.exists()) {
+            const fullMessage = {
+              id: pinnedData.id,
+              ...messageSnapshot.val()
+            };
+            setAttachedMessage(fullMessage);
+            setAttachedMessageText(fullMessage.text);
+          }
+        } else {
+          setAttachedMessage(null);
+          setAttachedMessageText('');
+        }
+      });
+
+      return () => unsubscribe();
+    }
+  }, [chatId, guildId]);
 
   useEffect(() => {
     const fetchUserIdAndGuildId = async () => {
@@ -163,112 +223,149 @@ const ChatWindow = ({ route, navigation }) => {
 
     fetchMessages();
   }, [chatId, guildId, locale]);
-  
+
   // Отримання guildId та chatId з AsyncStorage
-const getChatData = async () => {
-  try {
-    //const guildId = await AsyncStorage.getItem('guildId'); // Замість 'guildId' використайте правильний ключ
-    //const chatId = await AsyncStorage.getItem('chatId');   // Замість 'chatId' використайте правильний ключ
-    console.log("guildId:", guildId);
-    return { guildId, chatId };
-  } catch (error) {
-    console.error("Не вдалося отримати дані з AsyncStorage:", error);
-  }
-};
-
-const uploadImageAndSaveMessage = async (messageText) => {
-  try {
-    // Перевірка наявності даних
-    const guildId = await AsyncStorage.getItem('guildId');
-    const userId = await AsyncStorage.getItem('userId');
-    const { chatId } = route.params || {};
-
-    if (!guildId || !chatId) {
-      console.error('Не вдалося отримати guildId або chatId.', { guildId, chatId });
-      Alert.alert('Помилка', 'Не вдалося отримати guildId або chatId.');
-      return;
+  const getChatData = async () => {
+    try {
+      //const guildId = await AsyncStorage.getItem('guildId'); // Замість 'guildId' використайте правильний ключ
+      //const chatId = await AsyncStorage.getItem('chatId');   // Замість 'chatId' використайте правильний ключ
+      console.log("guildId:", guildId);
+      return { guildId, chatId };
+    } catch (error) {
+      console.error("Не вдалося отримати дані з AsyncStorage:", error);
     }
+  };
+  const selectFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({});
+      if (result.type === 'success') {
+        const { uri, name } = result;
+        console.log('File selected:', { uri, name }); 
 
-    // Запит дозволу на доступ до медіа
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert("Увага", "Доступ до медіа-ресурсів не надано.");
-      return;
+        const fileId = uuid.v4();
+        const fileRef = storageRef(getStorage(), `files/${fileId}-${name}`);
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        await uploadBytes(fileRef, blob);
+        console.log('File uploaded to Firebase Storage'); 
+
+        const fileUrl = await getDownloadURL(fileRef);
+        console.log('File URL:', fileUrl); 
+        const guildId = await AsyncStorage.getItem('guildId');
+        const userId = await AsyncStorage.getItem('userId');
+        const { chatId } = route.params || {};
+
+        if (!guildId || !chatId) {
+          console.error('Не вдалося отримати guildId або chatId.', { guildId, chatId });
+          Alert.alert('Помилка', 'Не вдалося отримати guildId або chatId.');
+          return;
+        }
+
+        const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
+        await set(messageRef, {
+          text: name,
+          fileUrl: fileUrl,
+          timestamp: Date.now(),
+          senderId: userId,
+          status: 'in-progress',
+        });
+        console.log('File URL saved to Firebase Database');
+
+        Alert.alert("Файл успішно додано!");
+      }
+    } catch (error) {
+      Alert.alert("Помилка", `Не вдалося вибрати файл: ${error.message}`);
     }
+  };
 
-    // Вибір кількох зображень
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true, // Дозволяє вибирати кілька зображень
-      quality: 1, // Висока якість зображення
-    });
+  const selectImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Увага", "Доступ до медіа-ресурсів не надано.");
+        return;
+      }
 
-    if (result.canceled) {
-      Alert.alert("Увага", "Зображення не вибрано.");
-      return;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1, 
+      });
+
+      if (!result.canceled) {
+        setSelectedImageUri(result.assets[0].uri);
+        setCaptionModalVisible(true);
+      }
+    } catch (error) {
+      Alert.alert("Помилка", `Не вдалося вибрати зображення: ${error.message}`);
     }
+  };
 
-    const imageUris = result.assets.map(asset => asset.uri); // Отримання URI всіх вибраних зображень
+  const uploadImageAndSaveMessage = async () => {
+    try {
+      if (!selectedImageUri) return;
 
-    // Завантаження зображень до Firebase Storage
-    const imageUrls = await Promise.all(imageUris.map(async (imageUri) => {
-      const imageId = uuid.v4(); // Генерація унікального ID для кожного зображення
+      const guildId = await AsyncStorage.getItem('guildId');
+      const userId = await AsyncStorage.getItem('userId');
+      const { chatId } = route.params || {};
+
+      if (!guildId || !chatId) {
+        console.error('Не вдалося отримати guildId або chatId.', { guildId, chatId });
+        Alert.alert('Помилка', 'Не вдалося отримати guildId або chatId.');
+        return;
+      }
+
+      const imageId = uuid.v4(); 
       const imageRef = storageRef(getStorage(), `images/${imageId}.jpeg`);
 
-      const response = await fetch(imageUri);
+      const response = await fetch(selectedImageUri);
       const blob = await response.blob();
       await uploadBytes(imageRef, blob);
 
-      // Отримання URL зображення
-      return await getDownloadURL(imageRef);
-    }));
+      const imageUrl = await getDownloadURL(imageRef);
 
-    // Збереження повідомлення разом із URL зображень у базу даних
-    const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
+      const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
 
-    await set(messageRef, {
-      text: messageText,
-      imageUrls: imageUrls, // Збереження масиву зображень
-      timestamp: Date.now(),
-      senderId: userId
-    });
+      await set(messageRef, {
+        text: imageCaption,
+        imageUrls: [imageUrl], 
+        timestamp: Date.now(),
+        senderId: userId,
+        status: 'in-progress', 
+      });
 
-    Alert.alert("Повідомлення успішно додано!");
+      Alert.alert("Повідомлення успішно додано!");
+      setSelectedImageUri(null);
+      setImageCaption("");
+      setCaptionModalVisible(false);
 
-  } catch (error) {
-    Alert.alert("Помилка", `Не вдалося завантажити зображення: ${error.message}`);
-  }
-};
+    } catch (error) {
+      Alert.alert("Помилка", `Не вдалося завантажити зображення: ${error.message}`);
+    }
+  };
 
   const handleMenuOptionSelect = async (option) => {
     console.log("selectedChatId:", chatId);
-  
+
     if (selectedMessageId) {
       const selectedMessage = messages
         .flatMap(group => group.messages)
         .find(message => message.id === selectedMessageId);
-  
+
       if (!selectedMessage) return;
-  
+
       if (option === 'translate') {
         try {
-          // Отримання посилання на переклад у Firebase Realtime Database
           const translationRef = ref(database, `guilds/${guildId}/chats/${chatId}/messages/${selectedMessageId}/translate/${locale.code}`);
-  
-          // Перевірка наявності перекладу
+
           const snapshot = await get(translationRef);
           if (snapshot.exists()) {
-            // Якщо переклад існує, відображаємо його в модальному вікні
             setTranslatedText(snapshot.val());
             setModalVisible(true);
           } else {
-            // Якщо перекладу немає, викликаємо функцію перекладу
             const translatedText = await translateMessage(selectedMessage.text, locale.code);
-  
-            // Зберігаємо переклад у Firebase
+
             await set(translationRef, translatedText);
-  
-            // Відображаємо перекладений текст у модальному вікні
+
             setTranslatedText(translatedText);
             setModalVisible(true);
           }
@@ -276,17 +373,15 @@ const uploadImageAndSaveMessage = async (messageText) => {
           console.error("Error translating or saving message:", error);
         }
       }
-  
-      // Очистіть вибраний ID після обробки
+
       setSelectedMessageId(null);
     }
   };
-  
+
   const isPersonalMessage = async (message) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       if (userId === null) {
-        // Якщо немає userId в AsyncStorage, можна повернути false або обробити випадок
         return false;
       }
       return message.senderId === userId || message.receiverId === userId;
@@ -300,7 +395,7 @@ const uploadImageAndSaveMessage = async (messageText) => {
     console.log("Message pressed:", messageId);
     setSelectedMessageId(messageId);
   };
-  
+
   const handleSendMessage = async () => {
     if (newMessage.trim() === "") return;
     try {
@@ -312,15 +407,116 @@ const uploadImageAndSaveMessage = async (messageText) => {
         senderId: userId,
         text: newMessage,
         timestamp: Date.now(),
+        status: 'in-progress', 
+        replyTo: replyToMessage ? replyToMessage.id : null,
+        replyToText: replyToMessage ? replyToMessage.text : null,
       });
 
       setNewMessage("");
       setInputHeight(40);
+      setReplyToMessage(null);
+      setReplyToMessageText('');
     } catch (error) {
       console.error("Error sending message: ", error);
     }
   };
 
+  const handleDeleteMessage = async (deleteForBoth) => {
+    if (!messageToDelete) return;
+
+    try {
+      const db = getDatabase();
+      const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages/${messageToDelete.id}`);
+
+      if (deleteForBoth) {
+        await set(messageRef, null);
+      } else {
+        const updatedMessage = { ...messageToDelete, deletedFor: { [userId]: true } };
+        await set(messageRef, updatedMessage); 
+      }
+
+      setMessages((prevMessages) =>
+        prevMessages.map(group => ({
+          ...group,
+          messages: group.messages.filter(msg => msg.id !== messageToDelete.id)
+        }))
+      );
+
+      setDeleteModalVisible(false);
+      setMessageToDelete(null);
+    } catch (error) {
+      console.error("Error deleting message: ", error);
+    }
+  };
+
+  const handleCopyMessage = (message) => {
+    Clipboard.setString(message.text);
+  };
+  const handleEditMessage = (message) => {
+    setEditMessage(message);
+    setEditMessageText(message.text);
+  };
+  const handleAttachMessage = async (message) => {
+    try {
+      const db = getDatabase();
+      await set(ref(db, `guilds/${guildId}/chats/${chatId}/pinnedMessage`), {
+        id: message.id,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error("Error pinning message:", error);
+    }
+  };
+
+  const saveEditedMessage = async () => {
+    if (!editMessage || editMessageText.trim() === "") return;
+
+    try {
+      const db = getDatabase();
+      const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages/${editMessage.id}`);
+      await set(messageRef, {
+        ...editMessage,
+        text: editMessageText,
+        edited: true,
+      });
+
+      setMessages((prevMessages) =>
+        prevMessages.map(group => ({
+          ...group,
+          messages: group.messages.map(msg =>
+            msg.id === editMessage.id ? { ...msg, text: editMessageText, edited: true } : msg
+          )
+        }))
+      );
+
+      setEditMessage(null);
+      setEditMessageText('');
+    } catch (error) {
+      console.error("Error editing message: ", error);
+    }
+  };
+
+
+  const scrollToMessage = (messageId) => {
+    const allMessages = messages.flatMap(group => group.messages);
+    const messageIndex = allMessages.findIndex(message => message.id === messageId);
+
+    if (messageIndex >= 0 && messageIndex < allMessages.length) {
+      const estimatedMessageHeight = 100;
+      const screenHeight = Dimensions.get('window').height;
+      const centerOffset = screenHeight / 2 - estimatedMessageHeight / 2;
+
+      const offset = Math.max(0, (messageIndex * estimatedMessageHeight) - centerOffset);
+
+      flatListRef.current?.scrollToOffset({
+        offset,
+        animated: true
+      });
+
+      setHighlightedMessageId(messageId);
+      setTimeout(() => setHighlightedMessageId(null), 1500);
+    }
+  };
   const handleContentSizeChange = (event) => {
     const { height } = event.nativeEvent.contentSize;
     setInputHeight(Math.min(height, maxInputHeight));
@@ -331,130 +527,284 @@ const uploadImageAndSaveMessage = async (messageText) => {
       <View style={styles.dateBlock}>
         <Text style={styles.date}>{item.date}</Text>
       </View>
-      {item.messages.map(async (message, index) => {
-        const isCurrentUser = message.senderId === userId;
-        const isLastMessageFromUser = (
-          index === item.messages.length - 1 ||
-          (item.messages[index + 1] && item.messages[index + 1].senderId !== message.senderId)
-        );
-    
-        // Перевірка, чи є повідомлення особистим
-        const isPersonal = await isPersonalMessage(message);
-        
-        return (
-          <Menu
-            style={styles.menu}
-            key={message.id}
-          >
-            <MenuTrigger
-              onPress={() => handlePressMessage(message.id)}
+      {item.messages
+        .filter(message => !message.deletedFor || !message.deletedFor[userId])
+        .map((message, index) => {
+          const isCurrentUser = message.senderId === userId;
+          const isLastMessageFromUser = (
+            index === item.messages.length - 1 ||
+            (item.messages[index + 1] && item.messages[index + 1].senderId !== message.senderId)
+          );
+
+          const getStatusIcon = (status) => {
+            switch (status) {
+              case 'in-progress':
+                return <FontAwesomeIcon icon={faClock} style={styles.statusIcon} />;
+              case 'delivered':
+                return <FontAwesomeIcon icon={faCheck} style={styles.statusIcon} />;
+              case 'viewed':
+                return <FontAwesomeIcon icon={faCheckDouble} style={styles.statusIcon} />;
+              default:
+                return null;
+            }
+          };
+
+          const isPersonal = message.senderId === userId || message.receiverId === userId;
+
+          return (
+            <Menu
+              style={styles.menu}
+              key={message.id}
             >
-              <View
-                style={[
-                  styles.messageContainer,
-                  isCurrentUser ? styles.myMessage : styles.theirMessage,
-                ]}
+              <MenuTrigger
+                onPress={() => handlePressMessage(message.id)}
               >
-                <View style={styles.messageInnerContainer}>
-                  <Text style={styles.messageText}>{message.text}</Text>
-                  <Text 
-                    style={[
-                      styles.messageDate, 
-                      isCurrentUser ? styles.messageDateMy : null
-                    ]}
-                  >
-                    {format(new Date(message.timestamp), 'H:mm', { locale })}
-                  </Text>
+                <View
+                  onLayout={(event) => {
+                    const { layout } = event.nativeEvent;
+                    messageLayoutsRef.current[`date_${item.date}`] = layout;
+                  }}
+                  style={[
+                    styles.messageContainer,
+                    isCurrentUser ? styles.myMessage : styles.theirMessage,
+                    highlightedMessageId === message.id && styles.highlightedMessage
+                  ]}
+                >
+                  <View style={styles.messageInnerContainer}>
+                    {message.replyTo && (
+                      <TouchableOpacity onPress={() => scrollToMessage(message.replyTo)}>
+                        <View style={styles.replyContainer}>
+                          <Text style={styles.replyText} numberOfLines={1}>
+                            Replying to: {message.replyToText}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                    {message.imageUrls && message.imageUrls.length > 0 && (
+                      <TouchableOpacity onPress={() => {
+                        setFullSizeImageUri(message.imageUrls[0]);
+                        setFullSizeImageModalVisible(true);
+                      }}>
+                        <Image
+                          source={{ uri: message.imageUrls[0] }}
+                          style={styles.messageImage}
+                        />
+                      </TouchableOpacity>
+                    )}
+                    {message.fileUrl && (
+                      <TouchableOpacity onPress={() => {
+                      }}>
+                        <Text style={styles.fileText}>{message.text}</Text>
+                      </TouchableOpacity>
+                    )}
+                    <Text style={styles.messageText}>{message.text}</Text>
+                    <View style={styles.messageFooter}>
+                      <Text
+                        style={[
+                          styles.messageDate,
+                          isCurrentUser ? styles.messageDateMy : null
+                        ]}
+                      >
+                        {format(new Date(message.timestamp), 'H:mm', { locale })}
+                      </Text>
+                      {isCurrentUser && getStatusIcon(message.status)}
+                    </View>
+                  </View>
+                  {isLastMessageFromUser && (
+                    <View
+                      style={[
+                        styles.triangle,
+                        isCurrentUser ? styles.triangleMy : styles.triangleTheir,
+                      ]}
+                    />
+                  )}
                 </View>
-                {isLastMessageFromUser && (
-                  <View
-                    style={[
-                      styles.triangle,
-                      isCurrentUser ? styles.triangleMy : styles.triangleTheir,
-                    ]}
-                  />
+              </MenuTrigger>
+              <MenuOptions style={isPersonal ? styles.popupMenuPersonal : styles.popupMenuInterlocutor}>
+                {isCurrentUser ? (
+                  <>
+                    <MenuOption value="reply" onSelect={() => handleReply(message)}>
+                      <Text>Відповісти</Text>
+                    </MenuOption>
+                    <MenuOption value="copy" onSelect={() => handleCopyMessage(message)}>
+                      <Text>Копіювати</Text>
+                    </MenuOption>
+                    <MenuOption value="attach" onSelect={() => handleAttachMessage(message)}>
+                      <Text>Прикріпити</Text>
+                    </MenuOption>
+                    <MenuOption value="edit" onSelect={() => handleEditMessage(message)}>
+                      <Text>Редагувати</Text>
+                    </MenuOption>
+                    <MenuOption value="delete" onSelect={() => {
+                      setMessageToDelete(message);
+                      setDeleteModalVisible(true);
+                    }}>
+                      <Text>Видалити</Text>
+                    </MenuOption>
+                  </>
+                ) : (
+                  <>
+                    <MenuOption value="reply" onSelect={() => handleReply(message)}>
+                      <Text>Відповісти</Text>
+                    </MenuOption>
+                    <MenuOption value="copy" onSelect={() => handleCopyMessage(message)}>
+                      <Text>Копіювати</Text>
+                    </MenuOption>
+                    <MenuOption value="attach" onSelect={() => handleAttachMessage(message)}>
+                      <Text>Прикріпити</Text>
+                    </MenuOption>
+                    <MenuOption value="translate" onSelect={() => handleMenuOptionSelect('translate')}>
+                      <Text>Перекласти</Text>
+                    </MenuOption>
+                  </>
                 )}
-              </View>
-            </MenuTrigger>
-            <MenuOptions style={isPersonal ? styles.popupMenuPersonal : styles.popupMenuInterlocutor}>
-              {isCurrentUser ? (
-                <>
-                  <MenuOption value="reply" onSelect={() => handleMenuOptionSelect('reply')}>
-                    <Text>Відповісти</Text>
-                  </MenuOption>
-                  <MenuOption value="copy" onSelect={() => handleMenuOptionSelect('copy')}>
-                    <Text>Копіювати</Text>
-                  </MenuOption>
-                  <MenuOption value="attach" onSelect={() => handleMenuOptionSelect('attach')}>
-                    <Text>Прикріпити</Text>
-                  </MenuOption>
-                  <MenuOption value="edit" onSelect={() => handleMenuOptionSelect('edit')}>
-                    <Text>Редагувати</Text>
-                  </MenuOption>
-                  <MenuOption value="delete" onSelect={() => handleMenuOptionSelect('delete')}>
-                    <Text>Видалити</Text>
-                  </MenuOption>
-                </>
-              ) : (
-                <>
-                  <MenuOption value="reply" onSelect={() => handleMenuOptionSelect('reply')}>
-                    <Text>Відповісти</Text>
-                  </MenuOption>
-                  <MenuOption value="copy" onSelect={() => handleMenuOptionSelect('copy')}>
-                    <Text>Копіювати</Text>
-                  </MenuOption>
-                  <MenuOption value="attach" onSelect={() => handleMenuOptionSelect('attach')}>
-                    <Text>Прикріпити</Text>
-                  </MenuOption>
-                  <MenuOption value="translate" onSelect={() => handleMenuOptionSelect('translate')}>
-                    <Text>Перекласти</Text>
-                  </MenuOption>
-                </>
-              )}
-            </MenuOptions>
-          </Menu>
-        );
-      })}
+              </MenuOptions>
+            </Menu>
+          );
+        })}
     </View>
   );
 
   return (
     <View style={styles.container}>
+      {attachedMessage && (
+        <TouchableOpacity onPress={() => scrollToMessage(attachedMessage.id)}>
+          <View style={styles.attachedMessageContainer}>
+            <Text style={styles.attachedMessageText} numberOfLines={1}>
+              Attached: {attachedMessageText}
+            </Text>
+            <TouchableOpacity onPress={async () => {
+              try {
+                const db = getDatabase();
+                const pinnedMessageRef = ref(db, `guilds/${guildId}/chats/${chatId}/pinnedMessage`);
+                await set(pinnedMessageRef, null);
+
+                setAttachedMessage(null);
+                setAttachedMessageText('');
+              } catch (error) {
+                console.error("Error unpinning message:", error);
+              }
+            }}>
+              <Text style={styles.cancelAttachedText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
       <FlatList
+        ref={flatListRef}
         data={messages.length > 0 ? messages : []}
         renderItem={renderItem}
         keyExtractor={(item) => item.date + item.messages[0].id}
         style={styles.messagesList}
-        
+        getItemLayout={(data, index) => ({
+          length: 100,
+          offset: 100 * index,
+          index,
+        })}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+        }}
       />
+      {replyToMessage && (
+        <View style={styles.replyingToContainer}>
+          <Text style={styles.replyingToText} numberOfLines={1}>
+            Replying to: {replyToMessageText}
+          </Text>
+          <TouchableOpacity onPress={() => {
+            setReplyToMessage(null);
+            setReplyToMessageText('');
+          }}>
+            <Text style={styles.cancelReplyText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <View style={styles.inputContainer}>
         <View style={styles.inputWrapper}>
           <TextInput
             style={[styles.input, { height: inputHeight }]}
-            value={newMessage}
-            onChangeText={setNewMessage}
+            value={editMessage ? editMessageText : newMessage}
+            onChangeText={editMessage ? setEditMessageText : setNewMessage}
             onContentSizeChange={handleContentSizeChange}
             multiline
             placeholder="Write a message..."
           />
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.iconButton}
             onPress={() => {
-              if (newMessage.trim()) {
+              if (editMessage) {
+                saveEditedMessage();
+              } else if (newMessage.trim()) {
                 handleSendMessage();
               } else {
-                uploadImageAndSaveMessage("hghghj", chatId);
+                Alert.alert(
+                  "Виберіть дію",
+                  "",
+                  [
+                    { text: "Зображення", onPress: selectImage },
+                    { text: "Файл", onPress: selectFile },
+                    { text: "Скасувати", style: "cancel" }
+                  ]
+                );
               }
             }}
           >
-            <FontAwesomeIcon 
-              icon={newMessage.trim() ? faPaperPlane : faPaperclip} 
-              size={24} 
-              style={newMessage.trim() ? styles.blueIcon : styles.defaultIcon}
+            <FontAwesomeIcon
+              icon={editMessage || newMessage.trim() ? faPaperPlane : faPaperclip}
+              size={24}
+              style={editMessage || newMessage.trim() ? styles.blueIcon : styles.defaultIcon}
             />
           </TouchableOpacity>
         </View>
       </View>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={captionModalVisible}
+        onRequestClose={() => setCaptionModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalHeader}>Add a Caption</Text>
+            <TextInput
+              style={styles.imageTextInput}
+              value={imageCaption}
+              onChangeText={setImageCaption}
+              placeholder="Enter a caption..."
+            />
+            <TouchableOpacity
+              style={styles.buttonSendPhoto}
+              onPress={uploadImageAndSaveMessage}
+            >
+              <Text style={styles.buttonText}>Send</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.buttonCancelPhoto}
+              onPress={() => setCaptionModalVisible(false)}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={fullSizeImageModalVisible}
+        onRequestClose={() => setFullSizeImageModalVisible(false)}
+      >
+        <View style={styles.fullSizeImageModalOverlay}>
+          <TouchableOpacity
+            style={styles.fullSizeImageModalContainer}
+            onPress={() => setFullSizeImageModalVisible(false)}
+          >
+            <Image
+              source={{ uri: fullSizeImageUri }}
+              style={styles.fullSizeImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </View>
+      </Modal>
       <Modal
         animationType="slide"
         transparent={true}
@@ -471,8 +821,30 @@ const uploadImageAndSaveMessage = async (messageText) => {
           </View>
         </View>
       </Modal>
-
-    </View>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={deleteModalVisible}
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalHeader}>Delete Message</Text>
+            <View style={styles.modalButtonContainer}>
+              <View style={{ margin: 5 }}>
+                <Button title="Delete for Both" onPress={() => handleDeleteMessage(true)} />
+              </View>
+              <View style={{ margin: 5 }}>
+                <Button title="Delete for Myself" onPress={() => handleDeleteMessage(false)} />
+              </View>
+              <View style={{ margin: 5 }}>
+                <Button title="Cancel" onPress={() => setDeleteModalVisible(false)} />
+              </View>
+            </View>
+          </View>
+        </View >
+      </Modal >
+    </View >
   );
 };
 
@@ -606,12 +978,12 @@ const styles = StyleSheet.create({
   },
   menu: {
     position: 'relative',
-    
+
     //bottom: 50, // Можна змінити для відповідності з вашим дизайном
-    
+
   },
   popupMenuInterlocutor: {
-    
+
     position: 'absolute',
     left: 10,  // Відступ зліва для співрозмовника
     top: 0,
@@ -624,7 +996,7 @@ const styles = StyleSheet.create({
   },
   // Стиль для попап меню особистих повідомлень
   popupMenuPersonal: {
-    backgroundColor:  'red',
+    backgroundColor: 'red',
     position: 'absolute',
     right: -155,  // Відступ справа для особистих повідомлень
     top: 0,
@@ -661,6 +1033,160 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    padding: 30,
+    borderRadius: 20,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  imageTextInput: {
+    padding: 15,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 20,
+    width: '100%',
+    marginBottom: 20,
+  },
+  buttonSendPhoto: {
+    backgroundColor: '#007bff',
+    padding: 15,
+    borderRadius: 10,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  buttonCancelPhoto: {
+    backgroundColor: '#ddd',
+    padding: 15,
+    borderRadius: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  messageImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  fullSizeImageModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+  },
+  fullSizeImageModalContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullSizeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  replyContainer: {
+    borderLeftWidth: 2,
+    borderLeftColor: '#ccc',
+    paddingLeft: 10,
+    marginBottom: 5,
+  },
+  replyText: {
+    fontStyle: 'italic',
+    color: '#666',
+    overflow: 'hidden',
+  },
+  replyingToContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+  },
+  replyingToText: {
+    flex: 1,
+    fontStyle: 'italic',
+    color: '#666',
+  },
+  cancelReplyText: {
+    color: '#007bff',
+    marginLeft: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 20,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalButtonContainer: {
+    flexDirection: 'column',
+    width: '100%',
+
+    marginVertical: 5,
+  },
+  buttonWrapper: {
+    marginBottom: 10,
+    width: '100%',
+  },
+  attachedMessageContainer: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd'
+  },
+  attachedMessageText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666'
+  },
+  cancelAttachedText: {
+    color: '#007AFF',
+    marginLeft: 10
+  },
+  highlightedMessage: {
+    backgroundColor: '#2296f3',
+    borderWidth: 1,
+    borderColor: '#2296f3',
   },
 });
 
