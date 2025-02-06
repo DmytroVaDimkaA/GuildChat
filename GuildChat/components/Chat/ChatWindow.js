@@ -28,6 +28,10 @@ import uuid from 'react-native-uuid'; // Для генерації унікал�
 import { faClock, faCheck, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { Clipboard } from 'react-native';
+import { faFile } from '@fortawesome/free-solid-svg-icons';
+import { Linking } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import { ActivityIndicator } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 // Об'єкт для керування локалями
@@ -47,7 +51,7 @@ const ChatWindow = ({ route, navigation }) => {
   const maxInputHeight = 120;
   const { chatId, initialMessage, isGroupChat } = route.params || {};
   console.log('chatId:', chatId); // Додайте цей рядок
-
+  const [downloading, setDownloading] = useState(false);
   const [userId, setUserId] = useState(null);
   const [guildId, setGuildId] = useState(null);
   const [contactAvatar, setContactAvatar] = useState(null);
@@ -56,7 +60,7 @@ const ChatWindow = ({ route, navigation }) => {
   const [selectedMessageId, setSelectedMessageId] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [translatedText, setTranslatedText] = useState('');
-
+  const storage = getStorage();
   const [selectedImageUri, setSelectedImageUri] = useState(null);
   const [imageCaption, setImageCaption] = useState("");
   const [captionModalVisible, setCaptionModalVisible] = useState(false);
@@ -69,6 +73,23 @@ const ChatWindow = ({ route, navigation }) => {
     setReplyToMessage(message);
     setReplyToMessageText(message.text);
   };
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'sending':
+        return <FontAwesomeIcon icon={faClock} size={14} style={styles.statusIcon} />;
+      case 'sent':
+        return <FontAwesomeIcon icon={faCheck} size={14} style={styles.statusIcon} />;
+      case 'read':
+        return (
+          <View style={styles.doubleCheckContainer}>
+            <FontAwesomeIcon icon={faCheck} size={14} style={styles.statusIcon} />
+            <FontAwesomeIcon icon={faCheck} size={14} style={[styles.statusIcon, styles.secondCheck]} />
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
   const flatListRef = useRef(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState(null);
@@ -77,7 +98,50 @@ const ChatWindow = ({ route, navigation }) => {
   const [attachedMessage, setAttachedMessage] = useState(null);
   const [attachedMessageText, setAttachedMessageText] = useState('');
   const [messageLayouts, setMessageLayouts] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
   const messageLayoutsRef = useRef({});
+  const handleContentSizeChange = (event) => {
+    const { height } = event.nativeEvent.contentSize;
+    const newHeight = Math.min(Math.max(40, height), maxInputHeight);
+    setInputHeight(newHeight);
+  };
+  const [messageHeights, setMessageHeights] = useState({});
+  const handleFileDownload = async (fileUrl, fileName) => {
+    if (downloadingFiles.has(fileName)) return;
+
+    try {
+      const newSet = new Set(downloadingFiles);
+      newSet.add(fileName);
+      setDownloadingFiles(newSet);
+
+      const downloadResumable = FileSystem.createDownloadResumable(
+        fileUrl,
+        FileSystem.documentDirectory + fileName,
+        {},
+        (downloadProgress) => {
+          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+
+        }
+      );
+
+      const { uri } = await downloadResumable.downloadAsync();
+
+      if (uri) {
+        await FileSystem.getInfoAsync(uri);
+        Alert.alert('Success', 'File downloaded successfully!');
+      }
+
+    } catch (error) {
+      console.error('Download error:', error);
+      Alert.alert('Error', 'Failed to download file');
+    } finally {
+      const newSet = new Set(downloadingFiles);
+      newSet.delete(fileName);
+      setDownloadingFiles(newSet);
+    }
+  };
+
+  const messageRefs = useRef({});
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const measureMessage = (messageId, layout) => {
     setMessageLayouts(prev => ({
@@ -190,6 +254,23 @@ const ChatWindow = ({ route, navigation }) => {
       });
     }
   }, [chatId, guildId, isGroupChat, navigation, userId, contactAvatar, contactName]);
+  useEffect(() => {
+    if (!chatId || !userId || !guildId) return;
+
+    const db = getDatabase();
+    const messagesRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
+
+    onValue(messagesRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const messages = snapshot.val();
+      Object.entries(messages).forEach(([messageId, message]) => {
+        if (message.senderId !== userId && message.status !== 'read') {
+          set(ref(db, `guilds/${guildId}/chats/${chatId}/messages/${messageId}/status`), 'read');
+        }
+      });
+    });
+  }, [chatId, userId, guildId]);
 
   useEffect(() => {
     const fetchMessages = () => {
@@ -237,46 +318,39 @@ const ChatWindow = ({ route, navigation }) => {
   };
   const selectFile = async () => {
     try {
+      setIsUploading(true);
       const result = await DocumentPicker.getDocumentAsync({});
+
       if (result.type === 'success') {
         const { uri, name } = result;
-        console.log('File selected:', { uri, name }); 
-
         const fileId = uuid.v4();
-        const fileRef = storageRef(getStorage(), `files/${fileId}-${name}`);
+        const fileRef = storageRef(storage, `files/${fileId}-${name}`);
+
         const response = await fetch(uri);
         const blob = await response.blob();
         await uploadBytes(fileRef, blob);
-        console.log('File uploaded to Firebase Storage'); 
 
         const fileUrl = await getDownloadURL(fileRef);
-        console.log('File URL:', fileUrl); 
-        const guildId = await AsyncStorage.getItem('guildId');
-        const userId = await AsyncStorage.getItem('userId');
-        const { chatId } = route.params || {};
-
-        if (!guildId || !chatId) {
-          console.error('Не вдалося отримати guildId або chatId.', { guildId, chatId });
-          Alert.alert('Помилка', 'Не вдалося отримати guildId або chatId.');
-          return;
-        }
 
         const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
         await set(messageRef, {
           text: name,
-          fileUrl: fileUrl,
+          fileUrl,
+          type: 'file',
+          fileName: name,
           timestamp: Date.now(),
           senderId: userId,
-          status: 'in-progress',
+          status: 'sent'
         });
-        console.log('File URL saved to Firebase Database');
-
-        Alert.alert("Файл успішно додано!");
       }
     } catch (error) {
-      Alert.alert("Помилка", `Не вдалося вибрати файл: ${error.message}`);
+      console.error("Upload error:", error);
+      Alert.alert("Error", "Failed to upload file");
+    } finally {
+      setIsUploading(false);
     }
   };
+
 
   const selectImage = async () => {
     try {
@@ -288,7 +362,7 @@ const ChatWindow = ({ route, navigation }) => {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1, 
+        quality: 1,
       });
 
       if (!result.canceled) {
@@ -314,7 +388,7 @@ const ChatWindow = ({ route, navigation }) => {
         return;
       }
 
-      const imageId = uuid.v4(); 
+      const imageId = uuid.v4();
       const imageRef = storageRef(getStorage(), `images/${imageId}.jpeg`);
 
       const response = await fetch(selectedImageUri);
@@ -327,10 +401,10 @@ const ChatWindow = ({ route, navigation }) => {
 
       await set(messageRef, {
         text: imageCaption,
-        imageUrls: [imageUrl], 
+        imageUrls: [imageUrl],
         timestamp: Date.now(),
         senderId: userId,
-        status: 'in-progress', 
+        status: 'in-progress',
       });
 
       Alert.alert("Повідомлення успішно додано!");
@@ -401,16 +475,20 @@ const ChatWindow = ({ route, navigation }) => {
     try {
       const db = getDatabase();
       if (!chatId || !userId || !guildId) throw new Error("Missing IDs");
+
       const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
       const newMessageRef = push(messageRef);
+
       await set(newMessageRef, {
         senderId: userId,
         text: newMessage,
         timestamp: Date.now(),
-        status: 'in-progress', 
+        status: 'sending',
         replyTo: replyToMessage ? replyToMessage.id : null,
         replyToText: replyToMessage ? replyToMessage.text : null,
       });
+
+      await set(ref(db, `guilds/${guildId}/chats/${chatId}/messages/${newMessageRef.key}/status`), 'sent');
 
       setNewMessage("");
       setInputHeight(40);
@@ -432,7 +510,7 @@ const ChatWindow = ({ route, navigation }) => {
         await set(messageRef, null);
       } else {
         const updatedMessage = { ...messageToDelete, deletedFor: { [userId]: true } };
-        await set(messageRef, updatedMessage); 
+        await set(messageRef, updatedMessage);
       }
 
       setMessages((prevMessages) =>
@@ -498,35 +576,47 @@ const ChatWindow = ({ route, navigation }) => {
 
 
   const scrollToMessage = (messageId) => {
+    // Flatten all messages into a single array for easier lookup
     const allMessages = messages.flatMap(group => group.messages);
-    const messageIndex = allMessages.findIndex(message => message.id === messageId);
+    const messageIndex = allMessages.findIndex(msg => msg.id === messageId);
 
-    if (messageIndex >= 0 && messageIndex < allMessages.length) {
-      const estimatedMessageHeight = 100;
-      const screenHeight = Dimensions.get('window').height;
-      const centerOffset = screenHeight / 2 - estimatedMessageHeight / 2;
+    if (messageIndex === -1) return;
 
-      const offset = Math.max(0, (messageIndex * estimatedMessageHeight) - centerOffset);
-
-      flatListRef.current?.scrollToOffset({
-        offset,
-        animated: true
-      });
-
-      setHighlightedMessageId(messageId);
-      setTimeout(() => setHighlightedMessageId(null), 1500);
+    let scrollOffset = 0;
+    for (let i = 0; i < messageIndex; i++) {
+      const prevMessageId = allMessages[i].id;
+      const messageHeight = messageHeights[prevMessageId] || 100; 
+      scrollOffset += messageHeight + 10; 
     }
+
+    const dateHeaderHeight = 50; 
+    const datesBeforeMessage = new Set(
+      allMessages
+        .slice(0, messageIndex)
+        .map(msg => format(new Date(msg.timestamp), 'd MMMM'))
+    ).size;
+    scrollOffset += dateHeaderHeight * datesBeforeMessage;
+
+    const windowHeight = Dimensions.get('window').height;
+    const centerOffset = windowHeight / 2 - (messageHeights[messageId] || 100) / 2;
+
+    flatListRef.current?.scrollToOffset({
+      offset: Math.max(0, scrollOffset - centerOffset),
+      animated: true
+    });
+
+    setHighlightedMessageId(messageId);
+    setTimeout(() => setHighlightedMessageId(null), 1500);
   };
-  const handleContentSizeChange = (event) => {
-    const { height } = event.nativeEvent.contentSize;
-    setInputHeight(Math.min(height, maxInputHeight));
-  };
+
 
   const renderItem = ({ item }) => (
     <View style={styles.dateGroup}>
+     
       <View style={styles.dateBlock}>
         <Text style={styles.date}>{item.date}</Text>
       </View>
+
       {item.messages
         .filter(message => !message.deletedFor || !message.deletedFor[userId])
         .map((message, index) => {
@@ -536,33 +626,17 @@ const ChatWindow = ({ route, navigation }) => {
             (item.messages[index + 1] && item.messages[index + 1].senderId !== message.senderId)
           );
 
-          const getStatusIcon = (status) => {
-            switch (status) {
-              case 'in-progress':
-                return <FontAwesomeIcon icon={faClock} style={styles.statusIcon} />;
-              case 'delivered':
-                return <FontAwesomeIcon icon={faCheck} style={styles.statusIcon} />;
-              case 'viewed':
-                return <FontAwesomeIcon icon={faCheckDouble} style={styles.statusIcon} />;
-              default:
-                return null;
-            }
-          };
-
-          const isPersonal = message.senderId === userId || message.receiverId === userId;
-
           return (
-            <Menu
-              style={styles.menu}
-              key={message.id}
-            >
-              <MenuTrigger
-                onPress={() => handlePressMessage(message.id)}
-              >
+            <Menu style={styles.menu} key={message.id}>
+              <MenuTrigger onPress={() => handlePressMessage(message.id)}>
                 <View
+                  ref={ref => messageRefs.current[message.id] = ref}
                   onLayout={(event) => {
-                    const { layout } = event.nativeEvent;
-                    messageLayoutsRef.current[`date_${item.date}`] = layout;
+                    const { height } = event.nativeEvent.layout;
+                    setMessageHeights(prev => ({
+                      ...prev,
+                      [message.id]: height
+                    }));
                   }}
                   style={[
                     styles.messageContainer,
@@ -571,6 +645,7 @@ const ChatWindow = ({ route, navigation }) => {
                   ]}
                 >
                   <View style={styles.messageInnerContainer}>
+                    
                     {message.replyTo && (
                       <TouchableOpacity onPress={() => scrollToMessage(message.replyTo)}>
                         <View style={styles.replyContainer}>
@@ -580,6 +655,7 @@ const ChatWindow = ({ route, navigation }) => {
                         </View>
                       </TouchableOpacity>
                     )}
+
                     {message.imageUrls && message.imageUrls.length > 0 && (
                       <TouchableOpacity onPress={() => {
                         setFullSizeImageUri(message.imageUrls[0]);
@@ -591,36 +667,47 @@ const ChatWindow = ({ route, navigation }) => {
                         />
                       </TouchableOpacity>
                     )}
+
                     {message.fileUrl && (
-                      <TouchableOpacity onPress={() => {
-                      }}>
-                        <Text style={styles.fileText}>{message.text}</Text>
+                      <TouchableOpacity onPress={() => Linking.openURL(message.fileUrl)}>
+                        <Text style={styles.fileText}>{message.fileName}</Text>
                       </TouchableOpacity>
                     )}
-                    <Text style={styles.messageText}>{message.text}</Text>
-                    <View style={styles.messageFooter}>
-                      <Text
-                        style={[
-                          styles.messageDate,
-                          isCurrentUser ? styles.messageDateMy : null
-                        ]}
+                    {message.type === 'file' && (
+                      <TouchableOpacity
+                        onPress={() => handleFileDownload(message.fileUrl, message.fileName)}
+                        style={styles.fileContainer}
+                        disabled={downloadingFiles.has(message.fileName)}
                       >
+                        {downloadingFiles.has(message.fileName) ? (
+                          <ActivityIndicator size="small" color="#4A4A4A" />
+                        ) : (
+                          <FontAwesomeIcon icon={faFile} size={24} color="#4A4A4A" />
+                        )}
+                        <Text style={styles.fileText}>{message.fileName}</Text>
+                      </TouchableOpacity>
+                    )}
+                    
+                    <Text style={styles.messageText}>{message.text}</Text>
+
+                    <View style={styles.messageFooter}>
+                      <Text style={[styles.messageDate, isCurrentUser && styles.messageDateMy]}>
                         {format(new Date(message.timestamp), 'H:mm', { locale })}
                       </Text>
                       {isCurrentUser && getStatusIcon(message.status)}
                     </View>
                   </View>
+
                   {isLastMessageFromUser && (
-                    <View
-                      style={[
-                        styles.triangle,
-                        isCurrentUser ? styles.triangleMy : styles.triangleTheir,
-                      ]}
-                    />
+                    <View style={[
+                      styles.triangle,
+                      isCurrentUser ? styles.triangleMy : styles.triangleTheir
+                    ]} />
                   )}
                 </View>
               </MenuTrigger>
-              <MenuOptions style={isPersonal ? styles.popupMenuPersonal : styles.popupMenuInterlocutor}>
+
+              <MenuOptions style={isCurrentUser ? styles.popupMenuPersonal : styles.popupMenuInterlocutor}>
                 {isCurrentUser ? (
                   <>
                     <MenuOption value="reply" onSelect={() => handleReply(message)}>
@@ -1187,6 +1274,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#2296f3',
     borderWidth: 1,
     borderColor: '#2296f3',
+  },
+  fileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    marginVertical: 5
+  },
+  fileName: {
+    marginLeft: 10,
+    color: '#007AFF',
+    textDecorationLine: 'underline'
+  },
+  doubleCheckContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusIcon: {
+    color: '#8e8e8e',
+  },
+  secondCheck: {
+    marginLeft: -8,
   },
 });
 
