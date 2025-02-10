@@ -1,416 +1,530 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, StyleSheet, Text, ScrollView, Dimensions } from 'react-native';
+import { get, ref } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDatabase, ref, onValue } from 'firebase/database';
+import { database } from '../../firebaseConfig';
+
+// Заголовки та ширини стовпців
+const columnTitles = ['Вкладник', 'Вкладено', 'Вартість', 'До гаранту', 'Коефіціент'];
+const columnWidths = [100, 100, 100, 100, 100];
+const BLOCK_ONE_WIDTH = 80;
 
 const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
-  console.log('Вклад власника:', personalContribution);
-  const [forgepointsArray, setForgepointsArray] = useState([null]);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [suitableChats, setSuitableChats] = useState([]);
-  const [dropdownVisibility, setDropdownVisibility] = useState({});
-  const [selectedMultipliers, setSelectedMultipliers] = useState([]);
-  const [buttonWidths, setButtonWidths] = useState({});
-  const [patronIdArray, setPatronIdArray] = useState([]);
-  const [investArray, setInvestArray] = useState([]);
-  const db = getDatabase();
+  // Стан для даних таблиці
+  const [forgePointsList, setForgePointsList] = useState([]);
+  const [placeMultipliers, setPlaceMultipliers] = useState([]);
+  const [placeCosts, setPlaceCosts] = useState([]);
+  const [patronsList, setPatronsList] = useState([]);
+  const [totalFP, setTotalFP] = useState(0);
+  const [ownerContribution, setOwnerContribution] = useState(0);
+  // distribution – масив, що містить спочатку призові (top‑5), а потім інші вкладники (finalPlace: "Не отримав")
+  const [distribution, setDistribution] = useState([]);
 
-  useEffect(() => {
-    const fetchForgepoints = async () => {
-      try {
-        if (buildAPI) {
-          const response = await fetch(buildAPI);
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
+  // Отримуємо висоту екрану та задаємо максимальну висоту таблиці (наприклад, екран мінус 150 px)
+  const screenHeight = Dimensions.get('window').height;
+  const tableMaxHeight = screenHeight - 150;
+
+  // Рефи для синхронізації ScrollView
+  const block2ScrollRef = useRef(null);
+  const block4HorizontalScrollRef = useRef(null);
+  const block3ScrollRef = useRef(null);
+  const block4VerticalScrollRef = useRef(null);
+
+  // Прапорці для уникнення рекурсивної синхронізації
+  const isSyncingHorizontal = useRef(false);
+  const isSyncingVertical = useRef(false);
+
+  // 1) Функція для формування placeCosts та placeMultipliers
+  const processGreatBuildingBranches = async (greatBuildingId, currentLevel) => {
+    try {
+      const guildId = await AsyncStorage.getItem('guildId');
+      const rawUserId = await AsyncStorage.getItem('userId');
+      const userIds = rawUserId ? rawUserId.split(',').map(id => id.trim()) : [];
+
+      // Кількість місць: мінімум 5 або більше, якщо forgePointsList.length > 5
+      const numPlaces = Math.max(5, forgePointsList.length);
+      const upgradesRef = ref(database, `guilds/${guildId}/GBChat`);
+      const snapshot = await get(upgradesRef);
+      const localMultipliers = [];
+      const localCosts = [];
+
+      if (!snapshot.exists()) {
+        for (let place = 0; place < numPlaces; place++) {
+          const nominal = forgePointsList[place] || 1;
+          localMultipliers.push(null);
+          localCosts.push(Math.round(nominal));
+        }
+      } else {
+        const allChats = Object.entries(snapshot.val());
+        for (let place = 1; place <= numPlaces; place++) {
+          let filteredChats = [];
+          for (const [chatId, chatData] of allChats) {
+            const rules = chatData.rules || {};
+            if (rules.allowedGBs && !rules.allowedGBs.includes(greatBuildingId)) continue;
+            if (rules.placeLimit && !rules.placeLimit.includes(place)) continue;
+            if (rules.levelThreshold && rules.levelThreshold > currentLevel) continue;
+            if (rules.members) {
+              const isUserAllowed = userIds.some(uid => rules.members.includes(uid));
+              if (!isUserAllowed) continue;
+            }
+            filteredChats.push({
+              chatId,
+              contributionMultiplier: rules.contributionMultiplier || 0,
+            });
           }
-          const data = await response.json();
-          const forgepoints = data.response.patron_bonus.map((bonus) => bonus.forgepoints);
-          setForgepointsArray(forgepoints);
-          console.log('forgepointsArray після fetchForgepoints:', forgepoints);
-
-          // Вивід вартості закриття рівня
-          const totalFP = data.response.total_fp; // Отримуємо total_fp
-          console.log('Вартість закриття рівня:', totalFP); // Виводимо в консоль
-        } else {
-          setErrorMessage('Неправильний або порожній buildAPI URL: ' + buildAPI);
+          if (filteredChats.length > 0) {
+            filteredChats.sort((a, b) => b.contributionMultiplier - a.contributionMultiplier);
+            const nominal = forgePointsList[place - 1] || 1;
+            const computed = filteredChats.map(ch => {
+              const costVal = Math.round(ch.contributionMultiplier * nominal);
+              return { multiplier: ch.contributionMultiplier, cost: costVal };
+            });
+            const maxCost = Math.max(...computed.map(c => c.cost));
+            const chosen = computed.find(c => c.cost === maxCost) || computed[0];
+            localMultipliers.push(chosen.multiplier);
+            localCosts.push(chosen.cost);
+          } else {
+            const nominal = forgePointsList[place - 1] || 1;
+            localMultipliers.push(null);
+            localCosts.push(Math.round(nominal));
+          }
         }
-      } catch (error) {
-        setErrorMessage('Помилка отримання даних: ' + error.message);
       }
-    };
-
-    if (buildId && level !== null) {
-      fetchForgepoints();
+      setPlaceMultipliers(localMultipliers.map(m => (m !== null ? parseFloat(m) : null)));
+      setPlaceCosts(localCosts);
+      console.log('processGreatBuildingBranches -> localCosts:', localCosts);
+    } catch (error) {
+      console.error('processGreatBuildingBranches -> error:', error);
+      if (placeCosts.length < 5) {
+        const fallback = forgePointsList.map(v => Math.round(v || 1));
+        setPlaceCosts(fallback);
+        setPlaceMultipliers(fallback.map(() => null));
+      }
     }
-  }, [buildId, level, buildAPI]);
+  };
 
-  useEffect(() => {
-    const fetchPatrons = async () => {
-      try {
-        const guildId = await AsyncStorage.getItem('guildId');
-        const userId = await AsyncStorage.getItem('userId');
-    
-        if (guildId && userId && buildId) {
-          const patronRef = ref(
-            db,
-            `guilds/${guildId}/guildUsers/${userId}/greatBuild/${buildId}/investment/patrons`
-          );
-    
-          onValue(patronRef, (snapshot) => {
-            if (snapshot.exists()) {
-              const patrons = snapshot.val();
-              const patronsArray = Object.entries(patrons).map(([patronId, data]) => ({
-                patronId,
-                ...data,
-              }));
-    
-              const sortedPatrons = patronsArray.sort((a, b) => {
-                if (b.invest !== a.invest) {
-                  return b.invest - a.invest;
-                }
-                return a.timestamp - b.timestamp;
-              });
-    
-              const newPatronIdArray = sortedPatrons.map(patron => patron.patron);
-              const newInvestArray = sortedPatrons.map(patron => {
-                // Ensure we convert the investment to a number
-                return Number(patron.invest) || 0; // Use 0 if conversion fails
-              });
-    
-              setPatronIdArray(newPatronIdArray);
-              setInvestArray(newInvestArray);
-    
-              // Calculate total investment after patrons are fetched
-              const totalInvest = newInvestArray.reduce((acc, invest) => acc + invest, 0);
-              console.log('Сума вкладень:', totalInvest);
-    
-              // Assuming forgepointsArray is updated from the API call
-              const totalFP = forgepointsArray.reduce((acc, fp) => acc + (fp || 0), 0); // Use your method to get totalFP
-    
-              const remaining = totalFP - totalInvest; // Calculate remaining forge points
-              console.log('Залишок:', remaining); // Output the remaining forge points
+  // 2) Отримання даних вкладників та їх коректного логіну
+  const getPatronsData = async (greatBuildingId) => {
+    try {
+      const guildId = await AsyncStorage.getItem('guildId');
+      const userId = await AsyncStorage.getItem('userId');
+      if (!guildId || !userId) return;
+
+      const patronsRef = ref(
+        database,
+        `guilds/${guildId}/guildUsers/${userId}/greatBuild/${greatBuildingId}/investment/patrons`
+      );
+      const ownerRef = ref(
+        database,
+        `guilds/${guildId}/guildUsers/${userId}/greatBuild/${greatBuildingId}/investment/personal`
+      );
+
+      const patronsSnap = await get(patronsRef);
+      if (patronsSnap.exists()) {
+        const data = patronsSnap.val();
+        let arr = Object.entries(data).map(([rid, rec]) => ({
+          recordId: rid,
+          patronId: rec.patron,
+          userName: rec.userName || 'NoLogin',
+          invest: Number(rec.invest) || 0,
+          rawTimestamp: rec.timestamp || 0,
+        }));
+
+        // Для 'stranger' та 'friend' встановлюємо відповідні значення, для інших - виконуємо запит до users/{patronId}
+        arr = await Promise.all(
+          arr.map(async patron => {
+            if (patron.patronId === 'stranger') {
+              return { ...patron, userName: 'Чужинець' };
+            } else if (patron.patronId === 'friend') {
+              return { ...patron, userName: 'Друг' };
             } else {
-              console.log('Дані не знайдено для patronRef');
+              try {
+                const userSnap = await get(ref(database, `users/${patron.patronId}`));
+                if (userSnap.exists()) {
+                  const userData = userSnap.val();
+                  return { ...patron, userName: userData.userName || patron.userName };
+                } else {
+                  return patron;
+                }
+              } catch (error) {
+                return patron;
+              }
             }
-          });
-        } else {
-          console.log('guildId або userId відсутні');
-        }
-      } catch (error) {
-        console.error('Помилка отримання патронів:', error);
-      }
-    };
-    
-  
-    fetchPatrons();
-  }, [buildId, forgepointsArray]); // Ensure to include forgepointsArray to recalculate when it changes
-  
-
-  useEffect(() => {
-    const fetchChats = async () => {
-      try {
-        const guildId = await AsyncStorage.getItem('guildId');
-        if (guildId && buildId) {
-          const chatsRef = ref(db, `guilds/${guildId}/GBChat`);
-          onValue(chatsRef, (snapshot) => {
-            if (snapshot.exists()) {
-              const chats = snapshot.val();
-              const suitable = Object.entries(chats)
-                .filter(([chatId, chat]) => {
-                  const { inGuarant, levelThreshold, allowedGBs } = chat.rules;
-                  return (
-                    inGuarant === true &&
-                    levelThreshold <= level + 1 &&
-                    allowedGBs &&
-                    allowedGBs.includes(buildId)
-                  );
-                })
-                .map(([chatId, chat]) => ({ ...chat, chatId }));
-
-              setSuitableChats(suitable);
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Помилка під час отримання чатів:', error);
-      }
-    };
-
-    if (buildId && level !== null) {
-      fetchChats();
-    }
-  }, [buildId, level, db]);
-
-  useEffect(() => {
-    console.log('patronIdArray:', patronIdArray);
-    console.log('investArray:', investArray);
-  }, [patronIdArray, investArray]);
-
-  useEffect(() => {
-    console.log('Масив selectedMultipliers:', selectedMultipliers);
-  }, [selectedMultipliers]);
-
-  useEffect(() => {
-    if (Array.isArray(selectedMultipliers) && Array.isArray(forgepointsArray)) {
-      const multipliedValues = selectedMultipliers.map((multiplier, index) => {
-        const forgepoint = forgepointsArray[index] || 0; // Використовуємо forgepointsArray
-        return Math.round(multiplier * forgepoint); // Перемножуємо значення та округлюємо
-      });
-  
-      console.log('Масив перемножених значень:', multipliedValues); // Виводимо в консоль
-    }
-  }, [selectedMultipliers, forgepointsArray]);
-
-  useEffect(() => {
-    if (suitableChats.length > 0) {
-      const initialSelected = Array.from({ length: rows.length }, (_, index) => {
-        const filteredMultipliers = suitableChats
-          .map((chat) => {
-            if (chat.rules.placeLimit && chat.rules.placeLimit.includes(index + 1)) {
-              return chat.rules.contributionMultiplier.toFixed(2);
-            }
-            return null;
           })
-          .filter(Boolean)
-          .sort((a, b) => b - a);
+        );
+        setPatronsList(arr);
+        console.log('getPatronsData -> patronsList:', arr);
+      } else {
+        setPatronsList([]);
+        console.log('getPatronsData -> no patrons found');
+      }
 
-        return filteredMultipliers.length > 0 ? filteredMultipliers[0] : null;
-      });
-
-      const initialChatIds = Array.from({ length: rows.length }, (_, index) => {
-        const filteredChats = suitableChats
-          .filter(chat => chat.rules.placeLimit && chat.rules.placeLimit.includes(index + 1))
-          .map(chat => chat.chatId);
-
-        return filteredChats.length > 0 ? filteredChats[0] : null;
-      });
-
-      setSelectedMultipliers(initialSelected);
-      console.log('Початкові активні ID чатів для dropdown:', initialChatIds);
+      const ownerSnap = await get(ownerRef);
+      if (ownerSnap.exists()) {
+        setOwnerContribution(Number(ownerSnap.val()) || 0);
+      } else {
+        setOwnerContribution(0);
+      }
+    } catch (error) {
+      console.error('getPatronsData -> error:', error);
     }
-  }, [suitableChats]);
-
-  const toggleDropdown = (index) => {
-    setDropdownVisibility((prevState) => ({
-      ...prevState,
-      [index]: !prevState[index],
-    }));
   };
 
-  const selectMultiplier = (index, value, chatId) => {
-    setSelectedMultipliers((prevState) => {
-      const updated = [...prevState];
-      updated[index] = value;
-      return updated;
+  // 3) Отримання даних з API (total_fp та forgePointsList)
+  useEffect(() => {
+    if (buildAPI && level !== null) {
+      fetch(buildAPI)
+        .then(res => res.json())
+        .then(data => {
+          const d = data.response;
+          if (d) {
+            if (typeof d.total_fp === 'number') {
+              setTotalFP(d.total_fp);
+            }
+            if (d.patron_bonus) {
+              const arr = d.patron_bonus.map(b => b.forgepoints);
+              setForgePointsList(arr);
+            }
+          }
+          console.log('API -> totalFP:', totalFP, 'forgePointsList:', forgePointsList);
+        })
+        .catch(err => {
+          console.error('API fetch error:', err);
+        });
+    }
+  }, [buildAPI, level, personalContribution]);
+
+  useEffect(() => {
+    if (buildId) {
+      getPatronsData(buildId);
+    }
+  }, [buildId]);
+
+  useEffect(() => {
+    if (buildId && level) {
+      processGreatBuildingBranches(buildId, level);
+    }
+  }, [buildId, level, forgePointsList]);
+
+  // 4) Алгоритм розподілу призових місць (top‑5) та формування distribution
+  useEffect(() => {
+    if (placeCosts.length === 0 || !totalFP) return;
+
+    // Призові місця: мінімум 5 або скільки елементів у placeCosts
+    const numPrizeSlots = Math.max(5, placeCosts.length);
+    const prizeDist = new Array(numPrizeSlots).fill(null);
+
+    const sumInv = patronsList.reduce((acc, p) => acc + p.invest, 0);
+    const leftover = totalFP - (ownerContribution + sumInv);
+
+    const sorted = [...patronsList].sort((a, b) => {
+      if (b.invest !== a.invest) return b.invest - a.invest;
+      return a.rawTimestamp - b.rawTimestamp;
     });
-    setDropdownVisibility((prevState) => ({
-      ...prevState,
-      [index]: false,
-    }));
-    console.log('Вибрано ID чату:', chatId);
-  };
 
-  const headers = ['Місце', 'Вкладник', 'Вклад', 'До гаранту', 'Коефіціент'];
-  const rows = Array.from({ length: 5 }).map((_, rowIndex) => {
-    return [
-      rowIndex + 1,
-      '-',
-      forgepointsArray && forgepointsArray[rowIndex] !== undefined
-        ? `${forgepointsArray[rowIndex]}`
-        : '-', 
-      `${(rowIndex + 1) * 50} FP`,
-      null,
-    ];
-  });
-
-  const isDropdownDisabled = (index) => {
-    const filteredMultipliers = suitableChats
-      .map((chat) => {
-        if (chat.rules.placeLimit && chat.rules.placeLimit.includes(index + 1)) {
-          return chat.rules.contributionMultiplier.toFixed(2);
+    let placeIndex = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      const player = sorted[i];
+      if (placeIndex >= numPrizeSlots) break;
+      let placed = false;
+      while (!placed && placeIndex < numPrizeSlots) {
+        const costNeeded = placeCosts[placeIndex];
+        if (player.invest >= costNeeded) {
+          prizeDist[placeIndex] = { ...player, finalPlace: placeIndex + 1 };
+          placeIndex++;
+          placed = true;
+        } else {
+          const nextP = sorted[i + 1];
+          let nextInvest = nextP ? nextP.invest : 0;
+          if (nextInvest + leftover >= player.invest) {
+            placeIndex++;
+          } else {
+            prizeDist[placeIndex] = { ...player, finalPlace: placeIndex + 1 };
+            placeIndex++;
+            placed = true;
+          }
         }
-        return null;
-      })
-      .filter(Boolean);
+      }
+    }
 
-    return filteredMultipliers.length <= 1;
+    console.log('=== Призовий розподіл (top‑5) ===');
+    for (let j = 0; j < numPrizeSlots; j++) {
+      const r = prizeDist[j];
+      if (r) {
+        console.log(`Місце #${j + 1}: ${r.userName} (${r.patronId}), invest=${r.invest}, cost=${placeCosts[j]}`);
+      } else {
+        console.log(`Місце #${j + 1}: ніхто не зайняв, cost=${placeCosts[j]}`);
+      }
+    }
+    console.log('=================================');
+
+    // Визначаємо вкладників, що не потрапили до топ‑5
+    const prizeRecordIds = new Set(prizeDist.filter(x => x !== null).map(x => x.recordId));
+    const nonDistributed = sorted.filter(p => !prizeRecordIds.has(p.recordId));
+    console.log("Вкладники, що не потрапили до топ‑5 призових:");
+    nonDistributed.forEach(p => {
+      console.log(`id=${p.patronId}, userName=${p.userName}, invest=${p.invest}`);
+    });
+
+    // Формуємо фінальний масив для таблиці:
+    // спочатку призові записи, потім всі вкладники, що не отримали приз (finalPlace: "Не отримав")
+    const fullDistribution = prizeDist.concat(
+      nonDistributed.map(p => ({ ...p, finalPlace: 'Не отримав' }))
+    );
+    console.log('Full distribution (для таблиці):', fullDistribution);
+    setDistribution(fullDistribution);
+  }, [placeCosts, totalFP, patronsList, ownerContribution]);
+
+  // Логування distribution перед рендерингом
+  console.log('Поточна distribution:', distribution);
+  const numRows = Math.max(5, distribution.length);
+  console.log('Кількість рядків (numRows):', numRows);
+  const rowHeight = 40;
+  const contentHeight = numRows * rowHeight;
+  // Якщо контент менший за tableMaxHeight, використовуємо contentHeight, інакше tableMaxHeight
+  const containerHeight = contentHeight < tableMaxHeight ? contentHeight : tableMaxHeight;
+  const verticalScrollEnabled = contentHeight >= tableMaxHeight;
+
+  // Модифіковані функції синхронізації скролу
+  const syncHorizontalScroll = (event) => {
+    if (isSyncingHorizontal.current) return;
+    isSyncingHorizontal.current = true;
+    const offsetX = event.nativeEvent.contentOffset.x;
+    if (block2ScrollRef.current && block4HorizontalScrollRef.current) {
+      block2ScrollRef.current.scrollTo({ x: offsetX, animated: false });
+      block4HorizontalScrollRef.current.scrollTo({ x: offsetX, animated: false });
+    }
+    setTimeout(() => {
+      isSyncingHorizontal.current = false;
+    }, 0);
   };
 
-  const handleLayout = (index, event) => {
-    const { width } = event.nativeEvent.layout;
-    setButtonWidths((prevWidths) => ({
-      ...prevWidths,
-      [index]: width,
-    }));
+  const syncVerticalScroll = (event) => {
+    if (isSyncingVertical.current) return;
+    isSyncingVertical.current = true;
+    const offsetY = event.nativeEvent.contentOffset.y;
+    if (block3ScrollRef.current && block4VerticalScrollRef.current) {
+      block3ScrollRef.current.scrollTo({ y: offsetY, animated: false });
+      block4VerticalScrollRef.current.scrollTo({ y: offsetY, animated: false });
+    }
+    setTimeout(() => {
+      isSyncingVertical.current = false;
+    }, 0);
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={true}>
-        <View style={styles.tableContainer}>
-          <View>
-            <View style={styles.fixedColumn}>
-              <Text style={styles.headerText}>{headers[0]}</Text>
-            </View>
-            {rows.map((row, rowIndex) => (
-              <View style={styles.fixedColumn} key={rowIndex}>
-                <Text style={styles.cellText}>{row[0]}</Text>
+      <View style={styles.emptyBox}>
+        {/* Верхній рядок із заголовками */}
+        <View style={styles.topRow}>
+          <View style={styles.blockOne}>
+            <Text>Місце</Text>
+          </View>
+          <ScrollView
+            ref={block2ScrollRef}
+            horizontal
+            style={styles.block2Scroll}
+            showsHorizontalScrollIndicator
+            onScroll={syncHorizontalScroll}
+            scrollEventThrottle={48}
+          >
+            {columnTitles.map((title, idx) => (
+              <View key={`header-${idx}`} style={[styles.block2Item, { width: columnWidths[idx] }]}>
+                <Text>{title}</Text>
               </View>
             ))}
-          </View>
+          </ScrollView>
+        </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.scroll}>
-            <View>
-              <View style={styles.headerRow}>
-                {headers.slice(1).map((header, index) => (
-                  <View style={styles.headerCell} key={index}>
-                    <Text style={styles.headerText}>{header}</Text>
+        <View style={styles.bottomRow}>
+          {/* Ліва колонка з номерами рядків */}
+          <ScrollView
+            style={[styles.block3Scroll, { width: BLOCK_ONE_WIDTH, flexGrow: 0, overflow: 'hidden', height: containerHeight }]}
+            ref={block3ScrollRef}
+            showsVerticalScrollIndicator
+            scrollEnabled={verticalScrollEnabled}
+            onScroll={syncVerticalScroll}
+            scrollEventThrottle={48}
+          >
+            <View style={{ width: BLOCK_ONE_WIDTH, alignItems: 'center' }}>
+              {new Array(numRows).fill(0).map((_, rIndex) => (
+                <React.Fragment key={`leftFrag-${rIndex}`}>
+                  {rIndex === 5 && (
+                    <View
+                      style={{
+                        width: BLOCK_ONE_WIDTH,
+                        height: 3,
+                        backgroundColor: 'black',
+                        marginBottom: 2,
+                      }}
+                    />
+                  )}
+                  <View
+                    key={`leftCol-${rIndex}`}
+                    style={{
+                      width: BLOCK_ONE_WIDTH,
+                      height: rowHeight,
+                      borderRightWidth: 1,
+                      borderRightColor: 'black',
+                      borderTopWidth: 1,
+                      borderTopColor: 'black',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text>{rIndex + 1}</Text>
                   </View>
-                ))}
-              </View>
-
-              {rows.map((row, rowIndex) => (
-                <View style={styles.tableRow} key={rowIndex}>
-                  {row.slice(1, 4).map((cell, cellIndex) => (
-                    <View style={styles.cell} key={cellIndex}>
-                      <Text style={styles.cellText}>{cell}</Text>
-                    </View>
-                  ))}
-                  <View style={styles.cell}>
-                    <TouchableOpacity
-                      onPress={isDropdownDisabled(rowIndex) ? null : () => toggleDropdown(rowIndex)}
-                      style={[styles.button, { opacity: isDropdownDisabled(rowIndex) ? 0.5 : 1 }]}
-                      onLayout={(event) => handleLayout(rowIndex, event)}
-                    >
-                      <Text style={styles.buttonText}>
-                        {selectedMultipliers[rowIndex] || 'Виберіть коефіцієнт'}
-                      </Text>
-                    </TouchableOpacity>
-                    {dropdownVisibility[rowIndex] && (
-                      <View style={styles.dropdown}>
-                        {suitableChats
-                          .filter((chat) => chat.rules.placeLimit && chat.rules.placeLimit.includes(rowIndex + 1))
-                          .map((chat) => (
-                            <TouchableOpacity
-                              key={chat.chatId}
-                              onPress={() => selectMultiplier(rowIndex, chat.rules.contributionMultiplier.toFixed(2), chat.chatId)}
-                              style={styles.dropdownItem}
-                            >
-                              <Text style={styles.dropdownText}>
-                                {chat.rules.contributionMultiplier.toFixed(2)}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                      </View>
-                    )}
-                  </View>
-                </View>
+                </React.Fragment>
               ))}
             </View>
           </ScrollView>
+
+          {/* Основна частина таблиці */}
+          <View style={styles.block4Container}>
+            <ScrollView
+              ref={block4HorizontalScrollRef}
+              horizontal
+              style={[styles.block4OuterScroll, { height: containerHeight }]}
+              showsHorizontalScrollIndicator
+              onScroll={syncHorizontalScroll}
+              scrollEventThrottle={48}
+            >
+              <View style={{ minWidth: sumArray(columnWidths) }}>
+                <ScrollView
+                  style={[styles.block4InnerScroll, { height: containerHeight }]}
+                  ref={block4VerticalScrollRef}
+                  showsVerticalScrollIndicator
+                  scrollEnabled={verticalScrollEnabled}
+                  onScroll={syncVerticalScroll}
+                  scrollEventThrottle={48}
+                >
+                  <View>
+                    {new Array(numRows).fill(0).map((_, rowIndex) => (
+                      <React.Fragment key={`frag-${rowIndex}`}>
+                        {rowIndex === 5 && (
+                          <View
+                            style={{
+                              height: 3,
+                              backgroundColor: 'black',
+                              width: sumArray(columnWidths),
+                              marginBottom: 2,
+                            }}
+                          />
+                        )}
+                        <View key={`tableRow-${rowIndex}`} style={{ flexDirection: 'row' }}>
+                          {columnWidths.map((cw, colIndex) => {
+                            let cellContent = '';
+                            if (colIndex === 0) {
+                              if (distribution[rowIndex]) {
+                                cellContent =
+                                  distribution[rowIndex].patronId === 'stranger' || distribution[rowIndex].patronId === 'friend'
+                                    ? distribution[rowIndex].userName
+                                    : `${distribution[rowIndex].userName}`;
+                              } else {
+                                cellContent = 'Немає';
+                              }
+                            } else if (colIndex === 1) {
+                              cellContent = distribution[rowIndex] ? String(distribution[rowIndex].invest) : '-';
+                            } else if (colIndex === 2) {
+                              const costVal = placeCosts[rowIndex];
+                              cellContent = costVal !== undefined ? String(costVal) : '-';
+                            } else if (colIndex === 3) {
+                              cellContent = '-';
+                            } else if (colIndex === 4) {
+                              const mVal = placeMultipliers[rowIndex];
+                              cellContent = typeof mVal === 'number' ? mVal.toFixed(3) : '-';
+                            }
+                            return (
+                              <View
+                                key={`cell-${rowIndex}-${colIndex}`}
+                                style={{
+                                  width: cw,
+                                  height: rowHeight,
+                                  borderLeftWidth: 1,
+                                  borderLeftColor: 'black',
+                                  borderTopWidth: 1,
+                                  borderTopColor: 'black',
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Text>{cellContent}</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      </React.Fragment>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            </ScrollView>
+          </View>
         </View>
-        {errorMessage ? (
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        ) : null}
-      </ScrollView>
+      </View>
     </View>
   );
 };
 
+// Допоміжна функція для обчислення суми елементів масиву
+function sumArray(arr) {
+  return arr.reduce((acc, val) => acc + val, 0);
+}
+
 const styles = StyleSheet.create({
   container: {
-    
-    margin: 10,
-    borderWidth: 1,
-    borderColor: '#000',
+    marginTop: 20,
+  },
+  emptyBox: {
+    width: '100%',
     borderRadius: 10,
-    height: 'auto',
-    overflow: 'visible',
-    zIndex: 1,
-  },
-  tableContainer: {
-    flexDirection: 'row',
-    marginTop: 5,
-    height: 'auto',
-    zIndex: 1,
-  },
-  scroll: {
-    maxHeight: 800,
-    zIndex: 1,
-  },
-  fixedColumn: {
-    width: 70,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRightWidth: 1,
-    borderColor: '#000',
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    borderBottomWidth: 1,
-    borderColor: '#000',
-  },
-  headerCell: {
-    minWidth: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRightWidth: 1,
-    borderColor: '#000',
-    padding: 10,
-  },
-  headerText: {
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    minHeight: 50,
-  },
-  cell: {
-    minWidth: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 10,
-  },
-  cellText: {
-    textAlign: 'center',
-    padding: 5,
-  },
-  button: {
-    backgroundColor: '#007BFF',
-    paddingLeft: 10,
-    paddingRight: 10,
-    paddingTop: 5,
-    paddingBottom: 5,
-    borderRadius: 5,
-  },
-  buttonText: {
-    color: '#fff',
-  },
-  dropdown: {
-    position: 'absolute',
-    //top: 40,
-    //left: 0,
-    //right: 0,
-    zIndex: 1000,
-    elevation: 10, // Для Android
-    backgroundColor: '#fff',
+    backgroundColor: '#eee',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    maxHeight: 150,
-    alignItems: 'center',
-    top: '130%',
+    borderColor: 'black',
+    padding: 3,
   },
-  dropdownItem: {
-    paddingTop: 5,
-    paddingBottom: 5,
+  topRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+  },
+  blockOne: {
+    width: BLOCK_ONE_WIDTH,
+    borderRightWidth: 1,
+    borderRightColor: 'black',
     borderBottomWidth: 1,
-    borderColor: '#ddd',
+    borderBottomColor: 'black',
+    paddingHorizontal: 5,
+    paddingVertical: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  block2Scroll: {
+    flex: 1,
+  },
+  block2Item: {
+    borderLeftWidth: 1,
+    borderLeftColor: 'black',
+    borderBottomWidth: 1,
+    borderBottomColor: 'black',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  block3Scroll: {
+    // Динамічна висота задається inline через containerHeight
+  },
+  block4Container: {
+    flex: 1,
+  },
+  block4OuterScroll: {
+    // Динамічна висота задається inline через containerHeight
+  },
+  block4InnerScroll: {
+    // Аналогічно
   },
 });
 

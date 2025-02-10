@@ -1,405 +1,410 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, Text, ScrollView, StyleSheet, Image, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Image, TouchableOpacity, TextInput } from 'react-native';
 import { getDatabase, ref, onValue, push } from 'firebase/database';
 import { getAuth } from 'firebase/auth';
 import { MultiSelect } from 'react-native-element-dropdown';
-import { Dropdown } from 'react-native-element-dropdown';
 import CustomCheckBox from '../CustomElements/CustomCheckBox3';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Svg, { Path } from 'react-native-svg';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 
 const NewGBChat = ({ navigation }) => {
-const [chatName, setChatName] = useState('');
-const [nodeComparison, setNodeComparison] = useState('more');
-const [nodeRatio, setNodeRatio] = useState('');
-const [levelThreshold, setLevelThreshold] = useState('');
-const [allowedGBs, setAllowedGBs] = useState([]);
-const [placeLimit, setPlaceLimit] = useState([false, false, false, false, false]);
-const [contributionMultiplier, setContributionMultiplier] = useState('');
-const [greatBuildings, setGreatBuildings] = useState([]);
-const [modalVisible, setModalVisible] = useState(false);
-const comparisonOptions = [
-{ label: 'Менше', value: 'less' },
-{ label: 'Рівно', value: 'equals' },
-{ label: 'Не менше', value: 'more' }
-];
-const [stepperWidth, setStepperWidth] = useState(200);
-const [coefficientText, setCoefficientText] = useState('Оберіть рівень арки вкладника');
-const checkmarkSize = 22;
+  const [nodeRatio, setNodeRatio] = useState('');
+  const [levelThreshold, setLevelThreshold] = useState('');
+  const [allowedGBs, setAllowedGBs] = useState([]);
+  const [placeLimit, setPlaceLimit] = useState([false, false, false, false, false]);
+  const [greatBuildings, setGreatBuildings] = useState([]);
+  const [guildMembers, setGuildMembers] = useState([]); // Учасники гільдії
+  const [selectedMembers, setSelectedMembers] = useState([]); // Вибрані учасники
+  const [contributionMultiplier, setContributionMultiplier] = useState(0);
+  const [stepperWidth, setStepperWidth] = useState(200);
+  const [coefficientText, setCoefficientText] = useState('Оберіть рівень арки вкладника');
 
-useEffect(() => {
-const db = getDatabase();
-const buildingsRef = ref(db, 'greatBuildings');
-
-onValue(buildingsRef, (snapshot) => {
-const data = snapshot.val();
-if (data) {
-const buildingsArray = Object.keys(data).map((key) => ({
-label: data[key].buildingName,
-value: key,
-image: data[key].buildingImage
-}));
-buildingsArray.unshift({ label: 'Обрати все', value: 'selectAll', image: null });
-setGreatBuildings(buildingsArray);
-}
-});
-}, []);
-
-const renderBuildingItem = (item) => (
-  <View style={styles.item}>
-    <Image source={{ uri: item.image }} style={styles.image} />
-    <Text style={styles.itemLabel}>{item.label}</Text>
-    {allowedGBs.includes(item.value) && (
-      <Svg width={checkmarkSize} height={checkmarkSize} viewBox="0 0 24 24" fill="none" style={styles.checkmark}>
-      <Path d={`M${(checkmarkSize * 20) / 24} ${(checkmarkSize * 6) / 24}L${(checkmarkSize * 9) / 24} ${(checkmarkSize * 17) / 24}L${(checkmarkSize * 4) / 24} ${(checkmarkSize * 12) / 24}`} stroke="#007AFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-    )}
-  </View>
-);
-
-const handleSelectAll = (items) => {
-  if (items.includes('selectAll')) {
-    // Якщо "Обрати все" вибрано, вибрати всі елементи
-    const allBuildingValues = greatBuildings
-      .filter((item) => item.value !== 'selectAll')
-      .map((item) => item.value);
-    setAllowedGBs(allBuildingValues);
-  } else {
-    setAllowedGBs(items);
-  }
-};
-
-const handleCheckBoxChange = (index) => {
-const newPlaceLimit = [...placeLimit];
-newPlaceLimit[index] = !newPlaceLimit[index];
-setPlaceLimit(newPlaceLimit);
-};
-
-const handleCreateChat = async () => {
-  try {
+  useEffect(() => {
     const db = getDatabase();
-    const auth = getAuth();
-    const user = auth.currentUser;
 
-    const selectedPlaceLimits = placeLimit
-      .map((selected, index) => (selected ? index + 1 : null))
-      .filter((value) => value !== null);
+    // Отримання Великих Споруд
+    const buildingsRef = ref(db, 'greatBuildings');
+    onValue(buildingsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const seenKeys = new Set();
+        const buildingsArray = Object.keys(data)
+          .map((key) => ({
+            label: data[key].buildingName,
+            value: key,
+            image: data[key].buildingImage,
+          }))
+          .filter((item) => {
+            if (seenKeys.has(item.value)) return false;
+            seenKeys.add(item.value);
+            return true;
+          });
+        // Додаємо опцію "Обрати все" на початок списку
+        buildingsArray.unshift({ label: 'Обрати все', value: 'selectAll', image: null });
+        setGreatBuildings(buildingsArray);
+      }
+    });
 
-    const newChat = {
-      chatName,
-      rules: {
-        nodeComparison,
-        ArcLevel: parseFloat(nodeRatio) || 0,
-        levelThreshold: parseInt(levelThreshold, 10) || 0,
-        allowedGBs,
-        placeLimit: selectedPlaceLimits,
-        contributionMultiplier: contributionMultiplier || 0, // Використовуємо значення з стану
-      },
-      createdBy: user ? user.uid : null,
+    // Отримання учасників гільдії з шляху guilds/${guildId}/guildUsers
+    const fetchGuildMembers = async () => {
+      const guildId = await AsyncStorage.getItem('guildId');
+      if (!guildId) {
+        console.error('Guild ID не знайдено');
+        return;
+      }
+      console.log('Guild ID:', guildId);
+      const membersRef = ref(db, `guilds/${guildId}/guildUsers`);
+      onValue(membersRef, (snapshot) => {
+        const data = snapshot.val();
+        console.log('Дані з guildUsers:', data);
+        if (data) {
+          const membersArray = Object.keys(data).map((key) => ({
+            label: data[key].imageUrl, // URL аватара
+            name: data[key].userName,  // Ім'я користувача
+            userId: key,               // Ідентифікатор користувача
+          }));
+          console.log('membersArray:', membersArray);
+          setGuildMembers(membersArray);
+        } else {
+          console.warn('Дані з guildUsers відсутні або порожні.');
+        }
+      });
     };
 
-    const guildId = await AsyncStorage.getItem('guildId');
+    fetchGuildMembers();
+  }, []);
 
-    if (guildId) {
-      await push(ref(db, `guilds/${guildId}/GBChat`), newChat);
-      navigation.goBack();
+  // Обробка вибору ВС. Якщо вибрано "Обрати все", встановлюємо всі значення (крім 'selectAll')
+  const handleSelectAll = (items) => {
+    if (items.includes('selectAll')) {
+      const allBuildingValues = greatBuildings
+        .filter((item) => item.value !== 'selectAll')
+        .map((item) => item.value);
+      setAllowedGBs(allBuildingValues);
     } else {
-      console.error('Guild ID не знайдено');
+      setAllowedGBs(items);
     }
-  } catch (error) {
-    console.error('Помилка при створенні чату:', error);
-  }
-};
+  };
 
+  const handleCheckBoxChange = (index) => {
+    const newPlaceLimit = [...placeLimit];
+    newPlaceLimit[index] = !newPlaceLimit[index];
+    setPlaceLimit(newPlaceLimit);
+  };
 
+  // Функція для отримання коефіцієнта внеску з API
+  const fetchContributionBoost = async (level) => {
+    if (level === 0) {
+      setCoefficientText('Оберіть рівень арки вкладника');
+      setContributionMultiplier(0);
+      return;
+    }
+    try {
+      const response = await fetch(`https://api.foe-helper.com/v1/LegendaryBuilding/get?id=X_FutureEra_Landmark1&level=${level}`);
+      const data = await response.json();
+      // Припускаємо, що відповідь має структуру data.response.rewards.contribution_boost
+      const contributionBoost = data.response.rewards.contribution_boost;
+      const coefficient = contributionBoost / 100 + 1;
+      setCoefficientText(`Рівень арки вкладника (коефіцієнт ${coefficient.toFixed(3)})`);
+      setContributionMultiplier(coefficient);
+    } catch (error) {
+      console.error('Помилка при отриманні даних з API:', error);
+    }
+  };
 
-const Stepper = ({ value, onValueChange, buttonSize = 20, minValue = 0, maxValue = 200 }) => {
-const inputWidth = stepperWidth - buttonSize * 2;
-const [inputValue, setInputValue] = useState(String(value));
+  const handleCreateChat = async () => {
+    try {
+      const db = getDatabase();
+      const auth = getAuth();
+      const user = auth.currentUser;
 
-const handleIncrement = () => {
-const newValue = Math.min(value + 1, maxValue);
-onValueChange(newValue);
-setInputValue(String(newValue));
-};
+      const selectedPlaceLimits = placeLimit
+        .map((selected, index) => (selected ? index + 1 : null))
+        .filter((value) => value !== null);
 
-const handleDecrement = () => {
-const newValue = Math.max(value - 1, minValue);
-onValueChange(newValue);
-setInputValue(String(newValue));
-};
+      const newChat = {
+        rules: {
+          ArcLevel: parseFloat(nodeRatio) || 0,
+          levelThreshold: parseInt(levelThreshold, 10) || 0,
+          allowedGBs,
+          placeLimit: selectedPlaceLimits,
+          contributionMultiplier: contributionMultiplier || 0,
+          selectedMembers, // Вибрані учасники
+        },
+        createdBy: user ? user.uid : null,
+      };
 
-const handleInputChange = (text) => {
-if (/^\d*$/.test(text)) {
-setInputValue(text);
-}
-};
+      const guildId = await AsyncStorage.getItem('guildId');
+      if (guildId) {
+        await push(ref(db, `guilds/${guildId}/GBChat`), newChat);
+        navigation.goBack();
+      } else {
+        console.error('Guild ID не знайдено');
+      }
+    } catch (error) {
+      console.error('Помилка при створенні чату:', error);
+    }
+  };
 
-const handleEndEditing = () => {
-let newValue = parseInt(inputValue, 10);
-if (isNaN(newValue)) {
-newValue = minValue;
-} else if (newValue > maxValue) {
-newValue = maxValue;
-} else if (newValue < minValue) {
-newValue = minValue;
-}
-onValueChange(newValue);
-setInputValue(String(newValue));
-};
+  // Компонент Stepper для зміни числових значень
+  const Stepper = ({ value, onValueChange, buttonSize = 20, minValue = 0, maxValue = 200 }) => {
+    const inputWidth = stepperWidth - buttonSize * 2;
+    const [inputValue, setInputValue] = useState(String(value));
 
-return (
-<View style={styles.stepperContainer} onLayout={(event) => {
-const { width } = event.nativeEvent.layout;
-setStepperWidth(width);
-}}>
-<TouchableOpacity
-onPress={handleDecrement}
-style={[styles.stepButton, { width: buttonSize, height: buttonSize }]}
->
-<Text style={styles.stepButtonText}>-</Text>
-</TouchableOpacity>
-<TextInput
-style={[styles.valueInput, { width: inputWidth, height: buttonSize }]}
-keyboardType="numeric"
-value={inputValue}
-onChangeText={handleInputChange}
-onEndEditing={handleEndEditing}
-maxLength={String(maxValue).length}
-/>
-<TouchableOpacity
-onPress={handleIncrement}
-style={[styles.stepButton, { width: buttonSize, height: buttonSize }]}
->
-<Text style={styles.stepButtonText}>+</Text>
-</TouchableOpacity>
-</View>
-);
-};
+    const handleIncrement = () => {
+      const newValue = Math.min(value + 1, maxValue);
+      onValueChange(newValue);
+      setInputValue(String(newValue));
+    };
 
+    const handleDecrement = () => {
+      const newValue = Math.max(value - 1, minValue);
+      onValueChange(newValue);
+      setInputValue(String(newValue));
+    };
 
+    const handleInputChange = (text) => {
+      if (/^\d*$/.test(text)) {
+        setInputValue(text);
+      }
+    };
 
-const handleNodeRatioChange = (value) => {
-setNodeRatio(value);
-fetchContributionBoost(value); // Виклик функції для запиту до API
-};
+    const handleEndEditing = () => {
+      let newValue = parseInt(inputValue, 10);
+      if (isNaN(newValue)) {
+        newValue = minValue;
+      } else if (newValue > maxValue) {
+        newValue = maxValue;
+      } else if (newValue < minValue) {
+        newValue = minValue;
+      }
+      onValueChange(newValue);
+      setInputValue(String(newValue));
+    };
 
-const fetchContributionBoost = async (level) => {
-  if (level === 0) {
-    setCoefficientText('Оберіть рівень арки вкладника');
-    return;
-  }
+    return (
+      <View
+        style={styles.stepperContainer}
+        onLayout={(event) => {
+          const { width } = event.nativeEvent.layout;
+          setStepperWidth(width);
+        }}
+      >
+        <TouchableOpacity onPress={handleDecrement} style={[styles.stepButton, { width: buttonSize, height: buttonSize }]}>
+          <Text style={styles.stepButtonText}>-</Text>
+        </TouchableOpacity>
+        <TextInput
+          style={[styles.valueInput, { width: inputWidth, height: buttonSize }]}
+          keyboardType="numeric"
+          value={inputValue}
+          onChangeText={handleInputChange}
+          onEndEditing={handleEndEditing}
+          maxLength={String(maxValue).length}
+        />
+        <TouchableOpacity onPress={handleIncrement} style={[styles.stepButton, { width: buttonSize, height: buttonSize }]}>
+          <Text style={styles.stepButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
-  try {
-    const response = await fetch(`https://api.foe-helper.com/v1/LegendaryBuilding/get?id=X_FutureEra_Landmark1&level=${level}`);
-    const data = await response.json();
-    const contributionBoost = data.response.rewards.contribution_boost;
-    const coefficient = contributionBoost / 100 + 1;
+  return (
+    <ScrollView contentContainerStyle={{ padding: 20, backgroundColor: '#ffffff' }}>
+      {/* Блок для коефіцієнта внеску (nodeRatio) */}
+      <View style={styles.block}>
+        <Text style={{ marginBottom: 10 }}>Коефіцієнт внеску (nodeRatio):</Text>
+        <Text style={{ marginBottom: 10 }}>{coefficientText}</Text>
+        <Stepper
+          value={parseInt(nodeRatio, 10) || 0}
+          onValueChange={(value) => {
+            setNodeRatio(value);
+            fetchContributionBoost(value);
+          }}
+          buttonSize={40}
+          minValue={0}
+          maxValue={200}
+        />
+      </View>
 
-    // Оновлення тексту
-    setCoefficientText(`Рівень арки вкладника (коефіцієнт ${coefficient.toFixed(3)})`);
-    setContributionMultiplier(coefficient); // Збереження значення в стані
+      {/* Блок для вибору дозволених ВС */}
+      <View style={styles.block}>
+        <Text style={{ marginBottom: 10 }}>Дозволені в гілці ВС (allowedGBs):</Text>
+        <MultiSelect
+          style={styles.dropdown}
+          containerStyle={styles.dropdownContainer}
+          data={greatBuildings}
+          labelField="label"
+          valueField="value"
+          placeholder="Оберіть ВС"
+          value={allowedGBs}
+          onChange={handleSelectAll}
+          multiple={true}
+          renderItem={(item) => (
+            <View style={styles.itemContainer}>
+              {item?.image && (
+                <Image
+                  source={{ uri: item.image }}
+                  style={styles.buildingImage}
+                  resizeMode="contain"
+                />
+              )}
+              <Text style={styles.itemText}>{item?.label}</Text>
+              {allowedGBs.includes(item?.value) && (
+                <FontAwesome name="check" size={16} color="#007AFF" style={{ marginLeft: 'auto' }} />
+              )}
+            </View>
+          )}
+          renderRightIcon={() => <FontAwesome name="chevron-down" size={12} color="#007AFF" />}
+        />
+      </View>
 
-  } catch (error) {
-    console.error('Помилка при отриманні даних з API:', error);
-  }
-};
+      {/* Блок для мінімального рівня ВС */}
+      <View style={styles.block}>
+        <Text style={{ marginBottom: 10 }}>Мінімальний рівень ВС (levelThreshold):</Text>
+        <Stepper
+          value={parseInt(levelThreshold, 10) || 0}
+          onValueChange={(value) => setLevelThreshold(value)}
+          buttonSize={40}
+          minValue={0}
+          maxValue={200}
+        />
+      </View>
 
-  
+      {/* Блок для вибору учасників гільдії */}
+      <View style={styles.block}>
+        <Text style={{ marginBottom: 10 }}>Учасники гільдії:</Text>
+        <MultiSelect
+          style={styles.dropdown}
+          containerStyle={styles.dropdownContainer}
+          data={guildMembers}
+          labelField="name"
+          valueField="userId"
+          placeholder="Оберіть учасників"
+          value={selectedMembers}
+          onChange={(items) => setSelectedMembers(items)}
+          multiple={true}
+          renderItem={(item) => (
+            <View style={styles.itemContainer}>
+              <Image
+                source={{ uri: item.label }}
+                style={styles.memberImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.itemText}>{item.name}</Text>
+              {selectedMembers.includes(item.userId) && (
+                <FontAwesome name="check" size={16} color="#007AFF" style={{ marginLeft: 'auto' }} />
+              )}
+            </View>
+          )}
+          renderRightIcon={() => <FontAwesome name="chevron-down" size={12} color="#007AFF" />}
+        />
+      </View>
 
-return (
-<ScrollView contentContainerStyle={{ padding: 20, backgroundColor: '#ffffff' }}>
-<View style={styles.block}>
-<Text style={{ marginBottom: 10 }}>Назва чату (chatName):</Text>
-<TextInput
-value={chatName}
-onChangeText={setChatName}
-placeholder="chatName"
-style={styles.input}
-/>
-</View>
+      {/* Блок для обмеження місць */}
+      <View style={styles.block}>
+        <Text style={{ marginBottom: 10 }}>Обмеження місць (placeLimit):</Text>
+        <View style={styles.checkboxContainer}>
+          {[1, 2, 3, 4, 5].map((value, index) => (
+            <CustomCheckBox
+              key={index}
+              title={`${value}`}
+              checked={placeLimit[index]}
+              onPress={() => handleCheckBoxChange(index)}
+            />
+          ))}
+        </View>
+      </View>
 
-<View style={styles.block}>
-  <Text style={{ marginBottom: 10 }}>Умова внеску (nodeComparison):</Text>
-  <Dropdown
-    style={styles.dropdown}
-    containerStyle={styles.dropdownContainer} // Стиль для списку вибору
-    data={comparisonOptions}
-    labelField="label"
-    valueField="value"
-    value={nodeComparison}
-    onChange={(item) => setNodeComparison(item.value)}
-    renderRightIcon={() => (
-      <FontAwesome
-        name="chevron-down" // Назва іконки
-        size={12}
-        color="#007AFF" // Колір шеврона
-      />
-    )}
-  />
-</View>
-
-<View style={styles.block}>
-<Text style={{ marginBottom: 10 }}>Коефіцієнт внеску (nodeRatio):</Text>
-<Text style={{ marginBottom: 10 }}>{coefficientText}</Text>
-<Stepper
-value={parseInt(nodeRatio, 10) || 0}
-onValueChange={handleNodeRatioChange}
-buttonSize={40}
-minValue={0}
-maxValue={200}
-/>
-</View>
-
-<View style={styles.block}>
-<Text style={{ marginBottom: 10 }}>Дозволені в гілці ВС (allowedGBs):</Text>
-<MultiSelect
-  style={styles.dropdown}
-  containerStyle={styles.dropdownContainer} // Стиль для списку вибору
-  data={greatBuildings}
-  labelField="label"
-  valueField="value"
-  placeholder="Оберіть ВС"
-  value={allowedGBs}
-  onChange={handleSelectAll}  // Додати обробник
-  renderItem={renderBuildingItem}
-  selectedStyle={styles.selectedStyle}
-  multiple={true}
-  renderRightIcon={() => (
-    <FontAwesome
-      name="chevron-down" // Назва іконки
-      size={12}
-      color="#007AFF" // Колір шеврона
-    />
-  )}
-/>
-</View>
-
-
-
-<View style={styles.block}>
-<Text style={{ marginBottom: 10 }}>Мінімальний рівень ВС (levelThreshold):</Text>
-<Stepper
-value={parseInt(levelThreshold, 10) || 0}
-onValueChange={(value) => setLevelThreshold(value)}
-buttonSize={40}
-minValue={0}
-maxValue={200}
-/>
-</View>
-
-<View style={styles.block}>
-<Text style={{ marginBottom: 10 }}>Обмеження місць (placeLimit):</Text>
-<View style={styles.checkboxContainer}>
-{[1, 2, 3, 4, 5].map((value, index) => (
-<CustomCheckBox
-key={index}
-title={`${value}`}
-checked={placeLimit[index]}
-onPress={() => handleCheckBoxChange(index)}
-/>
-))}
-</View>
-</View>
-
-
-<Button title="Створити новий чат" onPress={handleCreateChat} />
-
-
-
-</ScrollView>
-);
+      {/* Кнопка для створення нового чату */}
+      <TouchableOpacity style={styles.createButton} onPress={handleCreateChat}>
+        <Text style={styles.createButtonText}>Створити новий чат</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
 };
 
 const styles = StyleSheet.create({
-block: {
+  block: {
     backgroundColor: '#f2f2f2',
     padding: 10,
     marginBottom: 20,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#cccccc',
-},
-input: {
-    borderWidth: 1,
-    backgroundColor: '#ffffff',
-    padding: 10,
-    borderRadius: 6,
-    fontSize: 16,
-    borderColor: '#007AFF',
-    color: '#333333',
-},
-dropdown: {
+  },
+  dropdown: {
     borderWidth: 1,
     backgroundColor: '#ffffff',
     padding: 10,
     borderRadius: 6,
     borderColor: '#007AFF',
-},
-dropdownContainer: {
-  borderWidth: 1,
-  borderColor: '#007AFF', // Колір рамки для самого списку вибору
-  borderRadius: 8,
-},
-checkboxContainer: {
+  },
+  dropdownContainer: {
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+  },
+  checkboxContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around'
-},
-stepperContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  borderWidth: 1,
-  borderColor: '#007AFF',
-  borderRadius: 4,
-  overflow: 'hidden',
-},
-stepButton: {
-  justifyContent: 'center',
-  alignItems: 'center',
-  backgroundColor: '#007AFF',
-},
-stepButtonText: {
-  color: '#fff',
-  fontSize: 12,
-},
-valueInput: {
-  textAlign: 'center',
-  backgroundColor: '#fff',
-  borderColor: '#007AFF',
-  borderLeftWidth: 1,
-  borderRightWidth: 1,
-  fontSize: 16,
-  color: '#000',
-},
-item: {
-  flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  stepperContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-    justifyContent: 'space-between',  // Розташовуємо текст ліворуч, а галочку праворуч
-},
-image: {
-  width: 40,
-  height: 40,
-  marginRight: 10,
-  marginLeft: 10,
-  borderRadius: 4,
-  resizeMode: 'contain',
-},
-itemLabel: {
-  flex: 1,  // Займає доступний простір для тексту
-  marginLeft: 10,
-},
-selectedStyle: {
-  marginTop: 10,
-  borderRadius: 6,
-  backgroundColor: 'transparen',
-},
-checkmark: {
-  marginRight: 10,
-  color: '#007AFF',  // колір галочки
-  fontSize: 16,
-},
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  stepButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+  },
+  stepButtonText: {
+    color: '#fff',
+    fontSize: 12,
+  },
+  valueInput: {
+    textAlign: 'center',
+    backgroundColor: '#fff',
+    borderColor: '#007AFF',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    fontSize: 16,
+    color: '#000',
+  },
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 5,
+  },
+  buildingImage: {
+    width: 30,
+    height: 30,
+    marginRight: 10,
+  },
+  memberImage: {
+    width: 30,
+    height: 30,
+    marginRight: 10,
+    borderRadius: 15,
+  },
+  itemText: {
+    fontSize: 14,
+  },
+  createButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
 export default NewGBChat;

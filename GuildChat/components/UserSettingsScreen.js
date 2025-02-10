@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   View,
   Text,
@@ -10,26 +10,39 @@ import {
   Image,
   Alert,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ref, get } from "firebase/database";
 import { database } from "../firebaseConfig";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GuildContext } from "../GuildContext"; // скоригуйте шлях, якщо потрібно
 
+// Приймання "fetch" із пропсів — це функція, яку передає батьківський компонент.
 const UserSettingsScreen = ({ fetch }) => {
   const [password, setPassword] = useState("");
   const [guilds, setGuilds] = useState([]);
+  // Отримуємо setGuildId з контексту, щоб оновити значення глобального guildId
+  const { setGuildId } = useContext(GuildContext);
 
+  // Функція, яка зберігає обрану гільдію, оновлює контекст і викликає "fetch"
   const selectGuild = async (guild) => {
-    await AsyncStorage.setItem("guildId", guild.guildId);
-    fetch();
+    try {
+      await AsyncStorage.setItem("guildId", guild.guildId);
+      setGuildId(guild.guildId); // Оновлюємо глобальний стан
+      fetch();
+    } catch (error) {
+      console.error("Помилка при виборі гільдії:", error);
+    }
   };
 
+  // Функція "apply" – обробляє логіку перевірки пароля та пошуку гільдій
   const apply = async () => {
     const user = await getUser(password);
 
     if (!user) {
-      Alert.alert("Користувача не знайдено", `Спробуйте ввести інший пароль`, [
-        { text: "OK" },
-      ]);
+      Alert.alert(
+        "Користувача не знайдено",
+        `Спробуйте ввести інший пароль`,
+        [{ text: "OK" }]
+      );
       return;
     }
 
@@ -46,31 +59,38 @@ const UserSettingsScreen = ({ fetch }) => {
       return;
     }
 
-    if (userGuilds.length == 1) {
+    if (userGuilds.length === 1) {
+      // Якщо лише одна гільдія — одразу обираємо її
       selectGuild(userGuilds[0]);
       return;
     }
 
+    // Якщо кілька гільдій — показуємо список в модалці
     setGuilds(userGuilds);
   };
 
+  // Отримати користувача за паролем
   const getUser = async (password) => {
-    const snapshot = await get(ref(database, `users`));
-    const userId = Object.keys(snapshot.val()).find(
-      (key) => snapshot.val()[key].password == password
+    const snapshot = await get(ref(database, "users"));
+    if (!snapshot.exists()) return null;
+
+    const allUsers = snapshot.val();
+    // Знаходимо userId з відповідним паролем
+    const userId = Object.keys(allUsers).find(
+      (key) => allUsers[key].password === password
     );
-    const user = snapshot.val()[userId];
 
-    if (!user) {
-      return null;
-    }
-
-    return { ...user, userId };
+    if (!userId) return null;
+    return { ...allUsers[userId], userId };
   };
 
+  // Отримати список гільдій, у яких є користувач
   const getGuildsByUser = async (user) => {
-    const guilds = await get(ref(database, `guilds`));
-    const guildIds = Object.keys(guilds.val());
+    const guildSnapshot = await get(ref(database, "guilds"));
+    if (!guildSnapshot.exists()) return [];
+
+    const allGuilds = guildSnapshot.val();
+    const guildIds = Object.keys(allGuilds);
 
     const existGuilds = guildIds
       .map((guildId) => {
@@ -78,11 +98,11 @@ const UserSettingsScreen = ({ fetch }) => {
           return {
             ...user[guildId],
             guildId,
-            ...guilds.val()[guildId],
+            ...allGuilds[guildId],
           };
         }
       })
-      .filter((key) => key);
+      .filter((item) => !!item);
 
     return existGuilds;
   };
@@ -97,8 +117,6 @@ const UserSettingsScreen = ({ fetch }) => {
           onChangeText={setPassword}
           value={password}
           placeholder="Код доступу"
-          // keyboardType="numeric"
-          // maxLength={5}
         />
       </View>
 
@@ -106,6 +124,7 @@ const UserSettingsScreen = ({ fetch }) => {
         <Text style={styles.buttonText}>Прийняти</Text>
       </TouchableOpacity>
 
+      {/* Модальне вікно для вибору гільдії (якщо їх декілька) */}
       <Modal
         visible={guilds.length > 0}
         animationType="slide"
@@ -121,9 +140,7 @@ const UserSettingsScreen = ({ fetch }) => {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.modalButton, { marginBottom: 10 }]}
-                  onPress={() => {
-                    selectGuild(item);
-                  }}
+                  onPress={() => selectGuild(item)}
                 >
                   <Image
                     source={{ uri: item.imageUrl }}
@@ -146,6 +163,7 @@ const UserSettingsScreen = ({ fetch }) => {
   );
 };
 
+// Стилі
 const styles = StyleSheet.create({
   container: {
     padding: 40,
@@ -158,6 +176,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
+  },
+  inputContainer: {
+    marginBottom: 10,
+    width: "100%",
   },
   input: {
     borderWidth: 1,
@@ -180,10 +202,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "bold",
-  },
-  inputContainer: {
-    marginBottom: 10,
-    width: "100%",
   },
   modalContainer: {
     flex: 1,
@@ -212,9 +230,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  flagContainer: {
-    justifyContent: "flex-start",
-  },
   modalButtonText: {
     color: "white",
     fontSize: 16,
@@ -226,10 +241,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 24,
     marginRight: 10,
-  },
-  errorText: {
-    color: "red",
-    marginBottom: 10,
   },
 });
 
