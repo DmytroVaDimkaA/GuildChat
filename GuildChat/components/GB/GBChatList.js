@@ -8,6 +8,8 @@ import { database } from '../../firebaseConfig';
 
 const staticChatData = [
   { id: '1', name: 'Мої Величні Споруди' },
+  { id: '2', name: 'Експрес прокачка' },
+  { id: 'separator', type: 'separator' }, // Сепаратор для візуального розділення
 ];
 
 const GBChatList = () => {
@@ -15,31 +17,46 @@ const GBChatList = () => {
   const navigation = useNavigation();
 
   useEffect(() => {
-    let unsubscribe; // Функція для відписки від підписки на Firebase
+    let unsubscribe; // Функція для відписки від Firebase
     const fetchChats = async () => {
       try {
-        // Отримання guildId з AsyncStorage
+        // Отримуємо guildId з AsyncStorage
         const guildId = await AsyncStorage.getItem('guildId');
 
         if (guildId) {
-          // Створення референції до чату в Firebase
+          // Створюємо референцію до чату в Firebase
           const chatRef = ref(database, `guilds/${guildId}/GBChat`);
 
-          // Підписка на дані з Firebase
+          // Підписка на зміни даних у Firebase
           unsubscribe = onValue(chatRef, (snapshot) => {
             if (snapshot.exists()) {
               const chatData = snapshot.val();
-              // Перетворення отриманих даних у масив чатів
-              const firebaseChats = Object.keys(chatData).map((key) => ({
-                id: key,
-                // Формуємо назву чату як "Прокачка під " + contributionMultiplier,
-                // де contributionMultiplier зберігається у полі rules.contributionMultiplier
-                name: "Прокачка під " + chatData[key].rules.contributionMultiplier,
-              }));
 
-              // Об’єднання статичних даних із даними з Firebase та фільтрація для уникнення дублювання за id
+              // Групування чатів за contributionMultiplier
+              const groups = {};
+              Object.keys(chatData).forEach((key) => {
+                const multiplier = chatData[key].rules.contributionMultiplier;
+                
+                // Якщо групи з даним multiplier ще не існує — створюємо її
+                if (!groups[multiplier]) {
+                  groups[multiplier] = {
+                    id: `group_${multiplier}`, // Унікальний id для групи
+                    name: "Прокачка під " + multiplier,
+                    chatIds: [key], // Зберігаємо ідентифікатори чатів, що входять до групи
+                  };
+                } else {
+                  // Якщо група існує — додаємо поточний чат
+                  groups[multiplier].chatIds.push(key);
+                }
+              });
+
+              // Перетворюємо об’єкт груп у масив
+              const firebaseChats = Object.values(groups);
+
+              // Об’єднуємо статичні дані з групованими даними з Firebase
               setChats((prevChats) => {
-                const merged = [...prevChats, ...firebaseChats];
+                const merged = [...staticChatData, ...firebaseChats];
+                // Фільтрація для уникнення дублювання за id
                 const uniqueChats = merged.filter((chat, index, self) =>
                   index === self.findIndex((c) => c.id === chat.id)
                 );
@@ -55,7 +72,7 @@ const GBChatList = () => {
 
     fetchChats();
 
-    // Функція очищення (відписка) при розмонтуванні компонента
+    // Відписка при розмонтуванні компонента
     return () => {
       if (unsubscribe) {
         unsubscribe();
@@ -63,15 +80,18 @@ const GBChatList = () => {
     };
   }, []);
 
+  // Обробка натискання на FloatingActionButton
   const handleFabPress = () => {
-    navigation.navigate('NewGBChat'); // Перехід до екрана створення нового чату
+    navigation.navigate('NewGBChat');
   };
 
+  // Обробка вибору конкретного чату/групи
   const handleChatSelect = (chat) => {
     if (chat.id === '1') {
-      navigation.navigate('MyGB'); // Якщо це статичний чат "Мої Величні Споруди"
-    } else {
-      navigation.navigate('GBChatWindow', { chatId: chat.id }); // Перехід до вікна чату з передачею chatId
+      navigation.navigate('MyGB');
+    } else if (chat.id !== 'separator') {
+      // При передачі параметрів можна передати як id групи, так і список chatIds
+      navigation.navigate('GBChatWindow', { chatId: chat.id, chatIds: chat.chatIds || [] });
     }
   };
 
@@ -79,18 +99,20 @@ const GBChatList = () => {
     <View style={styles.container}>
       <FlatList
         data={chats}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelect(item)}>
-            <Text style={styles.chatName}>{item.name}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) =>
+          item.type === 'separator' ? (
+            <View style={styles.separator} />
+          ) : (
+            <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelect(item)}>
+              <Text style={styles.chatName}>{item.name}</Text>
+            </TouchableOpacity>
+          )
+        }
         keyExtractor={(item) => item.id}
         ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>}
+        contentContainerStyle={{ flexGrow: 1 }}
       />
-      <FloatingActionButton 
-        onPress={handleFabPress} 
-        iconName="pencil" 
-      />
+      <FloatingActionButton onPress={handleFabPress} iconName="pencil" />
     </View>
   );
 };
@@ -113,6 +135,11 @@ const styles = StyleSheet.create({
   },
   chatName: {
     fontSize: 18,
+  },
+  separator: {
+    height: 2,
+    backgroundColor: '#000',
+    marginVertical: 15,
   },
   emptyMessage: {
     padding: 15,

@@ -63,8 +63,8 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
             if (rules.allowedGBs && !rules.allowedGBs.includes(greatBuildingId)) continue;
             if (rules.placeLimit && !rules.placeLimit.includes(place)) continue;
             if (rules.levelThreshold && rules.levelThreshold > currentLevel) continue;
-            if (rules.members) {
-              const isUserAllowed = userIds.some(uid => rules.members.includes(uid));
+            if (rules.selectedMembers) {
+              const isUserAllowed = userIds.some(uid => rules.selectedMembers.includes(uid));
               if (!isUserAllowed) continue;
             }
             filteredChats.push({

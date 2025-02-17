@@ -1,85 +1,187 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Alert } from 'react-native';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, set } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { database } from '../../firebaseConfig'; // Імпорт Firebase конфігурації
+import { database } from '../../firebaseConfig';
 import { format } from 'date-fns';
 import { uk, ru } from 'date-fns/locale';
 
 const GBChatWindow = ({ route }) => {
-  const { chatId } = route.params;
+  // Якщо chatIds передається, він містить масив ідентифікаторів чатів (гілок)
+  const { chatId, chatIds } = route.params;
   const [messages, setMessages] = useState([]);
   const [userLanguage, setUserLanguage] = useState('uk'); // За замовчуванням українська
+  const [guildId, setGuildId] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
+    let unsubscribes = [];
     const fetchMessages = async () => {
-      const guildId = await AsyncStorage.getItem('guildId');
-      const userId = await AsyncStorage.getItem('userId'); // Завантажуємо власний userId
-      const messagesRef = ref(database, `guilds/${guildId}/GBChat/${chatId}/messages`);
+      const storedGuildId = await AsyncStorage.getItem('guildId');
+      const storedUserId = await AsyncStorage.getItem('userId');
+      setGuildId(storedGuildId);
+      setUserId(storedUserId);
 
-      // Завантажуємо налаштування мови з Firebase
-      const languageRef = ref(database, `users/${userId}/setting/language`);
-      onValue(languageRef, (snapshot) => {
+      // Завантаження налаштувань мови користувача
+      const languageRef = ref(database, `users/${storedUserId}/setting/language`);
+      const unsubscribeLang = onValue(languageRef, (snapshot) => {
         const language = snapshot.val();
         if (language) {
           setUserLanguage(language);
         }
       });
+      unsubscribes.push(unsubscribeLang);
 
-      onValue(
-        messagesRef,
-        async (snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-            const messageList = await Promise.all(
-              Object.values(data).map(async (item) => {
-                let userName = '';
-                let imageUrl = '';
-                let buildingName = '';
-                let buildingLevel = ''; // Рівень ВС
-                let buildingImage = ''; // Шлях до зображення ВС
+      // Об’єкт для зберігання повідомлень з кожної гілки
+      let messageLists = {};
 
-                if (item.senderId !== userId) {
-                  try {
-                    const userData = await fetchUserData(guildId, item.senderId);
-                    userName = userData.userName;
-                    imageUrl = userData.imageUrl;
-                  } catch (error) {
-                    console.error('Error fetching user data:', error);
-                  }
+      // Функція обробки даних з Firebase для окремої гілки
+      const processSnapshot = async (snapshot, branchId) => {
+        const data = snapshot.val();
+        let branchMessages = [];
+        if (data) {
+          branchMessages = await Promise.all(
+            Object.entries(data).map(async ([messageId, item]) => {
+              let userName = '';
+              let imageUrl = '';
+              let buildingName = '';
+              let buildingLevel = '';
+              let buildingImage = '';
+
+              if (item.senderId !== storedUserId) {
+                try {
+                  const userData = await fetchUserData(storedGuildId, item.senderId);
+                  userName = userData.userName;
+                  imageUrl = userData.imageUrl;
+                } catch (error) {
+                  console.error('Помилка отримання даних користувача:', error);
                 }
+              }
 
-                if (item.build) {
-                  const buildingData = await fetchBuildingData(item.build); // item.build - це buildingId
-                  buildingName = buildingData.name || 'Невідома ВС';
-                  buildingLevel = await fetchBuildingLevel(guildId, item.senderId, item.build); // Отримуємо рівень ВС
-                  buildingImage = buildingData.buildingImage || '';
-                }
+              if (item.build) {
+                const buildingData = await fetchBuildingData(item.build);
+                buildingName = buildingData.name || 'Невідома ВС';
+                buildingLevel = await fetchBuildingLevel(storedGuildId, item.senderId, item.build);
+                buildingImage = buildingData.buildingImage || '';
+              }
 
-                return {
-                  ...item,
-                  isOwnMessage: String(item.senderId) === String(userId),
-                  userName: userName || 'Невідомий',
-                  imageUrl,
-                  buildingName,
-                  buildingLevel,
-                  buildingImage,
-                };
-              })
-            );
-            setMessages(messageList);
-          } else {
-            setMessages([]); // Якщо дані не знайдені, очищаємо список повідомлень
-          }
-        },
-        (error) => {
-          console.error('Error fetching messages:', error);
+              const message = {
+                id: messageId,
+                ...item,
+                isOwnMessage: String(item.senderId) === String(storedUserId),
+                userName: userName || 'Невідомий',
+                imageUrl,
+                buildingName,
+                buildingLevel,
+                buildingImage,
+              };
+
+              // Якщо для поточного користувача в гілці excludedUser значення false, не повертаємо це повідомлення
+              if (message.excludedUser && message.excludedUser[storedUserId] === false) {
+                return null;
+              }
+              return message;
+            })
+          );
+          branchMessages = branchMessages.filter((msg) => msg !== null);
         }
-      );
+        messageLists[branchId] = branchMessages;
+        // Об’єднання повідомлень з усіх гілок
+        let combined = [];
+        Object.values(messageLists).forEach((msgs) => {
+          combined = combined.concat(msgs);
+        });
+        // Сортування повідомлень за timestamp
+        combined.sort((a, b) => a.timestamp - b.timestamp);
+        setMessages(combined);
+      };
+
+      // Якщо chatIds передано – агрегуємо повідомлення з усіх зазначених гілок
+      if (chatIds && Array.isArray(chatIds) && chatIds.length > 0) {
+        chatIds.forEach((branchId) => {
+          const messagesRef = ref(database, `guilds/${storedGuildId}/GBChat/${branchId}/messages`);
+          const unsubscribe = onValue(
+            messagesRef,
+            (snapshot) => {
+              processSnapshot(snapshot, branchId);
+            },
+            (error) => {
+              console.error('Помилка отримання повідомлень:', error);
+            }
+          );
+          unsubscribes.push(unsubscribe);
+        });
+      } else {
+        // Якщо chatIds не передано, працюємо з однією гілкою (chatId)
+        const messagesRef = ref(database, `guilds/${storedGuildId}/GBChat/${chatId}/messages`);
+        const unsubscribe = onValue(
+          messagesRef,
+          async (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+              let messageList = await Promise.all(
+                Object.entries(data).map(async ([messageId, item]) => {
+                  let userName = '';
+                  let imageUrl = '';
+                  let buildingName = '';
+                  let buildingLevel = '';
+                  let buildingImage = '';
+
+                  if (item.senderId !== storedUserId) {
+                    try {
+                      const userData = await fetchUserData(storedGuildId, item.senderId);
+                      userName = userData.userName;
+                      imageUrl = userData.imageUrl;
+                    } catch (error) {
+                      console.error('Помилка отримання даних користувача:', error);
+                    }
+                  }
+
+                  if (item.build) {
+                    const buildingData = await fetchBuildingData(item.build);
+                    buildingName = buildingData.name || 'Невідома ВС';
+                    buildingLevel = await fetchBuildingLevel(storedGuildId, item.senderId, item.build);
+                    buildingImage = buildingData.buildingImage || '';
+                  }
+
+                  const message = {
+                    id: messageId,
+                    ...item,
+                    isOwnMessage: String(item.senderId) === String(storedUserId),
+                    userName: userName || 'Невідомий',
+                    imageUrl,
+                    buildingName,
+                    buildingLevel,
+                    buildingImage,
+                  };
+
+                  if (message.excludedUser && message.excludedUser[storedUserId] === false) {
+                    return null;
+                  }
+                  return message;
+                })
+              );
+              messageList = messageList.filter((msg) => msg !== null);
+              setMessages(messageList);
+            } else {
+              setMessages([]);
+            }
+          },
+          (error) => {
+            console.error('Помилка отримання повідомлень:', error);
+          }
+        );
+        unsubscribes.push(unsubscribe);
+      }
     };
 
     fetchMessages();
-  }, [chatId]);
+
+    // Очищення – відписка від усіх підписок при розмонтуванні компонента
+    return () => {
+      unsubscribes.forEach((unsub) => unsub && unsub());
+    };
+  }, [chatId, chatIds]);
 
   const fetchUserData = async (guildId, senderId) => {
     const userRef = ref(database, `guilds/${guildId}/guildUsers/${senderId}`);
@@ -98,7 +200,7 @@ const GBChatWindow = ({ route }) => {
           }
         },
         (error) => {
-          console.error('Error fetching user data:', error);
+          console.error('Помилка отримання даних користувача:', error);
           reject(error);
         }
       );
@@ -123,7 +225,7 @@ const GBChatWindow = ({ route }) => {
           }
         },
         (error) => {
-          console.error('Error fetching building data:', error);
+          console.error('Помилка отримання даних про ВС:', error);
           reject(error);
         }
       );
@@ -143,7 +245,7 @@ const GBChatWindow = ({ route }) => {
           resolve(level || 'Невідомий рівень');
         },
         (error) => {
-          console.error('Error fetching building level:', error);
+          console.error('Помилка отримання рівня ВС:', error);
           reject(error);
         }
       );
@@ -179,7 +281,24 @@ const GBChatWindow = ({ route }) => {
     return format(date, 'd MMMM о HH:mm', { locale });
   };
 
-  const renderPlacesButtons = (places) => {
+  // Обробка натискання на кнопку вибору місця (лише для чужих повідомлень)
+  const handlePlacePress = async (messageId, placeKey) => {
+    if (!guildId || !userId) return;
+    try {
+      // Оновлюємо значення обраного місця на false
+      const placeRef = ref(database, `guilds/${guildId}/GBChat/${chatId}/messages/${messageId}/places/${placeKey}`);
+      await set(placeRef, false);
+      // Створюємо (або оновлюємо) гілку excludedUser з ключем userId та значенням false
+      const excludedUserRef = ref(database, `guilds/${guildId}/GBChat/${chatId}/messages/${messageId}/excludedUser/${userId}`);
+      await set(excludedUserRef, false);
+      Alert.alert('Місце вибрано', `Ви вибрали місце ${placeKey}`);
+    } catch (error) {
+      console.error('Помилка оновлення місця або excludedUser:', error);
+    }
+  };
+
+  // Рендер кнопок для вибору місця
+  const renderPlacesButtons = (places, messageId, isOwnMessage) => {
     if (!places) return null;
 
     return (
@@ -190,7 +309,11 @@ const GBChatWindow = ({ route }) => {
             <View key={key} style={styles.telegramButtonWrapper}>
               <Text
                 style={styles.telegramButton}
-                onPress={() => Alert.alert('Місце вибрано', `Ви вибрали місце ${key}`)}
+                onPress={() => {
+                  if (!isOwnMessage) {
+                    handlePlacePress(messageId, key);
+                  }
+                }}
               >
                 {key}
               </Text>
@@ -207,7 +330,6 @@ const GBChatWindow = ({ route }) => {
       )}
       <View style={[styles.messageItem, item.isOwnMessage ? styles.ownMessage : styles.otherMessage]}>
         <View style={styles.headerContainer}>
-          {/* Лівий блок з двома рядками: час повідомлення та назва з рівнем ВС */}
           <View style={styles.leftTextContainer}>
             <Text style={styles.userName}>
               {!item.isOwnMessage
@@ -215,10 +337,9 @@ const GBChatWindow = ({ route }) => {
                 : formatTimestamp(item.timestamp)}
             </Text>
             <Text style={styles.messageText}>
-              {item.buildingName || 'Невідома ВС'} (Рівень: {item.buildingLevel + 1})
+              {item.buildingName || 'Невідома ВС'} (Рівень: {Number(item.buildingLevel) + 1})
             </Text>
           </View>
-          {/* Праворуч розташоване зображення ВС, яке не обрізається */}
           {item.build && item.buildingImage && (
             <Image
               source={{ uri: item.buildingImage }}
@@ -228,7 +349,7 @@ const GBChatWindow = ({ route }) => {
           )}
         </View>
         <View style={styles.placesContainer}>
-          {renderPlacesButtons(item.places)}
+          {renderPlacesButtons(item.places, item.id, item.isOwnMessage)}
         </View>
       </View>
     </View>
@@ -239,7 +360,7 @@ const GBChatWindow = ({ route }) => {
       <FlatList
         data={messages}
         renderItem={renderItem}
-        keyExtractor={(item, index) => index.toString()} // За потреби використовуйте унікальний ключ (item.id)
+        keyExtractor={(item, index) => index.toString()}
         ListEmptyComponent={<Text style={styles.emptyMessage}>Немає повідомлень</Text>}
       />
     </View>
@@ -282,14 +403,12 @@ const styles = StyleSheet.create({
   userName: {
     fontWeight: 'bold',
   },
-  // Контейнер для лівого блоку з текстом та правого зображення
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 5,
   },
-  // Лівий блок з текстом (два рядки)
   leftTextContainer: {
     flex: 1,
     flexDirection: 'column',
