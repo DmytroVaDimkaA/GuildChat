@@ -3,14 +3,17 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ref, onValue, get } from 'firebase/database';
 import { database } from '../../firebaseConfig';
-import { useNavigation } from '@react-navigation/native'; // імпорт хуку для навігації
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons'; // Для інших іконок
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faClock, faGlobe } from '@fortawesome/free-solid-svg-icons';
 
 const ProfileMain = () => {
   const [userName, setUserName] = useState('');
   const [activeWorld, setActiveWorld] = useState('');
   const [guilds, setGuilds] = useState([]);
 
-  const navigation = useNavigation(); // ініціалізація навігації
+  const navigation = useNavigation();
 
   // Функція для перетворення ролей
   const convertRole = (role) => {
@@ -100,6 +103,10 @@ const ProfileMain = () => {
     navigation.navigate('ProfileData');
   };
 
+  const handleAddSchedule = () => {
+    navigation.navigate('AddSchedule');
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* Шапка: аватар, юзернейм та активний світ */}
@@ -113,16 +120,26 @@ const ProfileMain = () => {
         </View>
       </View>
 
-      {/* Розділ "Акаунт" */}
+      {/* Розділ "Ігрові світи" */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Ігрові світи</Text>
 
-        {/* Блок з даними гілок (замість номера телефону) */}
+        {/* Блок з даними гілок */}
         <View style={styles.section}>
           {guilds.length > 0 ? (
             guilds.map((guild) => (
               <View key={guild.guildId} style={styles.itemRowNoBorder}>
-                <Text style={styles.mainText}>{guild.worldName}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.mainText}>{guild.worldName}</Text>
+                  {guild.worldName === activeWorld && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={24}
+                      color="#0088cc"
+                      style={{ marginLeft: 5 }}
+                    />
+                  )}
+                </View>
                 <Text style={styles.mainText}>{convertRole(guild.role)}</Text>
               </View>
             ))
@@ -153,11 +170,14 @@ const ProfileMain = () => {
 
       {/* Розділ з додатковими налаштуваннями */}
       <View style={styles.section}>
-        <TouchableOpacity style={styles.itemRow}>
-          <Text style={styles.mainText}>Налаштування чатів</Text>
+        <Text style={styles.sectionTitle}>Налаштування додатку</Text>
+        <TouchableOpacity style={styles.itemRow} onPress={handleAddSchedule}>
+          <FontAwesomeIcon icon={faClock} size={24} color="#0088cc" style={{ marginRight: 8 }} />
+          <Text style={styles.mainText}>Розклад</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.itemRow}>
-          <Text style={styles.mainText}>Приватність і безпека</Text>
+          <FontAwesomeIcon icon={faGlobe} size={24} color="#BDBDBD" style={{ marginRight: 8 }} />
+          <Text style={styles.mainText}>Мова</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -242,31 +262,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8e8e93',
     marginTop: 2,
-  },
-  verificationTextBlock: {
-    paddingVertical: 8,
-  },
-  verificationText: {
-    fontSize: 14,
-    color: '#000',
-    lineHeight: 20,
-  },
-  linkText: {
-    color: '#0088cc',
-  },
-  verificationButtonsContainer: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  buttonYesNo: {
-    marginRight: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#e9e9e9',
-    borderRadius: 4,
-  },
-  buttonYesNoText: {
-    fontSize: 16,
-    color: '#0088cc',
   },
 });

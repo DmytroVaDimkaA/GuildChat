@@ -14,6 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { MenuProvider } from 'react-native-popup-menu';
 
+
 // Імпортуємо ваші екрани
 import GBScreen from "./GB/GBScreen";
 import MyGB from './GB/MyGB';
@@ -28,7 +29,8 @@ import ChatWindow from './Chat/ChatWindow';
 import MapComponent from './Quant/MapComponent';
 import ProfileMain from './Profile/ProfileMain';
 import ProfileData from './Profile/ProfileData';
-
+import AddSchedule from './Profile/AddSchedule';
+import SleepSchedule from './Profile/SleepSchedule';
 
 import GB from "./ico/GB.svg";
 import Chat from "./ico/Chat.svg";
@@ -152,49 +154,88 @@ function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={defaultHeaderOptions}>
       <Stack.Screen
-  name="ProfileMain"
-  component={ProfileMain}
-  options={({ navigation }) => ({
-    title: 'Налаштування профілю',
-    headerLeft: () => (
-      <TouchableOpacity
-        onPress={() => {
-          if (navigation.canGoBack()) {
-            navigation.goBack(); // Повертається на попередній екран
-          }
-        }}
-        style={{ marginLeft: 15 }}
-      >
-        <Ionicons name="arrow-back" size={24} color="white" />
-      </TouchableOpacity>
-    ),
-    headerStyle: {
-      backgroundColor: '#517da2',
-      elevation: 0,
-      shadowOpacity: 0,
-      borderBottomWidth: 0,
-    },
-    headerShadowVisible: false,
-  })}
-/>
+        name="ProfileMain"
+        component={ProfileMain}
+        options={({ navigation }) => ({
+          title: 'Налаштування профілю',
+          headerLeft: () => (
+          <TouchableOpacity
+            onPress={() => {
+              if (navigation.canGoBack()) {
+                navigation.goBack(); // Повертається на попередній екран
+              }
+            }}
+            style={{ marginLeft: 15 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          ),
+          headerStyle: {
+            backgroundColor: '#517da2',
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 0,
+          },
+          headerShadowVisible: false,
+        })}
+      />
 
-     <Stack.Screen
-  name="ProfileData"
-  component={ProfileData}
-  options={({ navigation }) => ({
-    title: 'Дані профілю',
-    headerLeft: () => (
-      <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-        <Ionicons name="arrow-back" size={24} color="white" />
-      </TouchableOpacity>
-    ),
-    headerRight: () => (
-      <TouchableOpacity onPress={() => console.log('Підтверджено')} style={{ marginRight: 15 }}>
-        <Ionicons name="checkmark" size={24} color="white" />
-      </TouchableOpacity>
-    ),
-  })}
-/>
+      <Stack.Screen
+        name="ProfileData"
+        component={ProfileData}
+        options={({ navigation }) => ({
+          title: 'Дані профілю',
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <TouchableOpacity onPress={() => console.log('Підтверджено')} style={{ marginRight: 15 }}>
+              <Ionicons name="checkmark" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+
+      <Stack.Screen
+        name="AddSchedule"
+        component={AddSchedule}
+        options={({ navigation }) => ({
+          title: 'Дані профілю',
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <TouchableOpacity onPress={() => console.log('Підтверджено')} style={{ marginRight: 15 }}>
+              <Ionicons name="checkmark" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+
+      <Stack.Screen
+        name="SleepSchedule"
+        component={SleepSchedule}
+        options={({ navigation }) => ({
+          title: 'Дані профілю',
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <TouchableOpacity onPress={() => console.log('Підтверджено')} style={{ marginRight: 15 }}>
+              <Ionicons name="checkmark" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+
+
+
     </Stack.Navigator>
   );
 }
