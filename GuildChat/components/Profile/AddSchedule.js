@@ -25,13 +25,7 @@ const AddSchedule = () => {
         Режим буде автоматично ввімкнено, якщо хоча б одна з умов нижче виконується.
       </Text>
       
-      <View style={styles.scheduleContainer}>
-        <Text style={styles.scheduleTitle}>Розклад сну</Text>
-        <Text style={styles.scheduleTime}>{`З ${startTime} до ${endTime} наступного дня`}</Text>
-        <Text style={styles.scheduleDays}>{selectedDays.join(', ')}</Text>
-        <Switch value={isEnabled} onValueChange={toggleSwitch} />
-      </View>
-      
+           
       <View style={styles.suggestedConditionsContainer}>
         <Text style={styles.suggestedTitle}>Запропоновані умови</Text>
         <TouchableOpacity style={styles.suggestedItem}  onPress={handleSleepSchedule}>
@@ -40,16 +34,7 @@ const AddSchedule = () => {
         </TouchableOpacity>
       </View>
       
-      <View style={styles.pickerContainer}>
-        <Text style={styles.label}>Оберіть дні:</Text>
-        <Picker
-          selectedValue={selectedDays}
-          onValueChange={(itemValue) => setSelectedDays([...selectedDays, itemValue])}>
-          {daysOfWeek.map((day, index) => (
-            <Picker.Item key={index} label={day} value={day} />
-          ))}
-        </Picker>
-      </View>
+      
       
       <View style={styles.buttonsContainer}>
         <TouchableOpacity style={styles.button}>

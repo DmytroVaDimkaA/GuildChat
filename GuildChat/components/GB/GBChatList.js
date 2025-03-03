@@ -89,6 +89,9 @@ const GBChatList = () => {
   const handleChatSelect = (chat) => {
     if (chat.id === '1') {
       navigation.navigate('MyGB');
+    } else if (chat.id === '2') {
+      navigation.navigate('GBExpress');
+    
     } else if (chat.id !== 'separator') {
       // При передачі параметрів можна передати як id групи, так і список chatIds
       navigation.navigate('GBChatWindow', { chatId: chat.id, chatIds: chat.chatIds || [] });

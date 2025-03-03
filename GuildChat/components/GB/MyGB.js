@@ -231,20 +231,12 @@ const MyGB = () => {
                 </View>
               </View>
             </View>
+          
           </View>
-          <TouchableOpacity onPress={() => handleToggle(build.id)} style={styles.chevronContainer}>
-            <Ionicons
-              name={expandedBuildId === build.id ? "chevron-up" : "chevron-down"}
-              size={24}
-              color="black"
-            />
-          </TouchableOpacity>
-          {expandedBuildId === build.id && (
-            <>
-              <BonusView bonus={build.bonus} build={build} />
-              <DetailsView build={build} />
-            </>
-          )}
+          <TouchableOpacity style={styles.createButton}>
+        <Text style={styles.createButtonText}>Створити новий чат</Text>
+      </TouchableOpacity>
+          
         </View>
       </TouchableOpacity>
     ))

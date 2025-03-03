@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons'; // Для інших іконок
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faClock, faGlobe } from '@fortawesome/free-solid-svg-icons';
+import GBIcon from '../ico/GB.svg'; // тепер імпортуємо як компонент
 
 const ProfileMain = () => {
   const [userName, setUserName] = useState('');
@@ -112,11 +113,7 @@ const ProfileMain = () => {
       {/* Шапка: аватар, юзернейм та активний світ */}
       <View style={styles.header}>
         <View style={styles.headerTextContainer}>
-          <Text style={styles.userName}>{userName || 'Завантаження...'}</Text>
-          <View style={styles.activeWorldContainer}>
-            <Text style={styles.activeWorldLeft}>Активний світ</Text>
-            <Text style={styles.activeWorldRight}>{activeWorld || 'Не визначено'}</Text>
-          </View>
+          <Text style={styles.userName}>{userName}</Text>
         </View>
       </View>
 
@@ -171,8 +168,12 @@ const ProfileMain = () => {
       {/* Розділ з додатковими налаштуваннями */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Налаштування додатку</Text>
+        <TouchableOpacity style={styles.itemRow}>
+    <GBIcon width={24} height={24} style={{ marginRight: 8 }} />
+    <Text style={styles.mainText}>Налаштування ВС</Text>
+  </TouchableOpacity>      
         <TouchableOpacity style={styles.itemRow} onPress={handleAddSchedule}>
-          <FontAwesomeIcon icon={faClock} size={24} color="#0088cc" style={{ marginRight: 8 }} />
+          <FontAwesomeIcon icon={faClock} size={24} color="#BDBDBD" style={{ marginRight: 8 }} />
           <Text style={styles.mainText}>Розклад</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.itemRow}>

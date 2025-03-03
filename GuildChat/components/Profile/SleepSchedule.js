@@ -1,40 +1,41 @@
 import React, { useState, useRef } from 'react';
 import { View, Dimensions, StyleSheet, PanResponder } from 'react-native';
 import Svg, { Circle, Path, G, Line, Text as SvgText } from 'react-native-svg';
-import BedIcon from '../ico/bed.svg';           // Іконка ліжка (біла)
-import AlarmClockIcon from '../ico/alarm-clock.svg'; // Іконка будильника (біла)
+import BedIcon from '../ico/bed.svg';           // Іконка ліжка
+import AlarmClockIcon from '../ico/alarm-clock.svg'; // Іконка будильника
 
 const TOTAL_MINUTES = 24 * 60;
 
+/** Перетворює кут у формат HH:MM. 
+ * -90° (-Math.PI/2) => 00:00, 360° => 24:00
+ */
 const formatTimeFromAngle = (angle) => {
-  // Припускаємо, що -90° (-Math.PI/2) відповідає 00:00
   let adjusted = angle + Math.PI / 2;
   if (adjusted < 0) adjusted += 2 * Math.PI;
   const fraction = adjusted / (2 * Math.PI);
   const totalMins = Math.round(fraction * TOTAL_MINUTES);
-  const hours = Math.floor(totalMins / 60);
-  const minutes = totalMins % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  const hh = Math.floor(totalMins / 60);
+  const mm = totalMins % 60;
+  return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
 };
 
 const SleepSchedule = () => {
   const { width } = Dimensions.get('window');
-  
-  // Основні розміри:
-  const redDiameter = width;            // Зовнішнє червоне коло – діаметр = ширині екрану
-  const innerDiameter = width - 40;     // Фон для шкали – зовнішній діаметр кільця
-  const smallDiameter = width - 100;    // Фон для розмітки – внутрішній діаметр кільця
 
-  // Центр усіх кіл:
+  // Основні розміри
+  const redDiameter = width;
+  const innerDiameter = width - 40;
+  const smallDiameter = width - 100;
+
+  // Центр
   const cx = redDiameter / 2;
   const cy = redDiameter / 2;
-  
-  // Для побудови кільця (донату) шкали:
-  // Зовнішній радіус дуги = innerDiameter/2, внутрішній = smallDiameter/2
+
+  // Зовнішній і внутрішній радіус кільця (фон шкали)
   const R1 = innerDiameter / 2;
   const R2 = smallDiameter / 2;
-  
-  // Створюємо шлях для фонового кільця (донату) за допомогою fillRule="evenodd"
+
+  // Шлях для кільця (донату) з fillRule="evenodd"
   const ringPath = `
     M ${cx} ${cy - R1}
     A ${R1} ${R1} 0 1 1 ${cx} ${cy + R1}
@@ -44,23 +45,23 @@ const SleepSchedule = () => {
     A ${R2} ${R2} 0 1 0 ${cx} ${cy - R2}
     Z
   `;
-  
-  // Логіка зелених ручок (для зміни кута дуги)
-  const [greenStartAngle, setGreenStartAngle] = useState(-Math.PI / 2); // -90°
-  const [greenEndAngle, setGreenEndAngle] = useState(-Math.PI / 2 + (120 * Math.PI) / 180); // -90°+120° = 30°
 
-  // Фіксована відстань для ручок: вони рухаються по колу з радіусом = R1 - 15
+  // Кути ручок
+  const [greenStartAngle, setGreenStartAngle] = useState(-Math.PI / 2);
+  const [greenEndAngle, setGreenEndAngle] = useState(-Math.PI / 2 + (120 * Math.PI) / 180);
+
+  // Координати ручок
   const fixedDistance = R1 - 15;
   const greenX1 = cx + fixedDistance * Math.cos(greenStartAngle);
   const greenY1 = cy + fixedDistance * Math.sin(greenStartAngle);
   const greenX2 = cx + fixedDistance * Math.cos(greenEndAngle);
   const greenY2 = cy + fixedDistance * Math.sin(greenEndAngle);
 
+  // Синя дуга
   let angleDiff = greenEndAngle - greenStartAngle;
   if (angleDiff < 0) angleDiff += 2 * Math.PI;
   const largeArcFlag = angleDiff > Math.PI ? 1 : 0;
-  
-  // Побудова "кільцевої дуги" (синій сектор) між зовнішнім радіусом R1 та внутрішнім R2
+
   const outerStartX = cx + R1 * Math.cos(greenStartAngle);
   const outerStartY = cy + R1 * Math.sin(greenStartAngle);
   const outerEndX   = cx + R1 * Math.cos(greenEndAngle);
@@ -69,7 +70,7 @@ const SleepSchedule = () => {
   const innerEndY   = cy + R2 * Math.sin(greenEndAngle);
   const innerStartX = cx + R2 * Math.cos(greenStartAngle);
   const innerStartY = cy + R2 * Math.sin(greenStartAngle);
-  
+
   const d = `
     M ${outerStartX} ${outerStartY}
     A ${R1} ${R1} 0 ${largeArcFlag} 1 ${outerEndX} ${outerEndY}
@@ -77,11 +78,11 @@ const SleepSchedule = () => {
     A ${R2} ${R2} 0 ${largeArcFlag} 0 ${innerStartX} ${innerStartY}
     Z
   `;
-  
-  // Стан активності ручок (збільшується діаметр з 30 до 40)
+
+  // Активність ручок
   const [isGreenStartActive, setIsGreenStartActive] = useState(false);
   const [isGreenEndActive, setIsGreenEndActive] = useState(false);
-  
+
   const greenStartPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -95,7 +96,7 @@ const SleepSchedule = () => {
       onPanResponderTerminate: () => { setIsGreenStartActive(false); },
     })
   ).current;
-  
+
   const greenEndPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -109,34 +110,34 @@ const SleepSchedule = () => {
       onPanResponderTerminate: () => { setIsGreenEndActive(false); },
     })
   ).current;
-  
-  // Розмір ручок (базовий = 30, активний = 40)
+
+  // Розмір ручок
   const startDiameter = isGreenStartActive ? 40 : 30;
   const endDiameter = isGreenEndActive ? 40 : 30;
   const startRadiusControl = startDiameter / 2;
   const endRadiusControl = endDiameter / 2;
-  
-  // Масштаб іконок (наприклад, 70% від діаметра ручки)
+
+  // Масштаб іконок
   const ICON_SCALE = 0.7;
   const startIconSize = startDiameter * ICON_SCALE;
   const endIconSize = endDiameter * ICON_SCALE;
   const startIconOffset = startIconSize / 2;
   const endIconOffset = endIconSize / 2;
-  
-  // Константи для додаткового зміщення іконок (вліво та вгору)
+
+  // Зміщення іконок
   const ICON_POSITION_SHIFT_X = 0;
   const ICON_POSITION_SHIFT_Y = 0;
-  
-  // Функції для розмітки всередині маленького кола (фон розмітки)
+
+  // Відмальовування розмітки (за бажанням можна відключити, якщо не треба)
   const renderMinuteTicks = () => {
     const ticks = [];
-    const markRadiusForTicks = (smallDiameter / 2) - 10;
+    const markRadius = (smallDiameter / 2) - 10;
     const totalTicks = 144;
     for (let i = 0; i < totalTicks; i++) {
       if (i % 6 === 0) continue;
-      const angle = (i * 10 / TOTAL_MINUTES) * 2 * Math.PI - Math.PI / 2;
-      const innerTick = markRadiusForTicks - 3;
-      const outerTick = markRadiusForTicks + 3;
+      const angle = (i * 10) * (2 * Math.PI / 1440) - Math.PI / 2;
+      const innerTick = markRadius - 3;
+      const outerTick = markRadius + 3;
       const tx1 = cx + innerTick * Math.cos(angle);
       const ty1 = cy + innerTick * Math.sin(angle);
       const tx2 = cx + outerTick * Math.cos(angle);
@@ -147,16 +148,16 @@ const SleepSchedule = () => {
     }
     return ticks;
   };
-  
+
   const renderHourlyTicks = () => {
     const ticks = [];
-    const markRadiusForTicks = (smallDiameter / 2) - 10;
+    const markRadius = (smallDiameter / 2) - 10;
     for (let hour = 0; hour < 24; hour++) {
       if ([0, 6, 12, 18].includes(hour)) continue;
       const angle = (hour / 24) * 2 * Math.PI - Math.PI / 2;
       const tickLength = 8;
-      const innerTick = markRadiusForTicks - tickLength / 2;
-      const outerTick = markRadiusForTicks + tickLength / 2;
+      const innerTick = markRadius - tickLength / 2;
+      const outerTick = markRadius + tickLength / 2;
       const tx1 = cx + innerTick * Math.cos(angle);
       const ty1 = cy + innerTick * Math.sin(angle);
       const tx2 = cx + outerTick * Math.cos(angle);
@@ -167,15 +168,15 @@ const SleepSchedule = () => {
     }
     return ticks;
   };
-  
+
   const renderMajorMarks = () => {
     const marks = [];
-    const markRadiusForTicks = (smallDiameter / 2) - 10;
+    const markRadius = (smallDiameter / 2) - 10;
     const majorHours = [0, 6, 12, 18];
     majorHours.forEach((hour) => {
       const angle = (hour / 24) * 2 * Math.PI - Math.PI / 2;
-      const tx = cx + markRadiusForTicks * Math.cos(angle);
-      const ty = cy + markRadiusForTicks * Math.sin(angle);
+      const tx = cx + markRadius * Math.cos(angle);
+      const ty = cy + markRadius * Math.sin(angle);
       marks.push(
         <SvgText
           key={`major-${hour}`}
@@ -197,43 +198,67 @@ const SleepSchedule = () => {
   return (
     <View style={styles.container}>
       <Svg width={redDiameter} height={redDiameter}>
-        {/* Зовнішнє червоне коло (фон) */}
+        {/* Зовнішнє коло (фон) */}
         <Circle cx={cx} cy={cy} r={redDiameter / 2} fill="#f0f0f0" />
-        {/* Кільцева дуга (фон для шкали) */}
+
+        {/* Кільцева дуга (фон шкали) */}
         <Path d={ringPath} fill="#e0e0e0" fillRule="evenodd" />
-        {/* Синій сектор (шкали) */}
+
+        {/* Синя дуга (шкали) */}
         <Path d={d} fill="#007AFF" />
+
         {/* Маленьке коло (фон розмітки) */}
         <Circle cx={cx} cy={cy} r={smallDiameter / 2} fill="#ffffff" />
         {renderMinuteTicks()}
         {renderHourlyTicks()}
         {renderMajorMarks()}
 
-        {/* Текстові поля в центрі кільця */}
-        <SvgText
-          x={cx}
-          y={cy - 10}
-          fill="#444"
-          fontSize="18"
-          fontWeight="bold"
-          textAnchor="middle"
-          alignmentBaseline="middle"
-        >
-          {formatTimeFromAngle(greenStartAngle)}
-        </SvgText>
-        <SvgText
-          x={cx}
-          y={cy + 20}
-          fill="#444"
-          fontSize="18"
-          fontWeight="bold"
-          textAnchor="middle"
-          alignmentBaseline="middle"
-        >
-          {formatTimeFromAngle(greenEndAngle)}
-        </SvgText>
+        {/* 
+          1) Іконка ліжка + час (greenStartAngle)
+        */}
+        <G transform={`translate(${cx-50}, ${cy - 30})`}>
+          
+          
+          <G>
+            <BedIcon width={24} height={24} fill="#BDBDBD" />
+          </G>
+          
+            <SvgText
+            x={30}
+            y={23}
+            fill="#000"
+            fontSize="32"
+            fontWeight="bold"
+            textAnchor="start"
+            
+          >
+            {formatTimeFromAngle(greenStartAngle)}
+          </SvgText>
+          
+          
+        </G>
 
-        {/* Група "start" (жовта ручка з BedIcon) */}
+        {/* 
+          2) Іконка будильника + час (greenEndAngle)
+        */}
+        <G transform={`translate(${cx - 50}, ${cy+5})`}>
+          <G>
+            <AlarmClockIcon width={24} height={24} fill="#BDBDBD" />
+          </G>
+          
+          <SvgText
+            x={30}
+            y={23}
+            fill="#000"
+            fontSize="32"
+            fontWeight="bold"
+            textAnchor="start"
+          >
+            {formatTimeFromAngle(greenEndAngle)}
+          </SvgText>
+        </G>
+
+        {/* Група "start" (ручка з BedIcon) */}
         <G transform={`translate(${greenX1}, ${greenY1})`} {...greenStartPanResponder.panHandlers}>
           <Circle cx={0} cy={0} r={startRadiusControl} fill="#007AFF" />
           <G transform={`translate(${ICON_POSITION_SHIFT_X - startIconOffset}, ${ICON_POSITION_SHIFT_Y - startIconOffset})`}>
@@ -245,7 +270,7 @@ const SleepSchedule = () => {
           </G>
         </G>
 
-        {/* Група "end" (зелена ручка з AlarmClockIcon) */}
+        {/* Група "end" (ручка з AlarmClockIcon) */}
         <G transform={`translate(${greenX2}, ${greenY2})`} {...greenEndPanResponder.panHandlers}>
           <Circle cx={0} cy={0} r={endRadiusControl} fill="#007AFF" />
           <G transform={`translate(${ICON_POSITION_SHIFT_X - endIconOffset}, ${ICON_POSITION_SHIFT_Y - endIconOffset})`}>
