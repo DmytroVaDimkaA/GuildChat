@@ -32,6 +32,8 @@ import { faFile } from '@fortawesome/free-solid-svg-icons';
 import { Linking } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { ActivityIndicator } from 'react-native';
+import { Platform } from 'react-native';
+import * as MediaLibrary from 'expo-media-library';
 
 const { width: screenWidth } = Dimensions.get('window');
 // Об'єкт для керування локалями
@@ -105,35 +107,96 @@ const ChatWindow = ({ route, navigation }) => {
     const newHeight = Math.min(Math.max(40, height), maxInputHeight);
     setInputHeight(newHeight);
   };
+  const [downloadingFiles, setDownloadingFiles] = useState(new Set());
   const [messageHeights, setMessageHeights] = useState({});
   const handleFileDownload = async (fileUrl, fileName) => {
     if (downloadingFiles.has(fileName)) return;
-
+  
     try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant permission to save files to your device.');
+        return;
+      }
+  
       const newSet = new Set(downloadingFiles);
       newSet.add(fileName);
       setDownloadingFiles(newSet);
-
+      
+      const localUri = FileSystem.documentDirectory + fileName;
+      console.log(`Downloading to: ${localUri}`);
+      
       const downloadResumable = FileSystem.createDownloadResumable(
         fileUrl,
-        FileSystem.documentDirectory + fileName,
+        localUri,
         {},
         (downloadProgress) => {
           const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-
+          console.log(`Download progress: ${Math.round(progress * 100)}%`);
         }
       );
-
+      
       const { uri } = await downloadResumable.downloadAsync();
-
+      console.log(`File downloaded to: ${uri}`);
+      
       if (uri) {
-        await FileSystem.getInfoAsync(uri);
-        Alert.alert('Success', 'File downloaded successfully!');
+        const isPDF = fileName.toLowerCase().endsWith('.pdf');
+        const isLargeFile = (await FileSystem.getInfoAsync(uri)).size > 5000000; // 5MB threshold
+        
+        if (Platform.OS === 'android') {
+          try {
+            if (isPDF || isLargeFile) {
+              console.log("Using StorageAccessFramework for PDF/large file");
+              const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+              
+              if (permissions.granted) {
+                const destinationUri = await FileSystem.StorageAccessFramework.createFileAsync(
+                  permissions.directoryUri,
+                  fileName,
+                  isPDF ? 'application/pdf' : 'application/octet-stream'
+                );
+                
+                const fileContent = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+                
+                await FileSystem.writeAsStringAsync(destinationUri, fileContent, { 
+                  encoding: FileSystem.EncodingType.Base64 
+                });
+                
+                Alert.alert(
+                  'Download Complete',
+                  `File saved to your selected location`,
+                  [{ text: 'OK' }]
+                );
+              }
+            } else {
+              const asset = await MediaLibrary.createAssetAsync(uri);
+              await MediaLibrary.saveToLibraryAsync(uri);
+              
+              Alert.alert(
+                'Download Complete',
+                `File saved to your device's Downloads folder`,
+                [{ text: 'OK' }]
+              );
+            }
+          } catch (error) {
+            console.error("Storage error:", error);
+            
+            await Sharing.shareAsync(uri, {
+              mimeType: isPDF ? 'application/pdf' : 'application/octet-stream',
+              dialogTitle: `Save ${fileName}`
+            });
+          }
+        } else {
+          await Sharing.shareAsync(uri, {
+            UTI: isPDF ? 'com.adobe.pdf' : 'public.data',
+            mimeType: isPDF ? 'application/pdf' : 'application/octet-stream',
+            dialogTitle: `Save ${fileName}`
+          });
+        }
       }
-
     } catch (error) {
       console.error('Download error:', error);
-      Alert.alert('Error', 'Failed to download file');
+      Alert.alert('Error', 'Failed to download file: ' + error.message);
     } finally {
       const newSet = new Set(downloadingFiles);
       newSet.delete(fileName);
@@ -256,20 +319,34 @@ const ChatWindow = ({ route, navigation }) => {
   }, [chatId, guildId, isGroupChat, navigation, userId, contactAvatar, contactName]);
   useEffect(() => {
     if (!chatId || !userId || !guildId) return;
-
+  
     const db = getDatabase();
     const messagesRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
-
-    onValue(messagesRef, (snapshot) => {
+  
+    const unsubscribe = onValue(messagesRef, (snapshot) => {
       if (!snapshot.exists()) return;
-
+  
       const messages = snapshot.val();
+      const batch = {};
+      
       Object.entries(messages).forEach(([messageId, message]) => {
         if (message.senderId !== userId && message.status !== 'read') {
-          set(ref(db, `guilds/${guildId}/chats/${chatId}/messages/${messageId}/status`), 'read');
+          batch[messageId] = {...message, status: 'read'};
         }
       });
+      
+      if (Object.keys(batch).length > 0) {
+        const updates = {};
+        Object.entries(batch).forEach(([messageId, message]) => {
+          updates[`guilds/${guildId}/chats/${chatId}/messages/${messageId}/status`] = 'read';
+        });
+        
+        const updateRef = ref(db);
+        set(updateRef, updates);
+      }
     });
+  
+    return () => unsubscribe();
   }, [chatId, userId, guildId]);
 
   useEffect(() => {
@@ -316,41 +393,91 @@ const ChatWindow = ({ route, navigation }) => {
       console.error("Не вдалося отримати дані з AsyncStorage:", error);
     }
   };
+  const truncateFilename = (filename, maxLength = 20) => {
+    if (!filename) return "";
+    if (filename.length <= maxLength) return filename;
+    
+    const extension = filename.split('.').pop();
+    const nameWithoutExtension = filename.substring(0, filename.length - extension.length - 1);
+    
+    const charsToKeep = maxLength - extension.length - 4; // 4 for "..." and "."
+    
+    return `${nameWithoutExtension.substring(0, charsToKeep)}...${extension}`;
+  };
+  
+  const [selectedFileUri, setSelectedFileUri] = useState(null);
+  const [selectedFileName, setSelectedFileName] = useState(null);
+  const [fileCaptionModalVisible, setFileCaptionModalVisible] = useState(false);
+  const [fileCaption, setFileCaption] = useState("");
   const selectFile = async () => {
     try {
-      setIsUploading(true);
+      console.log("Opening document picker...");
+      
       const result = await DocumentPicker.getDocumentAsync({});
-
-      if (result.type === 'success') {
-        const { uri, name } = result;
-        const fileId = uuid.v4();
-        const fileRef = storageRef(storage, `files/${fileId}-${name}`);
-
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        await uploadBytes(fileRef, blob);
-
-        const fileUrl = await getDownloadURL(fileRef);
-
-        const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
-        await set(messageRef, {
-          text: name,
-          fileUrl,
-          type: 'file',
-          fileName: name,
-          timestamp: Date.now(),
-          senderId: userId,
-          status: 'sent'
-        });
+      console.log("Document picker result:", result);
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const { uri, name } = result.assets[0];
+        console.log(`Selected file: ${name} at ${uri}`);
+        
+        setSelectedFileUri(uri);
+        setSelectedFileName(name);
+        setFileCaption("");
+        setFileCaptionModalVisible(true);
+      } else {
+        console.log("User cancelled document picker");
       }
     } catch (error) {
+      console.error("Document picker error:", error);
+      Alert.alert("Error", `Failed to select file: ${error.message}`);
+    }
+  };
+  const uploadFileAndSaveMessage = async () => {
+    try {
+      setIsUploading(true);
+      
+      if (!selectedFileUri || !selectedFileName) return;
+      
+      const fileId = uuid.v4();
+      const fileRef = storageRef(storage, `files/${fileId}-${selectedFileName}`);
+      
+      const response = await fetch(selectedFileUri);
+      const blob = await response.blob();
+      
+      const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
+      await set(messageRef, {
+        text: fileCaption,
+        type: 'file',
+        fileName: selectedFileName,
+        timestamp: Date.now(),
+        senderId: userId,
+        status: 'sending'
+      });
+      
+      await uploadBytes(fileRef, blob);
+      const fileUrl = await getDownloadURL(fileRef);
+      
+      await set(messageRef, {
+        text: fileCaption,
+        fileUrl,
+        type: 'file',
+        fileName: selectedFileName,
+        timestamp: Date.now(),
+        senderId: userId,
+        status: 'sent'
+      });
+      
+      setSelectedFileUri(null);
+      setSelectedFileName(null);
+      setFileCaption("");
+      setFileCaptionModalVisible(false);
+    } catch (error) {
       console.error("Upload error:", error);
-      Alert.alert("Error", "Failed to upload file");
+      Alert.alert("Error", `Failed to upload file: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
   };
-
 
   const selectImage = async () => {
     try {
@@ -377,41 +504,46 @@ const ChatWindow = ({ route, navigation }) => {
   const uploadImageAndSaveMessage = async () => {
     try {
       if (!selectedImageUri) return;
-
+  
       const guildId = await AsyncStorage.getItem('guildId');
       const userId = await AsyncStorage.getItem('userId');
       const { chatId } = route.params || {};
-
+  
       if (!guildId || !chatId) {
         console.error('Не вдалося отримати guildId або chatId.', { guildId, chatId });
         Alert.alert('Помилка', 'Не вдалося отримати guildId або chatId.');
         return;
       }
-
+  
       const imageId = uuid.v4();
       const imageRef = storageRef(getStorage(), `images/${imageId}.jpeg`);
-
+  
       const response = await fetch(selectedImageUri);
       const blob = await response.blob();
-      await uploadBytes(imageRef, blob);
-
-      const imageUrl = await getDownloadURL(imageRef);
-
+      
       const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
-
+      await set(messageRef, {
+        text: imageCaption,
+        timestamp: Date.now(),
+        senderId: userId,
+        status: 'sending',
+      });
+  
+      await uploadBytes(imageRef, blob);
+      const imageUrl = await getDownloadURL(imageRef);
+  
       await set(messageRef, {
         text: imageCaption,
         imageUrls: [imageUrl],
         timestamp: Date.now(),
         senderId: userId,
-        status: 'in-progress',
+        status: 'sent'
       });
-
-      Alert.alert("Повідомлення успішно додано!");
+  
       setSelectedImageUri(null);
       setImageCaption("");
       setCaptionModalVisible(false);
-
+  
     } catch (error) {
       Alert.alert("Помилка", `Не вдалося завантажити зображення: ${error.message}`);
     }
@@ -668,34 +800,34 @@ const ChatWindow = ({ route, navigation }) => {
                       </TouchableOpacity>
                     )}
 
-                    {message.fileUrl && (
-                      <TouchableOpacity onPress={() => Linking.openURL(message.fileUrl)}>
-                        <Text style={styles.fileText}>{message.fileName}</Text>
-                      </TouchableOpacity>
-                    )}
-                    {message.type === 'file' && (
-                      <TouchableOpacity
-                        onPress={() => handleFileDownload(message.fileUrl, message.fileName)}
-                        style={styles.fileContainer}
-                        disabled={downloadingFiles.has(message.fileName)}
-                      >
-                        {downloadingFiles.has(message.fileName) ? (
-                          <ActivityIndicator size="small" color="#4A4A4A" />
-                        ) : (
-                          <FontAwesomeIcon icon={faFile} size={24} color="#4A4A4A" />
-                        )}
-                        <Text style={styles.fileText}>{message.fileName}</Text>
-                      </TouchableOpacity>
-                    )}
                     
-                    <Text style={styles.messageText}>{message.text}</Text>
+{message.type === 'file' && (
+  <TouchableOpacity
+    onPress={() => handleFileDownload(message.fileUrl, message.fileName)}
+    style={styles.fileContainer}
+    disabled={downloadingFiles.has(message.fileName)}
+  >
+    {downloadingFiles.has(message.fileName) ? (
+      <ActivityIndicator size="small" color="#4A4A4A" />
+    ) : (
+      <FontAwesomeIcon icon={faFile} size={24} color="#4A4A4A" />
+    )}
+    <Text style={styles.fileText}>{truncateFilename(message.fileName)}</Text>
+  </TouchableOpacity>
+)}
+                    
+                    {(message.text && message.text.trim()) && (
+  <Text style={styles.messageText}>
+    {message.type === 'file' ? message.text || '' : message.text}
+  </Text>
+)}
 
-                    <View style={styles.messageFooter}>
-                      <Text style={[styles.messageDate, isCurrentUser && styles.messageDateMy]}>
-                        {format(new Date(message.timestamp), 'H:mm', { locale })}
-                      </Text>
-                      {isCurrentUser && getStatusIcon(message.status)}
-                    </View>
+<View style={styles.messageFooter}>
+  {isCurrentUser && getStatusIcon(message.status)}
+  <Text style={styles.messageDate}>
+    {format(new Date(message.timestamp), 'H:mm', { locale })}
+  </Text>
+</View>
                   </View>
 
                   {isLastMessageFromUser && (
@@ -844,6 +976,37 @@ const ChatWindow = ({ route, navigation }) => {
         </View>
       </View>
       <Modal
+  animationType="slide"
+  transparent={true}
+  visible={fileCaptionModalVisible}
+  onRequestClose={() => setFileCaptionModalVisible(false)}
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContainer}>
+      <Text style={styles.modalHeader}>Add a Caption</Text>
+      <Text style={styles.fileNameText}>{truncateFilename(selectedFileName || "")}</Text>
+      <TextInput
+        style={styles.imageTextInput}
+        value={fileCaption}
+        onChangeText={setFileCaption}
+        placeholder="Enter a caption (optional)..."
+      />
+      <TouchableOpacity
+        style={styles.buttonSendPhoto}
+        onPress={uploadFileAndSaveMessage}
+      >
+        <Text style={styles.buttonText}>Send</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.buttonCancelPhoto}
+        onPress={() => setFileCaptionModalVisible(false)}
+      >
+        <Text style={styles.buttonText}>Cancel</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
+      <Modal
         animationType="slide"
         transparent={true}
         visible={captionModalVisible}
@@ -983,10 +1146,16 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 16,
   },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 5,
+  },
+  
   messageDate: {
     fontSize: 12,
-    color: "#888",
-    marginTop: 5,
+    color: '#888',
   },
   inputContainer: {
     padding: 10,
@@ -1057,11 +1226,6 @@ const styles = StyleSheet.create({
     borderLeftColor: "#ECECEC",
     bottom: -25,
     left: -15,
-  },
-  messageDateMy: {
-    alignSelf: 'flex-end', // Вирівнювання по правому краю
-    marginTop: 4, // Можна додати додатковий відступ для відокремлення часу від тексту
-    color: '#aaa', // Можна налаштувати колір часу
   },
   menu: {
     position: 'relative',
@@ -1297,6 +1461,18 @@ const styles = StyleSheet.create({
   },
   secondCheck: {
     marginLeft: -8,
+  },
+  fileText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#4A4A4A',
+  },
+  fileNameText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4A4A4A',
+    marginBottom: 15,
+    textAlign: 'center',
   },
 });
 

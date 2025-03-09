@@ -58,7 +58,8 @@
     "react-native-uuid": "^2.0.2",
     "react-native-vector-icons": "^10.1.0",
     "react-native-walkthrough-tooltip": "^1.6.0",
-    "react-native-wheel-picker-expo": "^0.5.4"
+    "react-native-wheel-picker-expo": "^0.5.4",
+    "expo-media-library": "~16.0.5"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
