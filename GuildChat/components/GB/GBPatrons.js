@@ -3,13 +3,25 @@ import { View, StyleSheet, Text, ScrollView, Dimensions } from 'react-native';
 import { get, ref } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '../../firebaseConfig';
+import { useTranslation } from 'react-i18next';
 
-// Заголовки та ширини стовпців
-const columnTitles = ['Вкладник', 'Вкладено', 'Вартість', 'До гаранту', 'Коефіціент'];
-const columnWidths = [100, 100, 100, 100, 100];
+// Константи, що використовуються як у компоненті, так і в стилях
 const BLOCK_ONE_WIDTH = 80;
+const rowHeight = 40;
 
 const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
+  const { t } = useTranslation();
+
+  // Заголовки стовпців із перекладами (ключі з розділу gbPatrons)
+  const columnTitles = [
+    t('gbPatrons.column1'),
+    t('gbPatrons.column2'),
+    t('gbPatrons.column3'),
+    t('gbPatrons.column4'),
+    t('gbPatrons.column5')
+  ];
+  const columnWidths = [100, 100, 100, 100, 100];
+
   // Стан для даних таблиці
   const [forgePointsList, setForgePointsList] = useState([]);
   const [placeMultipliers, setPlaceMultipliers] = useState([]);
@@ -17,20 +29,16 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
   const [patronsList, setPatronsList] = useState([]);
   const [totalFP, setTotalFP] = useState(0);
   const [ownerContribution, setOwnerContribution] = useState(0);
-  // distribution – масив, що містить спочатку призові (top‑5), а потім інші вкладники (finalPlace: "Не отримав")
   const [distribution, setDistribution] = useState([]);
 
-  // Отримуємо висоту екрану та задаємо максимальну висоту таблиці (наприклад, екран мінус 150 px)
   const screenHeight = Dimensions.get('window').height;
   const tableMaxHeight = screenHeight - 150;
 
-  // Рефи для синхронізації ScrollView
+  // Рефи для синхронізації скролу
   const block2ScrollRef = useRef(null);
   const block4HorizontalScrollRef = useRef(null);
   const block3ScrollRef = useRef(null);
   const block4VerticalScrollRef = useRef(null);
-
-  // Прапорці для уникнення рекурсивної синхронізації
   const isSyncingHorizontal = useRef(false);
   const isSyncingVertical = useRef(false);
 
@@ -103,7 +111,7 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
     }
   };
 
-  // 2) Отримання даних вкладників та їх коректного логіну
+  // 2) Функція для отримання даних вкладників та їх коректного логіну
   const getPatronsData = async (greatBuildingId) => {
     try {
       const guildId = await AsyncStorage.getItem('guildId');
@@ -125,12 +133,12 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
         let arr = Object.entries(data).map(([rid, rec]) => ({
           recordId: rid,
           patronId: rec.patron,
-          userName: rec.userName || 'NoLogin',
+          userName: rec.userName || t('gbPatrons.none'),
           invest: Number(rec.invest) || 0,
           rawTimestamp: rec.timestamp || 0,
         }));
 
-        // Для 'stranger' та 'friend' встановлюємо відповідні значення, для інших - виконуємо запит до users/{patronId}
+        // Для 'stranger' та 'friend' встановлюємо відповідні значення, для інших - запит до users/{patronId}
         arr = await Promise.all(
           arr.map(async patron => {
             if (patron.patronId === 'stranger') {
@@ -194,23 +202,24 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
     }
   }, [buildAPI, level, personalContribution]);
 
+  // 4) Отримання даних вкладників при зміні buildId
   useEffect(() => {
     if (buildId) {
       getPatronsData(buildId);
     }
   }, [buildId]);
 
+  // 5) Обробка гілки ВС при зміні buildId та level
   useEffect(() => {
     if (buildId && level) {
       processGreatBuildingBranches(buildId, level);
     }
   }, [buildId, level, forgePointsList]);
 
-  // 4) Алгоритм розподілу призових місць (top‑5) та формування distribution
+  // 6) Розрахунок розподілу (distribution) для таблиці
   useEffect(() => {
     if (placeCosts.length === 0 || !totalFP) return;
 
-    // Призові місця: мінімум 5 або скільки елементів у placeCosts
     const numPrizeSlots = Math.max(5, placeCosts.length);
     const prizeDist = new Array(numPrizeSlots).fill(null);
 
@@ -247,25 +256,9 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
       }
     }
 
-    console.log('=== Призовий розподіл (top‑5) ===');
-    for (let j = 0; j < numPrizeSlots; j++) {
-      const r = prizeDist[j];
-      if (r) {
-        console.log(`Місце #${j + 1}: ${r.userName} (${r.patronId}), invest=${r.invest}, cost=${placeCosts[j]}`);
-      } else {
-        console.log(`Місце #${j + 1}: ніхто не зайняв, cost=${placeCosts[j]}`);
-      }
-    }
-    console.log('=================================');
-
     // Визначаємо вкладників, що не потрапили до топ‑5
     const prizeRecordIds = new Set(prizeDist.filter(x => x !== null).map(x => x.recordId));
     const nonDistributed = sorted.filter(p => !prizeRecordIds.has(p.recordId));
-    console.log("Вкладники, що не потрапили до топ‑5 призових:");
-    nonDistributed.forEach(p => {
-      console.log(`id=${p.patronId}, userName=${p.userName}, invest=${p.invest}`);
-    });
-
     // Формуємо фінальний масив для таблиці:
     // спочатку призові записи, потім всі вкладники, що не отримали приз (finalPlace: "Не отримав")
     const fullDistribution = prizeDist.concat(
@@ -275,17 +268,15 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
     setDistribution(fullDistribution);
   }, [placeCosts, totalFP, patronsList, ownerContribution]);
 
-  // Логування distribution перед рендерингом
   console.log('Поточна distribution:', distribution);
+
+  // Обчислення висоти таблиці
   const numRows = Math.max(5, distribution.length);
-  console.log('Кількість рядків (numRows):', numRows);
-  const rowHeight = 40;
   const contentHeight = numRows * rowHeight;
-  // Якщо контент менший за tableMaxHeight, використовуємо contentHeight, інакше tableMaxHeight
   const containerHeight = contentHeight < tableMaxHeight ? contentHeight : tableMaxHeight;
   const verticalScrollEnabled = contentHeight >= tableMaxHeight;
 
-  // Модифіковані функції синхронізації скролу
+  // Функції синхронізації скролу
   const syncHorizontalScroll = (event) => {
     if (isSyncingHorizontal.current) return;
     isSyncingHorizontal.current = true;
@@ -318,7 +309,7 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
         {/* Верхній рядок із заголовками */}
         <View style={styles.topRow}>
           <View style={styles.blockOne}>
-            <Text>Місце</Text>
+            <Text>{t('gbPatrons.leftColumnTitle')}</Text>
           </View>
           <ScrollView
             ref={block2ScrollRef}
@@ -389,7 +380,7 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
               onScroll={syncHorizontalScroll}
               scrollEventThrottle={48}
             >
-              <View style={{ minWidth: sumArray(columnWidths) }}>
+              <View style={{ minWidth: columnWidths.reduce((a, b) => a + b, 0) }}>
                 <ScrollView
                   style={[styles.block4InnerScroll, { height: containerHeight }]}
                   ref={block4VerticalScrollRef}
@@ -406,7 +397,7 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
                             style={{
                               height: 3,
                               backgroundColor: 'black',
-                              width: sumArray(columnWidths),
+                              width: columnWidths.reduce((a, b) => a + b, 0),
                               marginBottom: 2,
                             }}
                           />
@@ -421,7 +412,7 @@ const GBPatrons = ({ buildId, level, buildAPI, personalContribution }) => {
                                     ? distribution[rowIndex].userName
                                     : `${distribution[rowIndex].userName}`;
                               } else {
-                                cellContent = 'Немає';
+                                cellContent = t('gbPatrons.none');
                               }
                             } else if (colIndex === 1) {
                               cellContent = distribution[rowIndex] ? String(distribution[rowIndex].invest) : '-';
@@ -515,16 +506,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   block3Scroll: {
-    // Динамічна висота задається inline через containerHeight
+    // inline styles задаються через контейнер
   },
   block4Container: {
     flex: 1,
   },
   block4OuterScroll: {
-    // Динамічна висота задається inline через containerHeight
+    // inline styles
   },
   block4InnerScroll: {
-    // Аналогічно
+    // inline styles
   },
 });
 

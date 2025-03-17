@@ -4,15 +4,25 @@ import { ref, onValue, set } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { database } from '../../firebaseConfig';
 import { format } from 'date-fns';
-import { uk, ru } from 'date-fns/locale';
+import { uk, ru, de, be } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
 
 const GBChatWindow = ({ route }) => {
-  // Якщо chatIds передається, він містить масив ідентифікаторів чатів (гілок)
+  const { t, i18n } = useTranslation();
   const { chatId, chatIds } = route.params;
   const [messages, setMessages] = useState([]);
   const [userLanguage, setUserLanguage] = useState('uk'); // За замовчуванням українська
   const [guildId, setGuildId] = useState(null);
   const [userId, setUserId] = useState(null);
+  console.log(userLanguage)
+  // Функція для локалізації назв ВС із даних з БД
+  // Якщо buildingName є об'єктом із ключами мов, повертаємо переклад для поточної мови
+  const getLocalizedBuildingName = (building) => {
+    if (building && typeof building.buildingName === 'object') {
+      return building.buildingName[i18n.language] || building.buildingName['uk'] || '';
+    }
+    return building.buildingName;
+  };
 
   useEffect(() => {
     let unsubscribes = [];
@@ -32,10 +42,9 @@ const GBChatWindow = ({ route }) => {
       });
       unsubscribes.push(unsubscribeLang);
 
-      // Об’єкт для зберігання повідомлень з кожної гілки
       let messageLists = {};
 
-      // Функція обробки даних з Firebase для окремої гілки
+      // Функція обробки повідомлень з окремої гілки
       const processSnapshot = async (snapshot, branchId) => {
         const data = snapshot.val();
         let branchMessages = [];
@@ -54,13 +63,13 @@ const GBChatWindow = ({ route }) => {
                   userName = userData.userName;
                   imageUrl = userData.imageUrl;
                 } catch (error) {
-                  console.error('Помилка отримання даних користувача:', error);
+                  console.error(t('gbChatWindow.userDataError'), error);
                 }
               }
 
               if (item.build) {
                 const buildingData = await fetchBuildingData(item.build);
-                buildingName = buildingData.name || 'Невідома ВС';
+                buildingName = getLocalizedBuildingName(buildingData) || t('gbChatWindow.unknownBuild');
                 buildingLevel = await fetchBuildingLevel(storedGuildId, item.senderId, item.build);
                 buildingImage = buildingData.buildingImage || '';
               }
@@ -69,14 +78,13 @@ const GBChatWindow = ({ route }) => {
                 id: messageId,
                 ...item,
                 isOwnMessage: String(item.senderId) === String(storedUserId),
-                userName: userName || 'Невідомий',
+                userName: userName || t('gbChatWindow.unknownUser'),
                 imageUrl,
                 buildingName,
                 buildingLevel,
                 buildingImage,
               };
 
-              // Якщо для поточного користувача в гілці excludedUser значення false, не повертаємо це повідомлення
               if (message.excludedUser && message.excludedUser[storedUserId] === false) {
                 return null;
               }
@@ -86,17 +94,14 @@ const GBChatWindow = ({ route }) => {
           branchMessages = branchMessages.filter((msg) => msg !== null);
         }
         messageLists[branchId] = branchMessages;
-        // Об’єднання повідомлень з усіх гілок
         let combined = [];
         Object.values(messageLists).forEach((msgs) => {
           combined = combined.concat(msgs);
         });
-        // Сортування повідомлень за timestamp
         combined.sort((a, b) => a.timestamp - b.timestamp);
         setMessages(combined);
       };
 
-      // Якщо chatIds передано – агрегуємо повідомлення з усіх зазначених гілок
       if (chatIds && Array.isArray(chatIds) && chatIds.length > 0) {
         chatIds.forEach((branchId) => {
           const messagesRef = ref(database, `guilds/${storedGuildId}/GBChat/${branchId}/messages`);
@@ -106,13 +111,12 @@ const GBChatWindow = ({ route }) => {
               processSnapshot(snapshot, branchId);
             },
             (error) => {
-              console.error('Помилка отримання повідомлень:', error);
+              console.error(t('gbChatWindow.messagesError'), error);
             }
           );
           unsubscribes.push(unsubscribe);
         });
       } else {
-        // Якщо chatIds не передано, працюємо з однією гілкою (chatId)
         const messagesRef = ref(database, `guilds/${storedGuildId}/GBChat/${chatId}/messages`);
         const unsubscribe = onValue(
           messagesRef,
@@ -133,13 +137,13 @@ const GBChatWindow = ({ route }) => {
                       userName = userData.userName;
                       imageUrl = userData.imageUrl;
                     } catch (error) {
-                      console.error('Помилка отримання даних користувача:', error);
+                      console.error(t('gbChatWindow.userDataError'), error);
                     }
                   }
 
                   if (item.build) {
                     const buildingData = await fetchBuildingData(item.build);
-                    buildingName = buildingData.name || 'Невідома ВС';
+                    buildingName = getLocalizedBuildingName(buildingData) || t('gbChatWindow.unknownBuild');
                     buildingLevel = await fetchBuildingLevel(storedGuildId, item.senderId, item.build);
                     buildingImage = buildingData.buildingImage || '';
                   }
@@ -148,7 +152,7 @@ const GBChatWindow = ({ route }) => {
                     id: messageId,
                     ...item,
                     isOwnMessage: String(item.senderId) === String(storedUserId),
-                    userName: userName || 'Невідомий',
+                    userName: userName || t('gbChatWindow.unknownUser'),
                     imageUrl,
                     buildingName,
                     buildingLevel,
@@ -168,7 +172,7 @@ const GBChatWindow = ({ route }) => {
             }
           },
           (error) => {
-            console.error('Помилка отримання повідомлень:', error);
+            console.error(t('gbChatWindow.messagesError'), error);
           }
         );
         unsubscribes.push(unsubscribe);
@@ -177,11 +181,10 @@ const GBChatWindow = ({ route }) => {
 
     fetchMessages();
 
-    // Очищення – відписка від усіх підписок при розмонтуванні компонента
     return () => {
       unsubscribes.forEach((unsub) => unsub && unsub());
     };
-  }, [chatId, chatIds]);
+  }, [chatId, chatIds, t]);
 
   const fetchUserData = async (guildId, senderId) => {
     const userRef = ref(database, `guilds/${guildId}/guildUsers/${senderId}`);
@@ -192,15 +195,15 @@ const GBChatWindow = ({ route }) => {
           const data = snapshot.val();
           if (data) {
             resolve({
-              userName: data.userName || 'Невідомий',
+              userName: data.userName || t('gbChatWindow.unknownUser'),
               imageUrl: data.imageUrl || '',
             });
           } else {
-            resolve({ userName: 'Невідомий', imageUrl: '' });
+            resolve({ userName: t('gbChatWindow.unknownUser'), imageUrl: '' });
           }
         },
         (error) => {
-          console.error('Помилка отримання даних користувача:', error);
+          console.error(t('gbChatWindow.userDataError'), error);
           reject(error);
         }
       );
@@ -216,16 +219,16 @@ const GBChatWindow = ({ route }) => {
           const buildingData = snapshot.val();
           if (buildingData) {
             resolve({
-              name: buildingData.buildingName || 'Невідома ВС',
-              level: buildingData.level || 'Невідомий рівень',
+              buildingName: buildingData.buildingName || t('gbChatWindow.unknownBuild'),
+              level: buildingData.level || t('gbChatWindow.unknownLevel'),
               buildingImage: buildingData.buildingImage || '',
             });
           } else {
-            resolve({ name: 'Невідома ВС', level: 'Невідомий рівень', buildingImage: '' });
+            resolve({ buildingName: t('gbChatWindow.unknownBuild'), level: t('gbChatWindow.unknownLevel'), buildingImage: '' });
           }
         },
         (error) => {
-          console.error('Помилка отримання даних про ВС:', error);
+          console.error(t('gbChatWindow.buildingDataError'), error);
           reject(error);
         }
       );
@@ -241,11 +244,11 @@ const GBChatWindow = ({ route }) => {
       onValue(
         buildingRef,
         (snapshot) => {
-          const level = snapshot.val();
-          resolve(level || 'Невідомий рівень');
+          const lvl = snapshot.val();
+          resolve(lvl || t('gbChatWindow.unknownLevel'));
         },
         (error) => {
-          console.error('Помилка отримання рівня ВС:', error);
+          console.error(t('gbChatWindow.buildingLevelError'), error);
           reject(error);
         }
       );
@@ -255,52 +258,50 @@ const GBChatWindow = ({ route }) => {
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
-
-    const localeMap = {
-      uk: uk,
-      ru: ru,
-    };
-
-    const locale = localeMap[userLanguage] || localeMap['uk'];
-
+  
+    // Нормалізація мови: "de-DE" -> "de"
+    const normalizedLang = i18n.language.split('-')[0];
+    const localeMap = { uk, ru, de, be };
+    const locale = localeMap[normalizedLang] || localeMap['uk'];
+  
     if (date.toDateString() === now.toDateString()) {
-      return `Сьогодні о ${format(date, 'HH:mm', { locale })}`;
+      return `${t('gbChatWindow.todayAt')} ${format(date, 'HH:mm', { locale })}`;
     }
-
+  
     const yesterday = new Date();
     yesterday.setDate(now.getDate() - 1);
     if (date.toDateString() === yesterday.toDateString()) {
-      return `Вчора о ${format(date, 'HH:mm', { locale })}`;
+      return `${t('gbChatWindow.yesterdayAt')} ${format(date, 'HH:mm', { locale })}`;
     }
-
+  
     const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
     if (date >= startOfWeek) {
-      return `${format(date, 'EEEE', { locale })} о ${format(date, 'HH:mm', { locale })}`;
+      // Для німецької – використовується "um"
+      const timeConnector = normalizedLang === 'de' ? "um" : t('gbChatWindow.at');
+      return `${format(date, 'EEEE', { locale })} ${timeConnector} ${format(date, 'HH:mm', { locale })}`;
     }
-
-    return format(date, 'd MMMM о HH:mm', { locale });
+  
+    // Для повної дати: якщо мова німецька, використати "d. MMMM 'um' HH:mm", інакше – "d MMMM о HH:mm"
+    const fullFormat = normalizedLang === 'de' ? "d. MMMM 'um' HH:mm" : "d MMMM о HH:mm";
+    return format(date, fullFormat, { locale });
   };
+  
 
-  // Обробка натискання на кнопку вибору місця (лише для чужих повідомлень)
   const handlePlacePress = async (messageId, placeKey) => {
     if (!guildId || !userId) return;
     try {
-      // Оновлюємо значення обраного місця на false
       const placeRef = ref(database, `guilds/${guildId}/GBChat/${chatId}/messages/${messageId}/places/${placeKey}`);
       await set(placeRef, false);
-      // Створюємо (або оновлюємо) гілку excludedUser з ключем userId та значенням false
       const excludedUserRef = ref(database, `guilds/${guildId}/GBChat/${chatId}/messages/${messageId}/excludedUser/${userId}`);
       await set(excludedUserRef, false);
-      Alert.alert('Місце вибрано', `Ви вибрали місце ${placeKey}`);
+      Alert.alert(t('gbChatWindow.placeSelectedTitle'), `${t('gbChatWindow.placeSelectedMessage')} ${placeKey}`);
     } catch (error) {
-      console.error('Помилка оновлення місця або excludedUser:', error);
+      console.error(t('gbChatWindow.placeUpdateError'), error);
     }
   };
 
-  // Рендер кнопок для вибору місця
   const renderPlacesButtons = (places, messageId, isOwnMessage) => {
     if (!places) return null;
-
     return (
       <View style={styles.placesRow}>
         {Object.keys(places)
@@ -337,7 +338,9 @@ const GBChatWindow = ({ route }) => {
                 : formatTimestamp(item.timestamp)}
             </Text>
             <Text style={styles.messageText}>
-              {item.buildingName || 'Невідома ВС'} (Рівень: {Number(item.buildingLevel) + 1})
+              {item.build 
+                ? `${item.buildingName || t('gbChatWindow.unknownBuild')} (${t('gbChatWindow.levelLabel')} ${Number(item.buildingLevel) + 1})`
+                : ''}
             </Text>
           </View>
           {item.build && item.buildingImage && (
@@ -361,7 +364,7 @@ const GBChatWindow = ({ route }) => {
         data={messages}
         renderItem={renderItem}
         keyExtractor={(item, index) => index.toString()}
-        ListEmptyComponent={<Text style={styles.emptyMessage}>Немає повідомлень</Text>}
+        ListEmptyComponent={<Text style={styles.emptyMessage}>{t('gbChatWindow.noMessages')}</Text>}
       />
     </View>
   );

@@ -1,54 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Image, TouchableOpacity, Modal, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ActivityIndicator, 
+  ScrollView, 
+  Image, 
+  TouchableOpacity, 
+  Alert 
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Tooltip from 'react-native-walkthrough-tooltip';
 import { ref, get, update, remove } from 'firebase/database';
 import { database } from '../../firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
 import Stepper from '../CustomElements/Stepper';
-import FloatingActionButton from '../CustomElements/FloatingActionButton';
-//import BonusView from './BonusView'; // Імпорт компонента
-import BonusView from './ContributionsComponent'; // Імпорт компонента
+import { useTranslation } from 'react-i18next';
 
-
-
-
-// Компонент для відображення решти інформації
-const DetailsView = ({ build }) => {
-  useEffect(() => {
-    if (build.levelBase !== undefined && build.level !== undefined) {
-      const baseURL = 'https://example.com/json/';
-      
-      // Конкатенація для поточного рівня
-      const jsonFileURLNow = `${baseURL}${build.levelBase}_level_${build.level}.json`;
-      console.log('Current JSON File URL:', jsonFileURLNow);
-
-      // Конкатенація для наступного рівня
-      const jsonFileURLNext = `${baseURL}${build.levelBase}_level_${build.level + 1}.json`;
-      console.log('Next JSON File URL:', jsonFileURLNext);
-    }
-  }, [build.levelBase, build.level]);
-
-  return (
-    <View style={styles.detailsContainer}>
-      {Object.keys(build).map((key, index) =>
-        key !== 'id' && key !== 'bonus' && key !== 'buildingImage' && key !== 'buildingName' && (
-          <View key={index} style={styles.detailContainer}>
-            <Text style={styles.detailKey}>{key}:</Text>
-            <Text style={styles.detailValue}>{JSON.stringify(build[key])}</Text>
-          </View>
-        )
-      )}
-    </View>
-  );
-};
 const MyGB = () => {
+  const { t, i18n } = useTranslation();
   const [greatBuilds, setGreatBuilds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedBuildId, setExpandedBuildId] = useState(null);
   const navigation = useNavigation();
+
+  // Функція для отримання локалізованої назви ВС з об'єкта buildingName
+  const getLocalizedBuildingName = (building) => {
+    if (building && typeof building.buildingName === 'object') {
+      return building.buildingName[i18n.language] || building.buildingName['uk'] || '';
+    }
+    return building.buildingName;
+  };
 
   useEffect(() => {
     const fetchGreatBuilds = async () => {
@@ -57,7 +40,7 @@ const MyGB = () => {
         const storedUserId = await AsyncStorage.getItem('userId');
 
         if (!storedGuildId || !storedUserId) {
-          throw new Error('Guild ID or User ID not found in AsyncStorage');
+          throw new Error(t("myGB.asyncStorageError"));
         }
 
         const guildsRef = ref(database, `guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild`);
@@ -100,59 +83,39 @@ const MyGB = () => {
     };
 
     fetchGreatBuilds();
-
-    return () => {};
-  }, []);
-
-  const handlePress = (gbName) => {
-    navigation.navigate('GBGuarant', { gbName });
-};
+  }, [t]);
 
   const handleDelete = async (buildId) => {
     try {
-        // Виведення вікна підтвердження
-        Alert.alert(
-            'Підтвердження видалення',
-            'Ви впевнені, що хочете видалити цей об\'єкт?',
-            [
-                {
-                    text: 'Скасувати',
-                    style: 'cancel',
-                },
-                {
-                    text: 'Видалити',
-                    onPress: async () => {
-                        const storedGuildId = await AsyncStorage.getItem('guildId');
-                        const storedUserId = await AsyncStorage.getItem('userId');
+      Alert.alert(
+        t("myGB.deleteConfirmationTitle"),
+        t("myGB.deleteConfirmationMessage"),
+        [
+          {
+            text: t("myGB.cancel"),
+            style: 'cancel',
+          },
+          {
+            text: t("myGB.delete"),
+            onPress: async () => {
+              const storedGuildId = await AsyncStorage.getItem('guildId');
+              const storedUserId = await AsyncStorage.getItem('userId');
 
-                        if (!storedGuildId || !storedUserId) {
-                            throw new Error('Guild ID або User ID не знайдено в AsyncStorage');
-                        }
+              if (!storedGuildId || !storedUserId) {
+                throw new Error(t("myGB.asyncStorageError"));
+              }
 
-                        const buildRef = ref(database, `guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild/${buildId}`);
-                        console.log(buildRef);
-
-                        await remove(buildRef); // Видаляємо запис
-                        
-                        // Оновлюємо стан, видаляючи об'єкт з масиву
-                        setGreatBuilds(prevBuilds => prevBuilds.filter(build => build.id !== buildId));
-                    }
-                }
-            ],
-            { cancelable: false }
-        );
+              const buildRef = ref(database, `guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild/${buildId}`);
+              await remove(buildRef);
+              setGreatBuilds(prevBuilds => prevBuilds.filter(build => build.id !== buildId));
+            }
+          }
+        ],
+        { cancelable: false }
+      );
     } catch (err) {
-        console.error('Error deleting build:', err);
+      console.error('Error deleting build:', err);
     }
-  };
-
-
-  const handleToggle = (id) => {
-    setExpandedBuildId(expandedBuildId === id ? null : id);
-  };
-
-  const handleFabPress = () => {
-    navigation.replace('AddGBComponent'); // Перехід до AddGBComponent
   };
 
   const handleValueChange = async (buildId, newValue) => {
@@ -161,7 +124,7 @@ const MyGB = () => {
       const storedUserId = await AsyncStorage.getItem('userId');
 
       if (!storedGuildId || !storedUserId) {
-        throw new Error('Guild ID or User ID not found in AsyncStorage');
+        throw new Error(t("myGB.asyncStorageError"));
       }
 
       const buildRef = ref(database, `guilds/${storedGuildId}/guildUsers/${storedUserId}/greatBuild/${buildId}`);
@@ -182,76 +145,73 @@ const MyGB = () => {
   }
 
   if (error) {
-    return <Text>Error: {error.message}</Text>;
+    return <Text>{t("Error")}: {error && error.message ? error.message : t("myGB.unknownError")}</Text>;
   }
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollView}>
-  {greatBuilds.length === 0 ? (
-    <Text>No great builds available</Text>
-  ) : (
-    greatBuilds.map(build => (
-      <TouchableOpacity 
-        key={build.id} 
-        onPress={() => navigation.navigate('GBGuarant', {
-          buildingName: build.buildingName,
-          buildingId: build.id,
-          buildingImage: build.buildingImage
-        })}
-      >
-        <View style={styles.buildItem}>
-          <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(build.id)}>
-            <Ionicons name="close" size={24} color="black" />
-          </TouchableOpacity>
-          <View style={styles.imageNameContainer}>
-            <View style={styles.imageContainer}>
-              {build.buildingImage ? (
-                <Image source={{ uri: build.buildingImage }} style={styles.buildingImage} />
-              ) : (
-                <Text>Image not available</Text>
-              )}
-            </View>
-            <View style={styles.nameContainer}>
-              <View style={styles.nameBlock}>
-                <Text style={styles.buildName}>{build.buildingName}</Text>
-              </View>
-              <View style={styles.additionalLevelBlock}>
-                <View style={styles.additionalLevelText}>
-                  <Text>Рівень:</Text>
+        {greatBuilds.length === 0 ? (
+          <Text>{t("myGB.noBuilds")}</Text>
+        ) : (
+          greatBuilds.map(build => {
+            const localizedName = getLocalizedBuildingName(build);
+            return (
+              <TouchableOpacity 
+                key={build.id} 
+                onPress={() => navigation.navigate('GBGuarant', {
+                  buildingName: localizedName,
+                  buildingId: build.id,
+                  buildingImage: build.buildingImage
+                })}
+              >
+                <View style={styles.buildItem}>
+                  <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(build.id)}>
+                    <Ionicons name="close" size={24} color="black" />
+                  </TouchableOpacity>
+                  <View style={styles.imageNameContainer}>
+                    <View style={styles.imageContainer}>
+                      {build.buildingImage ? (
+                        <Image source={{ uri: build.buildingImage }} style={styles.buildingImage} />
+                      ) : (
+                        <Text>{t("myGB.imageNotAvailable")}</Text>
+                      )}
+                    </View>
+                    <View style={styles.nameContainer}>
+                      <View style={styles.nameBlock}>
+                        <Text style={styles.buildName}>{localizedName}</Text>
+                      </View>
+                      <View style={styles.additionalLevelBlock}>
+                        <View style={styles.additionalLevelText}>
+                          <Text>{t("myGB.levelLabel")}</Text>
+                        </View>
+                        <View style={styles.additionalLevelStepper}>
+                          <Stepper
+                            initialValue={build.level}
+                            step={1}
+                            maxValue={200}
+                            buildId={build.id}
+                            onValueChange={handleValueChange}
+                          />
+                        </View>
+                      </View>
+                      <View style={styles.buttonContainer}>
+                        <TouchableOpacity 
+                          style={styles.createButton} 
+                          onPress={() => navigation.navigate('GBNewExpress', { buildingId: build.id })}
+                        >
+                          <Text style={styles.createButtonText}>{t("myGB.scheduleExpress")}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.additionalLevelStepper}>
-                  <Stepper
-                    initialValue={build.level}
-                    step={1}
-                    maxValue={200}
-                    buildId={build.id}
-                    onValueChange={handleValueChange}
-                  />
-                </View>
-              </View>
-            </View>
-          
-          </View>
-          <TouchableOpacity style={styles.createButton}>
-        <Text style={styles.createButtonText}>Створити новий чат</Text>
-      </TouchableOpacity>
-          
-        </View>
-      </TouchableOpacity>
-    ))
-  )}
-</ScrollView>
-
-
-      <View style={styles.fabContainer}>
-        <FloatingActionButton 
-          onPress={handleFabPress} 
-          iconName="plus" 
-        />
-      </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
     </View>
-    
   );
 };
 
@@ -260,6 +220,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 10,
     backgroundColor: '#fff',
+  },
+  scrollView: {
+    paddingBottom: 20,
   },
   buildItem: {
     backgroundColor: '#e0e0e0',
@@ -284,7 +247,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderWidth: 1,
-    //borderColor: 'red',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -298,119 +260,52 @@ const styles = StyleSheet.create({
   },
   nameContainer: {
     flex: 1,
-    //borderWidth: 2,
-    //borderColor: 'blue',
-    justifyContent: 'flex-start', // Вирівнювання блоків по верхньому краю
-    alignItems: 'stretch', // Розтягує блоки на всю ширину
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
     backgroundColor: '#e0e0e0',
   },
   nameBlock: {
-    //borderWidth: 1,
-    //borderColor: 'green', // Колір рамки для nameBlock
     padding: 5,
     alignItems: 'center',
-    // Висота буде автоматично підганятися під висоту тексту
   },
   additionalLevelBlock: {
-    flex: 1,
     flexDirection: 'row',
-    //borderWidth: 1,
-    borderColor: 'orange', // Колір рамки для additionalLevelBlock
-    
-    alignItems: 'center'
-    //padding: 5,
+    borderColor: 'orange',
+    alignItems: 'center',
   },
   additionalLevelText: {
     flex: 1,
-    //margin: 5,
-    //padding: 10,
-    //backgroundColor: '#f0f0f0',
     borderWidth: 1,
     borderColor: '#ddd',
     alignItems: 'center',
+    paddingVertical: 4,
   },
   additionalLevelStepper: {
     flex: 1,
-    //margin: 5,
-    //padding: 10,
-    //backgroundColor: '#f0f0f0',
     borderWidth: 1,
     borderColor: '#ddd',
     alignItems: 'center',
     justifyContent: 'center',
-    //alignItems: 'flex-end',
+    paddingVertical: 4,
   },
-  
-
-  chevronContainer: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    zIndex: 1,
+  buttonContainer: {
+    alignItems: 'flex-end',
+    marginTop: 10,
   },
-  bonusContainer: {
-    borderWidth: 1,
-    borderColor: '#000',
-    padding: 5,
-    backgroundColor: '#ffffff',
+  createButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 5,
   },
-  detailsContainer: {
-    borderWidth: 1,
-    borderColor: '#000',
-    padding: 5,
-    backgroundColor: '#ffffff',
+  createButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   buildName: {
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  buildBonus: {
-    fontSize: 16,
-    color: '#333',
-    textIndent: 10, // Додати відступ на початку кожного абзацу
-  },
-
-  detailContainer: {
-    marginBottom: 5,
-  },
-  detailKey: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  detailValue: {
-    fontSize: 16,
-    color: '#555',
-  },
-  highlightedText: {
-    fontWeight: 'bold',
-    textDecorationLine: 'underline',
-  },
-  modalBackground: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  tooltipContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  tooltipText: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  closeButton: {
-    fontSize: 14,
-    color: '#007bff',
-    textDecorationLine: 'underline',
-  },
-  floatingActionButton: {
-    position: 'absolute',
-    bottom: 16, // Відстань від нижнього краю екрану
-    right: 16,  // Відстань від правого краю екрану
-    zIndex: 1,  // Забезпечує, що кнопка буде поверх інших елементів
   },
 });
 

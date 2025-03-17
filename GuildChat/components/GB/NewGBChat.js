@@ -6,18 +6,31 @@ import { MultiSelect } from 'react-native-element-dropdown';
 import CustomCheckBox from '../CustomElements/CustomCheckBox3';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
-const NewGBChat = ({ navigation }) => {
+const NewGBChat = () => {
+  const { t, i18n } = useTranslation();
+  const navigation = useNavigation();
+
   const [nodeRatio, setNodeRatio] = useState('');
   const [levelThreshold, setLevelThreshold] = useState('');
   const [allowedGBs, setAllowedGBs] = useState([]);
   const [placeLimit, setPlaceLimit] = useState([false, false, false, false, false]);
   const [greatBuildings, setGreatBuildings] = useState([]);
-  const [guildMembers, setGuildMembers] = useState([]); // Учасники гільдії
-  const [selectedMembers, setSelectedMembers] = useState([]); // Вибрані учасники
+  const [guildMembers, setGuildMembers] = useState([]);
+  const [selectedMembers, setSelectedMembers] = useState([]);
   const [contributionMultiplier, setContributionMultiplier] = useState(0);
   const [stepperWidth, setStepperWidth] = useState(200);
-  const [coefficientText, setCoefficientText] = useState('Оберіть рівень арки вкладника');
+  const [coefficientText, setCoefficientText] = useState(t('newGBChat.contributionRatioLabel'));
+
+  // Функція для локалізації значення, якщо воно є об'єктом
+  const getLocalizedValue = (value) => {
+    if (value && typeof value === 'object') {
+      return value[i18n.language] || value['uk'] || '';
+    }
+    return value;
+  };
 
   useEffect(() => {
     const db = getDatabase();
@@ -30,7 +43,7 @@ const NewGBChat = ({ navigation }) => {
         const seenKeys = new Set();
         const buildingsArray = Object.keys(data)
           .map((key) => ({
-            label: data[key].buildingName,
+            label: getLocalizedValue(data[key].buildingName), // локалізуємо назву
             value: key,
             image: data[key].buildingImage,
           }))
@@ -40,19 +53,20 @@ const NewGBChat = ({ navigation }) => {
             return true;
           });
         // Додаємо опцію "Обрати все" на початок списку
-        buildingsArray.unshift({ label: 'Обрати все', value: 'selectAll', image: null });
+        buildingsArray.unshift({ label: t('newGBChat.selectAllOption'), value: 'selectAll', image: null });
         setGreatBuildings(buildingsArray);
       }
     });
 
-    // Отримання учасників гільдії з шляху guilds/${guildId}/guildUsers
+    // Отримання учасників гільдії
     const fetchGuildMembers = async () => {
       const guildId = await AsyncStorage.getItem('guildId');
       if (!guildId) {
-        console.error('Guild ID не знайдено');
+        console.error(t('newGBChat.guildIdNotFound'));
         return;
       }
       console.log('Guild ID:', guildId);
+      const db = getDatabase();
       const membersRef = ref(db, `guilds/${guildId}/guildUsers`);
       onValue(membersRef, (snapshot) => {
         const data = snapshot.val();
@@ -60,21 +74,20 @@ const NewGBChat = ({ navigation }) => {
         if (data) {
           const membersArray = Object.keys(data).map((key) => ({
             label: data[key].imageUrl, // URL аватара
-            name: data[key].userName,  // Ім'я користувача
-            userId: key,               // Ідентифікатор користувача
+            name: data[key].userName,
+            userId: key,
           }));
           console.log('membersArray:', membersArray);
           setGuildMembers(membersArray);
         } else {
-          console.warn('Дані з guildUsers відсутні або порожні.');
+          console.warn(t('newGBChat.noGuildUsers'));
         }
       });
     };
 
     fetchGuildMembers();
-  }, []);
+  }, [t]);
 
-  // Обробка вибору ВС. Якщо вибрано "Обрати все", встановлюємо всі значення (крім 'selectAll')
   const handleSelectAll = (items) => {
     if (items.includes('selectAll')) {
       const allBuildingValues = greatBuildings
@@ -92,23 +105,21 @@ const NewGBChat = ({ navigation }) => {
     setPlaceLimit(newPlaceLimit);
   };
 
-  // Функція для отримання коефіцієнта внеску з API
   const fetchContributionBoost = async (level) => {
     if (level === 0) {
-      setCoefficientText('Оберіть рівень арки вкладника');
+      setCoefficientText(t('newGBChat.contributionRatioLabel'));
       setContributionMultiplier(0);
       return;
     }
     try {
       const response = await fetch(`https://api.foe-helper.com/v1/LegendaryBuilding/get?id=X_FutureEra_Landmark1&level=${level}`);
       const data = await response.json();
-      // Припускаємо, що відповідь має структуру data.response.rewards.contribution_boost
       const contributionBoost = data.response.rewards.contribution_boost;
       const coefficient = contributionBoost / 100 + 1;
-      setCoefficientText(`Рівень арки вкладника (коефіцієнт ${coefficient.toFixed(3)})`);
+      setCoefficientText(t('newGBChat.contributionRatioLabelWithCoefficient', { coefficient: coefficient.toFixed(3) }));
       setContributionMultiplier(coefficient);
     } catch (error) {
-      console.error('Помилка при отриманні даних з API:', error);
+      console.error(t('newGBChat.fetchContributionError'), error);
     }
   };
 
@@ -129,7 +140,7 @@ const NewGBChat = ({ navigation }) => {
           allowedGBs,
           placeLimit: selectedPlaceLimits,
           contributionMultiplier: contributionMultiplier || 0,
-          selectedMembers, // Вибрані учасники
+          selectedMembers,
         },
         createdBy: user ? user.uid : null,
       };
@@ -139,10 +150,10 @@ const NewGBChat = ({ navigation }) => {
         await push(ref(db, `guilds/${guildId}/GBChat`), newChat);
         navigation.goBack();
       } else {
-        console.error('Guild ID не знайдено');
+        console.error(t('newGBChat.guildIdNotFound'));
       }
     } catch (error) {
-      console.error('Помилка при створенні чату:', error);
+      console.error(t('newGBChat.createChatError'), error);
     }
   };
 
@@ -212,7 +223,7 @@ const NewGBChat = ({ navigation }) => {
     <ScrollView contentContainerStyle={{ padding: 20, backgroundColor: '#ffffff' }}>
       {/* Блок для коефіцієнта внеску (nodeRatio) */}
       <View style={styles.block}>
-        <Text style={{ marginBottom: 10 }}>Коефіцієнт внеску (nodeRatio):</Text>
+        <Text style={{ marginBottom: 10 }}>{t('newGBChat.contributionRatioLabel')}</Text>
         <Text style={{ marginBottom: 10 }}>{coefficientText}</Text>
         <Stepper
           value={parseInt(nodeRatio, 10) || 0}
@@ -228,14 +239,14 @@ const NewGBChat = ({ navigation }) => {
 
       {/* Блок для вибору дозволених ВС */}
       <View style={styles.block}>
-        <Text style={{ marginBottom: 10 }}>Дозволені в гілці ВС (allowedGBs):</Text>
+        <Text style={{ marginBottom: 10 }}>{t('newGBChat.allowedGBsLabel')}</Text>
         <MultiSelect
           style={styles.dropdown}
           containerStyle={styles.dropdownContainer}
           data={greatBuildings}
           labelField="label"
           valueField="value"
-          placeholder="Оберіть ВС"
+          placeholder={t('newGBChat.selectGBPlaceholder')}
           value={allowedGBs}
           onChange={handleSelectAll}
           multiple={true}
@@ -260,7 +271,7 @@ const NewGBChat = ({ navigation }) => {
 
       {/* Блок для мінімального рівня ВС */}
       <View style={styles.block}>
-        <Text style={{ marginBottom: 10 }}>Мінімальний рівень ВС (levelThreshold):</Text>
+        <Text style={{ marginBottom: 10 }}>{t('newGBChat.levelThresholdLabel')}</Text>
         <Stepper
           value={parseInt(levelThreshold, 10) || 0}
           onValueChange={(value) => setLevelThreshold(value)}
@@ -272,14 +283,14 @@ const NewGBChat = ({ navigation }) => {
 
       {/* Блок для вибору учасників гільдії */}
       <View style={styles.block}>
-        <Text style={{ marginBottom: 10 }}>Учасники гільдії:</Text>
+        <Text style={{ marginBottom: 10 }}>{t('newGBChat.guildMembersLabel')}</Text>
         <MultiSelect
           style={styles.dropdown}
           containerStyle={styles.dropdownContainer}
           data={guildMembers}
           labelField="name"
           valueField="userId"
-          placeholder="Оберіть учасників"
+          placeholder={t('newGBChat.selectMembersPlaceholder')}
           value={selectedMembers}
           onChange={(items) => setSelectedMembers(items)}
           multiple={true}
@@ -302,7 +313,7 @@ const NewGBChat = ({ navigation }) => {
 
       {/* Блок для обмеження місць */}
       <View style={styles.block}>
-        <Text style={{ marginBottom: 10 }}>Обмеження місць (placeLimit):</Text>
+        <Text style={{ marginBottom: 10 }}>{t('newGBChat.placeLimitLabel')}</Text>
         <View style={styles.checkboxContainer}>
           {[1, 2, 3, 4, 5].map((value, index) => (
             <CustomCheckBox
@@ -317,7 +328,7 @@ const NewGBChat = ({ navigation }) => {
 
       {/* Кнопка для створення нового чату */}
       <TouchableOpacity style={styles.createButton} onPress={handleCreateChat}>
-        <Text style={styles.createButtonText}>Створити новий чат</Text>
+        <Text style={styles.createButtonText}>{t('newGBChat.createChatButton')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

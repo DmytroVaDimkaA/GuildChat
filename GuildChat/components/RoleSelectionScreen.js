@@ -6,11 +6,13 @@ import {
   StyleSheet,
   Dimensions,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import AdminSettingsScreen from "./AdminSettingsScreen";
 import UserSettingsScreen from "./UserSettingsScreen";
 
 const RoleSelectionScreen = ({ onRoleSelect }) => {
   const [selectedRole, setSelectedRole] = useState(null);
+  const { t } = useTranslation();
 
   const handleRolePress = (role) => {
     setSelectedRole(role);
@@ -37,7 +39,7 @@ const RoleSelectionScreen = ({ onRoleSelect }) => {
       borderRadius: 5,
       marginBottom: 15,
       alignItems: "center",
-      width: Dimensions.get("window").width * 0.65, // Вычисляем ширину здесь
+      width: Dimensions.get("window").width * 0.65,
     },
     selectedButton: {
       backgroundColor: "#006699",
@@ -55,7 +57,7 @@ const RoleSelectionScreen = ({ onRoleSelect }) => {
         <AdminSettingsScreen />
       ) : (
         <>
-          <Text style={styles.title}>Виберіть роль:</Text>
+          <Text style={styles.title}>{t("roleSelection.title")}</Text>
           <View style={{ flexDirection: "column", alignItems: "center" }}>
             <TouchableOpacity
               style={[
@@ -64,7 +66,7 @@ const RoleSelectionScreen = ({ onRoleSelect }) => {
               ]}
               onPress={() => handleRolePress("admin")}
             >
-              <Text style={styles.buttonText}>Адміністратор</Text>
+              <Text style={styles.buttonText}>{t("roleSelection.admin")}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -73,7 +75,7 @@ const RoleSelectionScreen = ({ onRoleSelect }) => {
               ]}
               onPress={() => handleRolePress("user")}
             >
-              <Text style={styles.buttonText}>Звичайний користувач</Text>
+              <Text style={styles.buttonText}>{t("roleSelection.user")}</Text>
             </TouchableOpacity>
           </View>
         </>

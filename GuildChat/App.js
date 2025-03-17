@@ -4,6 +4,8 @@ import { StyleSheet, View, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ref, onValue } from "firebase/database";
 import { database } from "./firebaseConfig";
+import i18n from "./i18n";
+import * as Localization from "expo-localization";
 
 // Імпортуємо контекст
 import { GuildProvider, GuildContext } from "./GuildContext";
@@ -15,16 +17,39 @@ import RoleSelectionScreen from "./components/RoleSelectionScreen";
 import MainContent from "./components/MainContent";
 
 const AppContent = () => {
+  // Визначення локалізації
+  const [languageLoaded, setLanguageLoaded] = useState(false);
+
   // Отримуємо guildId з контексту
   const { guildId } = useContext(GuildContext);
   const [selectedRole, setSelectedRole] = useState(null);
-  const [selectedOption, setSelectedOption] = useState("Сервер");
+  const [selectedOption, setSelectedOption] = useState(i18n.t("server"));
   const [userData, setUserData] = useState(false);
   const [checked, setChecked] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Ініціалізація мови: перевірка в AsyncStorage, використання мови пристрою або встановлення за замовчуванням
   useEffect(() => {
-    console.log("Запуск завантаження даних, guildId =", guildId);
+    const initLanguage = async () => {
+      const supportedLanguages = ["uk", "ru", "be", "de"];
+      let lang = await AsyncStorage.getItem("userLanguage");
+      if (!lang || !supportedLanguages.includes(lang)) {
+        // Використовуємо expo-localization для отримання поточних локалей
+        const locales = Localization.locales;
+        // Витягуємо перші два символи з першого елемента (наприклад, "uk" з "uk-UA")
+        lang = locales[0]?.substring(0, 2);
+        if (!supportedLanguages.includes(lang)) {
+          lang = "uk";
+        }
+        await AsyncStorage.setItem("userLanguage", lang);
+      }
+      i18n.changeLanguage(lang);
+      setLanguageLoaded(true);
+    };
+    initLanguage();
+  }, []);
+
+  useEffect(() => {
     if (guildId) {
       fetchUserData();
     } else {
@@ -36,7 +61,6 @@ const AppContent = () => {
 
   // Функція вибору ролі
   const handleRoleSelect = (role) => {
-    console.log("Обрана роль:", role);
     setSelectedRole(role);
   };
 
@@ -49,26 +73,21 @@ const AppContent = () => {
   const fetchUserData = async () => {
     try {
       const userId = await AsyncStorage.getItem("userId");
-      console.log("guildId =", guildId, ", userId =", userId);
       if (guildId && userId) {
         const userRef = ref(database, `users/${userId}`);
         onValue(userRef, (snapshot) => {
           if (snapshot.exists()) {
-            console.log("Користувач знайдений у Firebase");
             setUserData(true);
           } else {
-            console.log("Користувач не знайдений у Firebase");
             setUserData(false);
           }
           setLoading(false);
         });
       } else {
-        console.log("Дані відсутні: guildId або userId не знайдено");
         setUserData(false);
         setLoading(false);
       }
     } catch (error) {
-      console.error("Помилка при отриманні даних: ", error);
       setLoading(false);
     } finally {
       setChecked(true);
@@ -77,11 +96,10 @@ const AppContent = () => {
 
   // Функція оновлення даних користувача (наприклад, після зміни світу)
   const handleRefresh = () => {
-    console.log("handleRefresh викликано – оновлюємо дані користувача");
     fetchUserData();
   };
 
-  if (loading) {
+  if (!languageLoaded || loading) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#0000ff" />

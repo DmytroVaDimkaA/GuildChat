@@ -7,38 +7,37 @@ import Header from '../Header';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Імпортуємо AsyncStorage
 import { database } from '../../firebaseConfig'; // Імпортуємо Firebase з конфігураційного файлу
 import { ref, get } from 'firebase/database'; // Імпортуємо функції для доступу до бази даних
+import { useTranslation } from 'react-i18next';
 
 const GBScreen = ({ navigation }) => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
-  const [userRole, setUserRole] = useState(null); // Додано для зберігання ролі користувача
+  const [userRole, setUserRole] = useState(null); // Зберігаємо роль користувача
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         // Отримання userId з AsyncStorage
         const userId = await AsyncStorage.getItem('userId');
-        if (!userId) throw new Error('Не вдалося отримати userId');
+        if (!userId) throw new Error(t("gbScreen.userIdError")); // "Не вдалося отримати userId"
 
         // Отримання guildId з AsyncStorage
         const guildId = await AsyncStorage.getItem('guildId');
-        if (!guildId) throw new Error('Не вдалося отримати guildId');
+        if (!guildId) throw new Error(t("gbScreen.guildIdError")); // "Не вдалося отримати guildId"
 
         // Отримання ролі користувача з Firebase
         const roleRef = ref(database, `users/${userId}/${guildId}/role`);
         const roleSnapshot = await get(roleRef);
         const role = roleSnapshot.val();
-        if (!role) throw new Error('Не вдалося отримати роль користувача');
+        if (!role) throw new Error(t("gbScreen.roleError")); // "Не вдалося отримати роль користувача"
 
         setUserRole(role);
 
-        // Виведення ролі користувача в консоль
         console.log('Роль користувача:', role);
-
-        // Завантаження початкових повідомлень
-        // setMessages(await fetchMessagesFromServer());
+        // Завантаження початкових повідомлень (якщо потрібно)
       } catch (error) {
-        console.error('Помилка при завантаженні даних користувача:', error);
+        console.error(t("gbScreen.loadUserDataError"), error);
       }
     };
     fetchUserData();
@@ -49,7 +48,7 @@ const GBScreen = ({ navigation }) => {
   };
 
   const handleSelectChat = (chat) => {
-    if (chat.name === "Прокачка Величних Споруд") {
+    if (chat.name === t("gbScreen.gbTitle")) {
       navigation.navigate('MyGB');
     } else {
       setSelectedChat(chat);
@@ -82,7 +81,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    //marginTop: 100,
   },
 });
 

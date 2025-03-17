@@ -33,10 +33,14 @@
     "expo-document-picker": "~12.0.2",
     "expo-file-system": "~17.0.1",
     "expo-image-picker": "~15.1.0",
+    "expo-localization": "^16.0.1",
+    "expo-media-library": "~16.0.5",
     "expo-sharing": "~12.0.1",
     "expo-status-bar": "~1.12.1",
     "firebase": "^10.12.2",
+    "i18next": "^24.2.2",
     "react": "18.2.0",
+    "react-i18next": "^15.4.1",
     "react-native": "^0.74.5",
     "react-native-actionsheet": "^2.4.2",
     "react-native-checkbox": "^2.0.0",
@@ -58,8 +62,7 @@
     "react-native-uuid": "^2.0.2",
     "react-native-vector-icons": "^10.1.0",
     "react-native-walkthrough-tooltip": "^1.6.0",
-    "react-native-wheel-picker-expo": "^0.5.4",
-    "expo-media-library": "~16.0.5"
+    "react-native-wheel-picker-expo": "^0.5.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

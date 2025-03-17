@@ -13,7 +13,8 @@ import { database } from "../firebaseConfig";
 import { ref, set, get, update } from "firebase/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import CryptoJS from "react-native-crypto-js";
-import { GuildContext } from "../GuildContext"; // Імпорт контексту (скоригуйте шлях, якщо потрібно)
+import { GuildContext } from "../GuildContext"; // Скоригуйте шлях, якщо потрібно
+import { useTranslation } from "react-i18next";
 
 const AdminSelectScreen = ({
   guildData,      // масив даних про учасників гільдії
@@ -23,6 +24,7 @@ const AdminSelectScreen = ({
   selectedWorld,  // назва світу
   fetch,          // ← Функція, що прийшла з батьківського компонента
 }) => {
+  const { t } = useTranslation();
   const [selectedMember, setSelectedMember] = useState(null);
   const [imageLoadingStates, setImageLoadingStates] = useState({});
   // Отримуємо функцію setGuildId з контексту
@@ -164,14 +166,14 @@ const AdminSelectScreen = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Оберіть свій акаунт</Text>
+      <Text style={styles.title}>{t("adminSelect.title")}</Text>
       <FlatList
         data={guildData}
         renderItem={renderItem}
         keyExtractor={(item) => item.name}
         ListEmptyComponent={
           <Text style={styles.errorText}>
-            Гільдія не знайдена або дані відсутні
+            {t("adminSelect.emptyMessage")}
           </Text>
         }
       />
@@ -194,14 +196,14 @@ const AdminSelectScreen = ({
                 />
                 <Text style={styles.modalName}>{selectedMember.name}</Text>
                 <Text style={styles.confirmationText}>
-                  Ви підтверджуєте свій акаунт?
+                  {t("adminSelect.confirmationText")}
                 </Text>
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity onPress={handleConfirm} style={styles.button}>
-                    <Text style={styles.buttonText}>Підтвердити</Text>
+                    <Text style={styles.buttonText}>{t("adminSelect.confirmButton")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleCancel} style={styles.button}>
-                    <Text style={styles.buttonText}>Відміна</Text>
+                    <Text style={styles.buttonText}>{t("adminSelect.cancelButton")}</Text>
                   </TouchableOpacity>
                 </View>
               </>

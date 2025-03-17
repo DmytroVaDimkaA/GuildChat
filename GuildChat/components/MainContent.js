@@ -13,8 +13,8 @@ import { ref, getDatabase, get } from "firebase/database";
 import { MaterialIcons } from '@expo/vector-icons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { MenuProvider } from 'react-native-popup-menu';
-
-
+import { useTranslation } from 'react-i18next';
+import i18n from "../i18n";
 // Імпортуємо ваші екрани
 import GBScreen from "./GB/GBScreen";
 import MyGB from './GB/MyGB';
@@ -33,6 +33,7 @@ import ProfileMain from './Profile/ProfileMain';
 import ProfileData from './Profile/ProfileData';
 import AddSchedule from './Profile/AddSchedule';
 import SleepSchedule from './Profile/SleepSchedule';
+import LanguageSelector from './Profile/LanguageSelector';
 
 import GB from "./ico/GB.svg";
 import Chat from "./ico/Chat.svg";
@@ -43,7 +44,7 @@ import Servise from "./ico/servise.svg";
 import Profile from "./ico/profile.svg";
 import Admin from "./ico/admin.svg";
 
-// Імпортуємо GuildContext (GuildProvider та GuildContext.js має бути на одному рівні з цим файлом)
+// Імпортуємо GuildContext
 import { GuildProvider, GuildContext } from '../GuildContext';
 
 const Stack = createStackNavigator();
@@ -57,31 +58,32 @@ const defaultHeaderOptions = {
 };
 
 function ChatStack() {
+  const { t } = useTranslation();
   return (
     <Stack.Navigator screenOptions={defaultHeaderOptions}>
       <Stack.Screen
         name="ChatScreen"
         component={ChatScreen}
         options={{
-          title: 'Альтанка',
+          title: t("chatStack.chatScreenTitle"), // переклад для "Альтанка"
           headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
         }}
       />
       <Stack.Screen
         name="GuildMembersList"
         component={GuildMembersList}
-        options={{ title: 'Нове повідомлення' }}
+        options={{ title: t("chatStack.guildMembersListTitle") }} // переклад для "Нове повідомлення"
       />
       <Stack.Screen
         name="NewGroupChat"
         component={NewGroupChat}
-        options={{ title: 'Створити групу' }}
+        options={{ title: t("chatStack.newGroupChatTitle") }} // переклад для "Створити групу"
       />
       <Stack.Screen 
         name="ChatWindow" 
         component={ChatWindow} 
         options={({ navigation }) => ({
-          title: 'Чат',
+          title: t("chatStack.chatWindowTitle"), // переклад для "Чат"
           headerLeft: () => (
             <TouchableOpacity onPress={() => navigation.navigate('ChatScreen')}>
               <Ionicons
@@ -99,62 +101,51 @@ function ChatStack() {
 }
 
 function GBStack() {
+  const { t } = useTranslation();
   return (
     <Stack.Navigator screenOptions={defaultHeaderOptions}>
       <Stack.Screen
         name="GBScreen"
         component={GBScreen}
         options={{
-          title: 'Прокачка Величних Споруд',
+          title: t("gbStack.gbScreenTitle"), // переклад для "Прокачка Величних Споруд"
           headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
         }}
       />
-      <Stack.Screen
-        name="MyGB"
-        component={MyGB}
-        options={{ title: 'Мої Величні Споруди' }}
-      />
-      <Stack.Screen
-        name="GBGuarant"
-        component={GBGuarant}
-      />
+      
       <Stack.Screen
         name="NewGBChat"
         component={NewGBChat}
-        options={{ title: 'Нова гілка прокачки ВС' }}
-      />
-      <Stack.Screen
-        name="AddGBComponent"
-        component={AddGBComponent}
-        options={{ title: 'Додайте ВС до свого списку' }}
+        options={{ title: t("gbStack.newGBChatTitle") }} // переклад для "Нова гілка прокачки ВС"
       />
       <Stack.Screen
         name="GBChatWindow"
         component={GBChatWindow}
-        options={{ title: 'GBChatWindow' }}
+        options={{ title: t("gbStack.gbChatWindowTitle") }} // переклад для "GBChatWindow"
       />
       <Stack.Screen
         name="GBExpress"
         component={GBExpress}
-        options={{ title: 'Експрес прокачка' }}
+        options={{ title: t("gbStack.gbExpressTitle") }} // переклад для "Експрес прокачка"
       />
       <Stack.Screen
         name="GBNewExpress"
         component={GBNewExpress}
-        options={{ title: 'Експрес прокачка' }}
+        options={{ title: t("gbStack.gbNewExpressTitle") }} // переклад для "Експрес прокачка1"
       />
     </Stack.Navigator>
   );
 }
 
 function QuantStack() {
+  const { t } = useTranslation();
   return (
     <Stack.Navigator screenOptions={defaultHeaderOptions}>
       <Stack.Screen
         name="QuantScreen"
         component={MapComponent}
         options={{
-          title: 'Квантові вторгнення',
+          title: t("quantStack.quantScreenTitle"), // переклад для "Квантові вторгнення"
           headerLeft: () => <DrawerToggleButton tintColor="#fff" />,
         }}
       />
@@ -163,24 +154,25 @@ function QuantStack() {
 }
 
 function ProfileStack() {
+  const { t } = useTranslation();
   return (
     <Stack.Navigator screenOptions={defaultHeaderOptions}>
       <Stack.Screen
         name="ProfileMain"
         component={ProfileMain}
         options={({ navigation }) => ({
-          title: 'Налаштування профілю',
+          title: t("profileStack.profileMainTitle"), // переклад для "Налаштування профілю"
           headerLeft: () => (
-          <TouchableOpacity
-            onPress={() => {
-              if (navigation.canGoBack()) {
-                navigation.goBack(); // Повертається на попередній екран
-              }
-            }}
-            style={{ marginLeft: 15 }}
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                }
+              }}
+              style={{ marginLeft: 15 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
           ),
           headerStyle: {
             backgroundColor: '#517da2',
@@ -191,12 +183,53 @@ function ProfileStack() {
           headerShadowVisible: false,
         })}
       />
-
       <Stack.Screen
         name="ProfileData"
         component={ProfileData}
         options={({ navigation }) => ({
-          title: 'Дані профілю',
+          title: t("profileStack.profileDataTitle"), // переклад для "Дані профілю"
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <TouchableOpacity onPress={() => console.log('Підтверджено')} style={{ marginRight: 15 }}>
+              <Ionicons name="checkmark" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+      <Stack.Screen
+        name="MyGB"
+        component={MyGB}
+        options={({ navigation }) => ({ 
+          title: t("profileStack.myGBTitle"), // переклад для "Мої Величні Споруди"
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <TouchableOpacity onPress={() => navigation.navigate('AddGBComponent')} style={{ marginRight: 15 }}>
+              <Ionicons name="add" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+        })}
+      />
+      <Stack.Screen
+        name="AddGBComponent"
+        component={AddGBComponent}
+        options={{ 
+          title: t("profileStack.addGBComponentTitle"), // переклад для "Додайте ВС до свого списку"
+        }}
+      />
+     <Stack.Screen
+        name="GBNewExpress"
+        component={GBNewExpress}
+        options={({ navigation }) => ({
+          title: t("profileStack.gbNewExpressTitle"),
+          headerTintColor: 'white', // Задаємо білий колір для елементів хедера
           headerLeft: () => (
             <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
               <Ionicons name="arrow-back" size={24} color="white" />
@@ -210,11 +243,27 @@ function ProfileStack() {
         })}
       />
 
+
+      <Stack.Screen
+        name="GBGuarant"
+        component={GBGuarant}
+        options={({ navigation }) => ({ 
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+          ),
+          
+        })}
+      />
+
+
+
       <Stack.Screen
         name="AddSchedule"
         component={AddSchedule}
         options={({ navigation }) => ({
-          title: 'Дані профілю',
+          title: t("profileStack.addScheduleTitle"), // переклад для "Дані профілю"
           headerLeft: () => (
             <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
               <Ionicons name="arrow-back" size={24} color="white" />
@@ -232,7 +281,7 @@ function ProfileStack() {
         name="SleepSchedule"
         component={SleepSchedule}
         options={({ navigation }) => ({
-          title: 'Дані профілю',
+          title: t("profileStack.sleepScheduleTitle"), // переклад для "Дані профілю"
           headerLeft: () => (
             <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
               <Ionicons name="arrow-back" size={24} color="white" />
@@ -245,7 +294,36 @@ function ProfileStack() {
           ),
         })}
       />
-
+      
+      
+      
+      <Stack.Screen
+  name="LanguageSelector"
+  component={LanguageSelector}
+  options={({ navigation, route }) => ({
+    title: t("profileStack.languageSelectorTitle"),
+    headerLeft: () => (
+      <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+        <Ionicons name="arrow-back" size={24} color="white" />
+      </TouchableOpacity>
+    ),
+    headerRight: () => {
+      const selectedLanguage = route.params?.selectedLanguage ?? i18n.language;
+      return (
+        <TouchableOpacity
+          onPress={async () => {
+            await AsyncStorage.setItem("userLanguage", selectedLanguage);
+            i18n.changeLanguage(selectedLanguage);
+            navigation.goBack();
+          }}
+          style={{ marginRight: 15 }}
+        >
+          <Ionicons name="checkmark" size={24} color="white" />
+        </TouchableOpacity>
+      );
+    },
+  })}
+/>
 
 
     </Stack.Navigator>
@@ -253,6 +331,7 @@ function ProfileStack() {
 }
 
 function CustomDrawerContent(props) {
+  const { t } = useTranslation();
   const { guildId, setGuildId } = useContext(GuildContext);
   const [guildName, setGuildName] = useState('');
   const [userName, setUserName] = useState('');
@@ -287,7 +366,7 @@ function CustomDrawerContent(props) {
 
           if (guildSnapshot.exists()) {
             const guildData = guildSnapshot.val();
-            setGuildName(guildData.guildName || 'Без назви');
+            setGuildName(guildData.guildName || t("customDrawer.noName"));
             
             const guildUserRef = ref(db, `guilds/${guildId}/guildUsers/${userId}`);
             const guildUserSnapshot = await get(guildUserRef);
@@ -307,7 +386,7 @@ function CustomDrawerContent(props) {
               const guildUserSnapshot = await get(guildUserRef);
               if (otherGuildSnapshot.exists() && guildUserSnapshot.exists()) {
                 otherGuilds[key] = {
-                  guildName: otherGuildSnapshot.val().guildName || 'Без назви',
+                  guildName: otherGuildSnapshot.val().guildName || t("customDrawer.noName"),
                   imageUrl: guildUserSnapshot.val().imageUrl || ''
                 };
               }
@@ -321,7 +400,7 @@ function CustomDrawerContent(props) {
     };
 
     fetchGuildAndUserData();
-  }, [selectedGuildId, guildId]);
+  }, [selectedGuildId, guildId, t]);
 
   useEffect(() => {
     Animated.timing(animatedHeight, {
@@ -387,7 +466,7 @@ function CustomDrawerContent(props) {
       <Animated.View style={[styles.worldselect, { height: animatedHeight, overflow: 'hidden' }]}>
         <View style={styles.guildContainer}>
           <MaterialIcons name="add" size={24} color="white" style={styles.guildImage} />
-          <Text style={styles.guildText}>Додати світ</Text>
+          <Text style={styles.guildText}>{t("customDrawer.addWorld")}</Text>
         </View>
         {Object.keys(tempData).map(key => (
           <TouchableOpacity key={key} style={styles.guildContainer} onPress={() => handleGuildPress(key)}>
@@ -490,21 +569,9 @@ const styles = StyleSheet.create({
   },
 });
 
-// Оновлений основний компонент: використовуємо GuildProvider і симулюємо перевантаження навігації через key
-export default function App() {
-  return (
-    <GuildProvider>
-      <MenuProvider>
-        {/* Використовуємо NavigationContainer із key, що базується на guildId */}
-        <AppNavigator />
-      </MenuProvider>
-    </GuildProvider>
-  );
-}
-
-// Створюємо окремий компонент, який отримує guildId і встановлює його як key для NavigationContainer
 function AppNavigator() {
   const { guildId } = useContext(GuildContext);
+  const { t } = useTranslation();
   return (
     <NavigationContainer key={guildId}>
       <Drawer.Navigator 
@@ -516,8 +583,8 @@ function AppNavigator() {
           component={GBStack}
           options={{
             headerShown: false,
-            drawerLabel: 'Величні споруди',
-            title: 'Величні споруди',
+            drawerLabel: t("drawer.gbLabel"), // переклад для "Величні споруди"
+            title: t("drawer.gbLabel"),
             drawerIcon: ({ color, size }) => (
               <GB width={size} height={size} fill={color} />
             ),
@@ -528,7 +595,7 @@ function AppNavigator() {
           component={ChatStack}
           options={{
             headerShown: false,
-            drawerLabel: 'Альтанка',
+            drawerLabel: t("drawer.chatLabel"), // переклад для "Альтанка"
             drawerIcon: ({ color, size }) => (
               <Chat width={size} height={size} fill={color} />
             ),
@@ -539,7 +606,7 @@ function AppNavigator() {
           component={QuantStack}
           options={{
             headerShown: false,
-            drawerLabel: 'Квантові вторгнення',
+            drawerLabel: t("drawer.quantLabel"), // переклад для "Квантові вторгнення"
             drawerIcon: ({ color, size }) => (
               <Quant width={size} height={size} fill={color} />
             ),
@@ -550,7 +617,7 @@ function AppNavigator() {
           component={QuantStack}
           options={{
             headerShown: false,
-            drawerLabel: 'Поле битви гільдій',
+            drawerLabel: t("drawer.pbgLabel"), // переклад для "Поле битви гільдій"
             drawerIcon: ({ color, size }) => (
               <GVG width={size} height={size} fill={color} />
             ),
@@ -561,7 +628,7 @@ function AppNavigator() {
           component={QuantStack}
           options={{
             headerShown: false,
-            drawerLabel: 'Абетка',
+            drawerLabel: t("drawer.azbookLabel"), // переклад для "Абетка"
             drawerIcon: ({ color, size }) => (
               <Azbook width={size} height={size} fill={color} />
             ),
@@ -572,7 +639,7 @@ function AppNavigator() {
           component={QuantStack}
           options={{
             headerShown: false,
-            drawerLabel: 'Сервіси',
+            drawerLabel: t("drawer.serviseLabel"), // переклад для "Сервіси"
             drawerIcon: ({ color, size }) => (
               <Servise width={size} height={size} fill={color} />
             ),
@@ -583,7 +650,7 @@ function AppNavigator() {
           component={ProfileStack}
           options={{
             headerShown: false,
-            drawerLabel: 'Профіль',
+            drawerLabel: t("drawer.profileLabel"), // переклад для "Профіль"
             drawerIcon: ({ color, size }) => (
               <Profile width={size} height={size} fill={color} />
             ),
@@ -594,7 +661,7 @@ function AppNavigator() {
           component={QuantStack}
           options={{
             headerShown: false,
-            drawerLabel: 'Адміністративна панель',
+            drawerLabel: t("drawer.adminLabel"), // переклад для "Адміністративна панель"
             drawerIcon: ({ color, size }) => (
               <Admin width={size} height={size} fill={color} />
             ),
@@ -604,3 +671,14 @@ function AppNavigator() {
     </NavigationContainer>
   );
 }
+
+export default function App() {
+  return (
+    <GuildProvider>
+      <MenuProvider>
+        <AppNavigator />
+      </MenuProvider>
+    </GuildProvider>
+  );
+}
+

@@ -13,10 +13,11 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ref, get } from "firebase/database";
 import { database } from "../firebaseConfig";
-import { GuildContext } from "../GuildContext"; // скоригуйте шлях, якщо потрібно
+import { GuildContext } from "../GuildContext";
+import { useTranslation } from "react-i18next";
 
-// Приймання "fetch" із пропсів — це функція, яку передає батьківський компонент.
 const UserSettingsScreen = ({ fetch }) => {
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [guilds, setGuilds] = useState([]);
   // Отримуємо setGuildId з контексту, щоб оновити значення глобального guildId
@@ -39,9 +40,9 @@ const UserSettingsScreen = ({ fetch }) => {
 
     if (!user) {
       Alert.alert(
-        "Користувача не знайдено",
-        `Спробуйте ввести інший пароль`,
-        [{ text: "OK" }]
+        t("userSettings.userNotFoundTitle"),
+        t("userSettings.userNotFoundMessage"),
+        [{ text: t("userSettings.ok") }]
       );
       return;
     }
@@ -52,9 +53,9 @@ const UserSettingsScreen = ({ fetch }) => {
 
     if (userGuilds.length <= 0) {
       Alert.alert(
-        "Немає гільдій",
-        `Користувач не знаходиться в жодній гільдії`,
-        [{ text: "OK" }]
+        t("userSettings.noGuildsTitle"),
+        t("userSettings.noGuildsMessage"),
+        [{ text: t("userSettings.ok") }]
       );
       return;
     }
@@ -109,19 +110,19 @@ const UserSettingsScreen = ({ fetch }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Запросіть код доступу у голови гільдії</Text>
+      <Text style={styles.title}>{t("userSettings.requestAccessCode")}</Text>
 
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
           onChangeText={setPassword}
           value={password}
-          placeholder="Код доступу"
+          placeholder={t("userSettings.accessCodePlaceholder")}
         />
       </View>
 
       <TouchableOpacity style={styles.button} onPress={apply}>
-        <Text style={styles.buttonText}>Прийняти</Text>
+        <Text style={styles.buttonText}>{t("userSettings.apply")}</Text>
       </TouchableOpacity>
 
       {/* Модальне вікно для вибору гільдії (якщо їх декілька) */}
@@ -133,7 +134,7 @@ const UserSettingsScreen = ({ fetch }) => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Виберіть гільдію:</Text>
+            <Text style={styles.modalTitle}>{t("userSettings.selectGuildTitle")}</Text>
             <FlatList
               data={guilds}
               keyExtractor={(item) => item.guildId}
@@ -154,7 +155,7 @@ const UserSettingsScreen = ({ fetch }) => {
               style={[styles.modalButton, { marginBottom: 10 }]}
               onPress={() => setGuilds([])}
             >
-              <Text style={styles.modalButtonText}>Закрити</Text>
+              <Text style={styles.modalButtonText}>{t("userSettings.close")}</Text>
             </TouchableOpacity>
           </View>
         </View>

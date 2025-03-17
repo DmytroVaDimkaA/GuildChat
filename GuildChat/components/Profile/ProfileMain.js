@@ -108,6 +108,15 @@ const ProfileMain = () => {
     navigation.navigate('AddSchedule');
   };
 
+
+  const handleLanguageSelector = () => {
+    navigation.navigate('LanguageSelector');
+  };
+  
+  const handleMyGB = () => {
+    navigation.navigate('MyGB');
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* Шапка: аватар, юзернейм та активний світ */}
@@ -167,19 +176,26 @@ const ProfileMain = () => {
 
       {/* Розділ з додатковими налаштуваннями */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Налаштування додатку</Text>
-        <TouchableOpacity style={styles.itemRow}>
-    <GBIcon width={24} height={24} style={{ marginRight: 8 }} />
-    <Text style={styles.mainText}>Налаштування ВС</Text>
-  </TouchableOpacity>      
+        <Text style={styles.sectionTitle}>Налаштування додатку</Text>  
         <TouchableOpacity style={styles.itemRow} onPress={handleAddSchedule}>
           <FontAwesomeIcon icon={faClock} size={24} color="#BDBDBD" style={{ marginRight: 8 }} />
           <Text style={styles.mainText}>Розклад</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.itemRow}>
+        <TouchableOpacity style={styles.itemRow} onPress={handleLanguageSelector}>
           <FontAwesomeIcon icon={faGlobe} size={24} color="#BDBDBD" style={{ marginRight: 8 }} />
           <Text style={styles.mainText}>Мова</Text>
         </TouchableOpacity>
+      </View>
+      {/* Горизонтальний роздільник */}
+      <View style={styles.divider} />
+      {/* Розділ з додатковими налаштуваннями */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Налаштування світу</Text>
+        <TouchableOpacity style={styles.itemRow} onPress={handleMyGB}>
+          <GBIcon width={24} height={24} style={{ marginRight: 8 }} />
+          <Text style={styles.mainText}>Налаштування ВС</Text>
+        </TouchableOpacity>      
+        
       </View>
     </ScrollView>
   );

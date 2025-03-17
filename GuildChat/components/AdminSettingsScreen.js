@@ -13,12 +13,14 @@ import {
   Keyboard,
   Alert,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import { parseData } from "../parser";
 import { parseDataNew } from "../worldParser";
 import { parseGuildData } from "../guildParser";
 import AdminSelectScreen from "./AdminSelectScreen";
 
 const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
+  const { t } = useTranslation();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isWorldModalVisible, setIsWorldModalVisible] = useState(false);
   const [countries, setCountries] = useState([]);
@@ -97,9 +99,9 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
 
         if (data.length === 0) {
           Alert.alert(
-            "Гільдія не знайдена",
-            `Гільдія з ID ${guildId} не знайдена у вибраному вами світі на цьому сервері.`,
-            [{ text: "OK" }]
+            t("adminSettings.guildNotFoundTitle"),
+            t("adminSettings.guildNotFoundMessage", { guildId }),
+            [{ text: t("adminSettings.ok") }]
           );
         } else {
           console.log("Получені дані гільдії:", data);
@@ -251,7 +253,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
           clanCaption={clanCaption}
           uril={uril}
           guildId={guildId}
-          selectedWorld={selectedWorld} // Передача назви світу
+          selectedWorld={selectedWorld}
           fetch={fetch}
         />
       ) : (
@@ -275,7 +277,9 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
             disabled={selectedOption === "Сервер"}
             onPress={() => handleOptionPress("world")}
           >
-            <Text style={styles.buttonText}>{selectedWorld || "Світ"}</Text>
+            <Text style={styles.buttonText}>
+              {selectedWorld || t("adminSettings.defaultWorld")}
+            </Text>
           </TouchableOpacity>
 
           {parseError && <Text style={styles.errorText}>{parseError}</Text>}
@@ -288,7 +292,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
               ]}
               onChangeText={handleGuildIdChange}
               value={guildId}
-              placeholder="ID гільдії"
+              placeholder={t("adminSettings.guildIdPlaceholder")}
               keyboardType="numeric"
               maxLength={5}
             />
@@ -306,7 +310,7 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
             {isLoading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.buttonText}>Застосувати</Text>
+              <Text style={styles.buttonText}>{t("adminSettings.apply")}</Text>
             )}
           </TouchableOpacity>
 
@@ -318,7 +322,9 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
           >
             <View style={styles.modalContainer}>
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Виберіть сервер:</Text>
+                <Text style={styles.modalTitle}>
+                  {t("adminSettings.selectServerTitle")}
+                </Text>
                 <FlatList
                   data={countries}
                   keyExtractor={(item) => item.name}
@@ -339,7 +345,9 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
                   style={[styles.modalButton, { marginBottom: 10 }]}
                   onPress={() => setIsModalVisible(false)}
                 >
-                  <Text style={styles.modalButtonText}>Закрити</Text>
+                  <Text style={styles.modalButtonText}>
+                    {t("adminSettings.close")}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -353,7 +361,9 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
           >
             <View style={styles.modalContainer}>
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Виберіть світ:</Text>
+                <Text style={styles.modalTitle}>
+                  {t("adminSettings.selectWorldTitle")}
+                </Text>
                 {isLoading ? (
                   <ActivityIndicator color="#29ABE2" />
                 ) : (
@@ -367,7 +377,9 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
                   style={[styles.modalButton, { marginBottom: 10 }]}
                   onPress={() => setIsWorldModalVisible(false)}
                 >
-                  <Text style={styles.modalButtonText}>Закрити</Text>
+                  <Text style={styles.modalButtonText}>
+                    {t("adminSettings.close")}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
