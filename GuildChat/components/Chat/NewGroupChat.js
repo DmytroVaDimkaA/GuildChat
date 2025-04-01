@@ -10,7 +10,8 @@ const GuildMembersList = () => {
   const [loading, setLoading] = useState(true);
   const [selectedMembers, setSelectedMembers] = useState([]);
   const checkmarkSize = 26;
-
+  const navigation = useNavigation();
+  
   useEffect(() => {
     const fetchGuildMembers = async () => {
       try {
@@ -104,7 +105,9 @@ const GuildMembersList = () => {
             </Text>
             <Button 
               title="Додати" 
-              onPress={() => {/* Логіка для кнопки */}} 
+              onPress={() => {
+                navigation.navigate('CreateGroupScreen', { selectedMembers });
+              }}
               disabled={selectedMembers.length === 1} // Кнопка пасивна при одному вибраному користувачі
             />
           </View>

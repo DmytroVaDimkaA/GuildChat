@@ -14,13 +14,14 @@ const GBExpress = () => {
   const [userNames, setUserNames] = useState({});
   const [userLanguage, setUserLanguage] = useState(null); // Наприклад, "ua" або "en"
   const [guildId, setGuildId] = useState(null);
+  // Поточний користувач для інших перевірок (напр., де кнопка "Взяти участь" деактивується)
   const [currentUserId, setCurrentUserId] = useState(null);
-  // Стан для збереження рівнів ВС користувача за кожним buildID
+  // Стан для збереження рівнів ВС користувача для кожного buildID
   const [userBuildLevels, setUserBuildLevels] = useState({});
 
   // Стан модального вікна
   const [modalVisible, setModalVisible] = useState(false);
-  // Стан групи чатів для модального вікна
+  // Стан групи чатів, для якої відкрили модальне вікно
   const [modalGroup, setModalGroup] = useState(null);
 
   // Використовуємо useRef для кешування отриманих даних
@@ -60,7 +61,7 @@ const GBExpress = () => {
     fetchUserLanguage();
   }, []);
 
-  // Отримуємо guildId та currentUserId з AsyncStorage
+  // Отримуємо guildId та currentUserId з AsyncStorage (для перевірки кнопки)
   useEffect(() => {
     const fetchGuildAndUser = async () => {
       try {
@@ -107,6 +108,14 @@ const GBExpress = () => {
             const groupedList = Object.values(grouped).sort((a, b) => a.scheduleTime - b.scheduleTime);
             setGroupedChats(groupedList);
 
+            // Створюємо mapping: для кожного buildID (allowedGB) знаходимо перший чат та його автора
+            const buildUserMapping = {};
+            filteredChats.forEach((chat) => {
+              if (chat.allowedGB && !buildUserMapping[chat.allowedGB]) {
+                buildUserMapping[chat.allowedGB] = chat.user;
+              }
+            });
+
             // Отримуємо унікальні buildID для ВС
             const uniqueBuildIDs = new Set();
             filteredChats.forEach((chat) => {
@@ -150,14 +159,15 @@ const GBExpress = () => {
               }
             });
 
-            // Завантажуємо рівні ВС для поточного користувача
+            // Завантажуємо рівні ВС для користувача, який створив чат (з ключем user з чату)
             uniqueBuildIDs.forEach((buildID) => {
               if (!userBuildLevelsRef.current.hasOwnProperty(buildID)) {
-                get(ref(db, `guilds/${guildId}/guildUsers/${currentUserId}/greatBuild/${buildID}`))
+                const chatUserId = buildUserMapping[buildID]; // користувач, взятий з чату
+                get(ref(db, `guilds/${guildId}/guildUsers/${chatUserId}/greatBuild/${buildID}`))
                   .then((snap) => {
                     if (snap.exists()) {
                       const buildData = snap.val();
-                      // Очікується, що рівень зберігається у ключі level
+                      // Очікуємо, що рівень зберігається у ключі level
                       userBuildLevelsRef.current[buildID] = buildData.level;
                     } else {
                       userBuildLevelsRef.current[buildID] = 0;
@@ -176,7 +186,6 @@ const GBExpress = () => {
             filteredChats.forEach((chat) => {
               if (chat.user) uniqueUserIDs.add(chat.user);
             });
-
             uniqueUserIDs.forEach((userId) => {
               if (!userNamesRef.current.hasOwnProperty(userId)) {
                 get(ref(db, `users/${userId}`))
@@ -208,7 +217,7 @@ const GBExpress = () => {
     fetchChats();
   }, [userLanguage, guildId, currentUserId]);
 
-  // Обробка натискання кнопки "Взяти участь" - відкриваємо модальне вікно для групи чатів
+  // Обробка натискання кнопки "Взяти участь" – відкриваємо модальне вікно для відповідної групи чатів
   const handleJoinPress = (group) => {
     setModalGroup(group);
     setModalVisible(true);
@@ -216,12 +225,12 @@ const GBExpress = () => {
 
   // Функція, що викликається при натисканні "Прийняти" у модальному вікні
   const handleAccept = async () => {
-    if (!guildId || !currentUserId || !modalGroup) return;
+    if (!guildId || !modalGroup) return;
     const db = getDatabase();
 
     // Для кожного чату в групі додаємо запис у allowedUsers
     for (const chat of modalGroup.chats) {
-      await set(ref(db, `guilds/${guildId}/express/${chat.id}/allowedUsers/${currentUserId}`), true);
+      await set(ref(db, `guilds/${guildId}/express/${chat.id}/allowedUsers/${chat.user}`), true);
     }
     setModalVisible(false);
   };
@@ -304,7 +313,7 @@ const GBExpress = () => {
               });
             }
 
-            // Якщо всі чати в групі створені поточним користувачем, кнопка "Взяти участь" неактивна
+            // Якщо всі чати групи створені поточним користувачем, кнопка "Взяти участь" неактивна
             const isOwnGroup = item.chats.every((chat) => chat.user === currentUserId);
 
             // Кількість записів з гілки allowedUsers для першого чату групи

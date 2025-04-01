@@ -8,239 +8,422 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  Modal, ScrollView,
+  Modal,
+  ScrollView,
   Button,
-  Alert
+  Alert,
+  ActivityIndicator,
+  Clipboard,
+  Linking
 } from "react-native";
-import { getDatabase, ref, onValue, push, set, get } from "firebase/database";
+import {
+  getDatabase,
+  ref,
+  onValue,
+  push,
+  set,
+  get,
+  update
+} from "firebase/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faPaperclip, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
-import { format } from 'date-fns';
-import { uk, ru, es, fr, de } from 'date-fns/locale'; // Імпортуємо всі потрібні локалі
-import { Menu, MenuTrigger, MenuOptions, MenuOption } from 'react-native-popup-menu';
-import translateMessage from '../../translateMessage'; // Імпорт функції перекладу
-import { database, storage } from '../../firebaseConfig'; // Імпортуйте Firebase
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
-import uuid from 'react-native-uuid'; // Для генерації унікальних ID
-import { faClock, faCheck, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
-import * as DocumentPicker from 'expo-document-picker';
-import { Clipboard } from 'react-native';
-import { faFile } from '@fortawesome/free-solid-svg-icons';
-import { Linking } from 'react-native';
-import * as Sharing from 'expo-sharing';
-import { ActivityIndicator } from 'react-native';
-import { Platform } from 'react-native';
-import * as MediaLibrary from 'expo-media-library';
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
+import {
+  faPaperclip,
+  faPaperPlane,
+  faClock,
+  faCheck,
+  faCheckDouble
+} from "@fortawesome/free-solid-svg-icons";
+import { faYoutube } from "@fortawesome/free-brands-svg-icons";
+import { faFileAlt, faTableCellsLarge, faChartSimple } from "@fortawesome/free-solid-svg-icons";
+import { format } from "date-fns";
+import { uk, ru, es, fr, de } from "date-fns/locale";
+import { Menu, MenuTrigger, MenuOptions, MenuOption } from "react-native-popup-menu";
+import translateMessage from "../../translateMessage";
+import { database, storage } from "../../firebaseConfig";
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL
+} from "firebase/storage";
+import * as ImagePicker from "expo-image-picker";
+import uuid from "react-native-uuid";
+// Імпорт кастомного чекбоксу
+import CustomCheckBox from "../CustomElements/CustomCheckBox3";
+// Імпорт SVG-іконки через react-native-svg-transformer
+import PinIcon from "../ico/pin.svg";
 
-const { width: screenWidth } = Dimensions.get('window');
-// Об'єкт для керування локалями
-const locales = {
-  uk: uk,
-  ru: ru,
-  es: es,
-  fr: fr,
-  de: de,
-  // Додайте інші локалі за потреби
+const { width: screenWidth } = Dimensions.get("window");
+const locales = { uk, ru, es, fr, de };
+
+// Загальні стилі для модальних вікон
+const commonModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  container: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    width: "80%",
+    alignItems: "center",
+    elevation: 2
+  },
+  header: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 10,
+    textAlign: "center"
+  },
+  button: {
+    marginHorizontal: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: "stretch"
+  },
+  buttonText: {
+    fontSize: 16,
+    color: "#007aff",
+    textAlign: "center"
+  }
+});
+
+// Допоміжні змінні для контейнерів кнопок
+const buttonContainerRow = {
+  flexDirection: "row",
+  alignSelf: "stretch",
+  justifyContent: "flex-end"
+};
+
+const buttonContainerColumn = {
+  flexDirection: "column",
+  alignSelf: "stretch",
+  justifyContent: "center"
+};
+
+const isYouTubeURL = (url) =>
+  url.includes("youtube.com") || url.includes("youtu.be");
+const isDocsURL = (url) => url.includes("docs.google.com");
+
+const getDocsIcon = (url) => {
+  if (url.includes("/document/")) return faFileAlt;
+  if (url.includes("/spreadsheets/")) return faTableCellsLarge;
+  if (url.includes("/presentation/")) return faChartSimple;
+  return null;
+};
+
+function hasLinkOrImage(message) {
+  const hasImage = message.imageUrls && message.imageUrls.length > 0;
+  const urlRegex = /https?:\/\/[^\s]+/g;
+  const hasLink = message.text ? urlRegex.test(message.text) : false;
+  return hasImage || hasLink;
+}
+
+const splitMessageIntoParts = (text) => {
+  if (!text) return [];
+  const urlRegex = /https?:\/\/[^\s]+/g;
+  const urls = text.match(urlRegex) || [];
+  const textParts = text.split(urlRegex);
+  const result = [];
+  for (let i = 0; i < textParts.length; i++) {
+    if (textParts[i]) result.push({ type: "text", value: textParts[i] });
+    if (i < urls.length) result.push({ type: "link", value: urls[i] });
+  }
+  return result;
+};
+
+const LinkPreviewCard = ({ url }) => {
+  const [previewData, setPreviewData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const fetchPreview = async () => {
+      try {
+        const response = await fetch(url);
+        const html = await response.text();
+        const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+        const ogTitleMatch = html.match(
+          /<meta property=["']og:title["'] content=["'](.*?)["']/i
+        );
+        const descMatch = html.match(
+          /<meta property=["']og:description["'] content=["'](.*?)["']/i
+        );
+        const imageMatch = html.match(
+          /<meta property=["']og:image["'] content=["'](.*?)["']/i
+        );
+        const title = ogTitleMatch ? ogTitleMatch[1]
+                    : titleMatch ? titleMatch[1]
+                    : url;
+        let description = descMatch ? descMatch[1] : "";
+        const image = imageMatch ? imageMatch[1] : null;
+        if (isYouTubeURL(url)) description = "";
+        setPreviewData({ title, description, image });
+      } catch (error) {
+        console.error("Error fetching link preview:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPreview();
+  }, [url]);
+  if (loading) {
+    return (
+      <View style={styles.linkPreviewContainer}>
+        <ActivityIndicator size="small" color="#888" />
+      </View>
+    );
+  }
+  if (!previewData) return null;
+  return (
+    <TouchableOpacity
+      style={styles.linkPreviewContainer}
+      onPress={() => Linking.openURL(url)}
+    >
+      {previewData.image && (
+        <Image
+          source={{ uri: previewData.image }}
+          style={styles.linkPreviewImage}
+          resizeMode="contain"
+        />
+      )}
+      <View style={styles.linkPreviewTextContainer}>
+        <Text style={styles.linkPreviewTitle} numberOfLines={2}>
+          {previewData.title}
+        </Text>
+        {previewData.description ? (
+          <Text style={styles.linkPreviewDescription} numberOfLines={3}>
+            {previewData.description}
+          </Text>
+        ) : null}
+      </View>
+      {isYouTubeURL(url) && (
+        <View style={styles.youtubeIconContainer}>
+          <FontAwesomeIcon icon={faYoutube} size={20} color="#FF0000" />
+        </View>
+      )}
+      {isDocsURL(url) && (
+        <View style={styles.docsIconContainer}>
+          <FontAwesomeIcon icon={getDocsIcon(url)} size={20} color="#4285F4" />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const SingleImage = ({ uri }) => {
+  const [aspectRatio, setAspectRatio] = useState(1);
+  useEffect(() => {
+    Image.getSize(
+      uri,
+      (width, height) => setAspectRatio(width / height),
+      (error) => console.error("Error getting image size", error)
+    );
+  }, [uri]);
+  return (
+    <TouchableOpacity onPress={() => { /* можна додати повноекранний перегляд */ }}>
+      <Image
+        source={{ uri }}
+        style={[styles.singleImage, { aspectRatio }]}
+        resizeMode="contain"
+      />
+    </TouchableOpacity>
+  );
+};
+
+// Компонент для рендерингу прикріпленого повідомлення із варіантом 2
+const PinnedContent = ({ message }) => {
+  const [previewData, setPreviewData] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const urlRegex = /https?:\/\/[^\s]+/g;
+  const hasLink = message.text ? urlRegex.test(message.text) : false;
+
+  useEffect(() => {
+    if (hasLink && !message.previewImage && !previewData) {
+      const fetchPreview = async () => {
+        setLoadingPreview(true);
+        try {
+          const urls = message.text.match(urlRegex) || [];
+          const firstUrl = urls[0];
+          const response = await fetch(firstUrl);
+          const html = await response.text();
+          const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+          const ogTitleMatch = html.match(
+            /<meta property=["']og:title["'] content=["'](.*?)["']/i
+          );
+          const descMatch = html.match(
+            /<meta property=["']og:description["'] content=["'](.*?)["']/i
+          );
+          const imageMatch = html.match(
+            /<meta property=["']og:image["'] content=["'](.*?)["']/i
+          );
+          const title = ogTitleMatch
+            ? ogTitleMatch[1]
+            : titleMatch
+            ? titleMatch[1]
+            : firstUrl;
+          let description = descMatch ? descMatch[1] : "";
+          const image = imageMatch ? imageMatch[1] : null;
+          if (isYouTubeURL(firstUrl)) description = "";
+          setPreviewData({ title, description, image });
+        } catch (error) {
+          console.error("Error fetching preview in pinned content:", error);
+        } finally {
+          setLoadingPreview(false);
+        }
+      };
+      fetchPreview();
+    }
+  }, [hasLink, message, previewData]);
+
+  let visualElement = null;
+  let textContent = null;
+
+  if (hasLink) {
+    const urls = message.text.match(urlRegex) || [];
+    const firstUrl = urls[0];
+    if (isYouTubeURL(firstUrl) || isDocsURL(firstUrl)) {
+      visualElement = isYouTubeURL(firstUrl)
+        ? (<FontAwesomeIcon icon={faYoutube} size={24} color="#FF0000" />)
+        : (<FontAwesomeIcon icon={getDocsIcon(firstUrl)} size={24} color="#4285F4" />);
+      const extraText = message.text.replace(urlRegex, "").trim();
+      textContent = extraText || (message.title || firstUrl);
+    } else if (message.previewImage || (previewData && previewData.image)) {
+      const imageUri = message.previewImage || (previewData ? previewData.image : null);
+      if (imageUri) {
+        visualElement = (<Image source={{ uri: imageUri }} style={styles.pinnedImage} resizeMode="cover" />);
+      }
+      const extraText = message.text.replace(urlRegex, "").trim();
+      textContent = extraText || (message.title || (previewData ? previewData.title : firstUrl));
+    } else {
+      textContent = message.text;
+    }
+  } else if (message.imageUrls && message.imageUrls.length > 0) {
+    visualElement = (<Image source={{ uri: message.imageUrls[0] }} style={styles.pinnedImage} resizeMode="cover" />);
+    textContent = (message.text && message.text.trim().length > 0) ? message.text : "Фото";
+  } else if (message.text && message.text.trim().length > 0) {
+    textContent = message.text;
+  }
+
+  const textColumn = (
+    <View style={styles.pinnedTextColumn}>
+      <Text style={styles.pinnedHeader}>Прикріплене повідомлення</Text>
+      {textContent && <Text numberOfLines={1} style={styles.pinnedText}>{textContent}</Text>}
+    </View>
+  );
+
+  return (
+    <View style={styles.pinnedContentRow}>
+      {visualElement && (
+        <View style={styles.visualElementContainer}>
+          {visualElement}
+        </View>
+      )}
+      {textColumn}
+    </View>
+  );
 };
 
 const ChatWindow = ({ route, navigation }) => {
+  const { chatId } = route.params || {};
+
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [inputHeight, setInputHeight] = useState(40);
   const maxInputHeight = 120;
-  const { chatId, initialMessage, isGroupChat } = route.params || {};
-  console.log('chatId:', chatId); // Додайте цей рядок
-  const [downloading, setDownloading] = useState(false);
   const [userId, setUserId] = useState(null);
   const [guildId, setGuildId] = useState(null);
   const [contactAvatar, setContactAvatar] = useState(null);
   const [contactName, setContactName] = useState(null);
-  const [locale, setLocale] = useState(uk); // Локаль за замовчуванням
+  const [chatType, setChatType] = useState(null);
+  const [locale, setLocale] = useState(uk);
   const [selectedMessageId, setSelectedMessageId] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [translatedText, setTranslatedText] = useState('');
-  const storage = getStorage();
-  const [selectedImageUri, setSelectedImageUri] = useState(null);
+  const [translatedText, setTranslatedText] = useState("");
+  const firebaseStorage = getStorage();
+  const [selectedImageUris, setSelectedImageUris] = useState([]);
   const [imageCaption, setImageCaption] = useState("");
   const [captionModalVisible, setCaptionModalVisible] = useState(false);
   const [fullSizeImageUri, setFullSizeImageUri] = useState(null);
   const [fullSizeImageModalVisible, setFullSizeImageModalVisible] = useState(false);
-
   const [replyToMessage, setReplyToMessage] = useState(null);
-  const [replyToMessageText, setReplyToMessageText] = useState('');
+  const [replyToMessageText, setReplyToMessageText] = useState("");
   const handleReply = (message) => {
     setReplyToMessage(message);
     setReplyToMessageText(message.text);
   };
+
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'sending':
-        return <FontAwesomeIcon icon={faClock} size={14} style={styles.statusIcon} />;
-      case 'sent':
-        return <FontAwesomeIcon icon={faCheck} size={14} style={styles.statusIcon} />;
-      case 'read':
+      case "sending":
+        return (
+          <FontAwesomeIcon
+            icon={faClock}
+            size={14}
+            style={styles.statusIcon}
+          />
+        );
+      case "sent":
+        return (
+          <FontAwesomeIcon
+            icon={faCheck}
+            size={14}
+            style={styles.statusIcon}
+          />
+        );
+      case "read":
         return (
           <View style={styles.doubleCheckContainer}>
-            <FontAwesomeIcon icon={faCheck} size={14} style={styles.statusIcon} />
-            <FontAwesomeIcon icon={faCheck} size={14} style={[styles.statusIcon, styles.secondCheck]} />
+            <FontAwesomeIcon
+              icon={faCheck}
+              size={14}
+              style={styles.statusIcon}
+            />
+            <FontAwesomeIcon
+              icon={faCheckDouble}
+              size={14}
+              style={[styles.statusIcon, styles.secondCheck]}
+            />
           </View>
         );
       default:
         return null;
     }
   };
+
   const flatListRef = useRef(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState(null);
   const [editMessage, setEditMessage] = useState(null);
-  const [editMessageText, setEditMessageText] = useState('');
-  const [attachedMessage, setAttachedMessage] = useState(null);
-  const [attachedMessageText, setAttachedMessageText] = useState('');
-  const [messageLayouts, setMessageLayouts] = useState({});
-  const [isUploading, setIsUploading] = useState(false);
-  const messageLayoutsRef = useRef({});
+  const [editMessageText, setEditMessageText] = useState("");
+  const [messageHeights, setMessageHeights] = useState({});
+  const messageRefs = useRef({});
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+
+  // Стан для модального вікна пінування – кнопки в рядок
+  const [pinMessageModalVisible, setPinMessageModalVisible] = useState(false);
+  const [pinForAllOrUser, setPinForAllOrUser] = useState(false);
+
+  useEffect(() => {
+    if (pinMessageModalVisible) {
+      setPinForAllOrUser(false);
+    }
+  }, [pinMessageModalVisible]);
+
   const handleContentSizeChange = (event) => {
     const { height } = event.nativeEvent.contentSize;
     const newHeight = Math.min(Math.max(40, height), maxInputHeight);
     setInputHeight(newHeight);
   };
-  const [downloadingFiles, setDownloadingFiles] = useState(new Set());
-  const [messageHeights, setMessageHeights] = useState({});
-  const handleFileDownload = async (fileUrl, fileName) => {
-    if (downloadingFiles.has(fileName)) return;
-  
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant permission to save files to your device.');
-        return;
-      }
-  
-      const newSet = new Set(downloadingFiles);
-      newSet.add(fileName);
-      setDownloadingFiles(newSet);
-      
-      const localUri = FileSystem.documentDirectory + fileName;
-      console.log(`Downloading to: ${localUri}`);
-      
-      const downloadResumable = FileSystem.createDownloadResumable(
-        fileUrl,
-        localUri,
-        {},
-        (downloadProgress) => {
-          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-          console.log(`Download progress: ${Math.round(progress * 100)}%`);
-        }
-      );
-      
-      const { uri } = await downloadResumable.downloadAsync();
-      console.log(`File downloaded to: ${uri}`);
-      
-      if (uri) {
-        const isPDF = fileName.toLowerCase().endsWith('.pdf');
-        const isLargeFile = (await FileSystem.getInfoAsync(uri)).size > 5000000; // 5MB threshold
-        
-        if (Platform.OS === 'android') {
-          try {
-            if (isPDF || isLargeFile) {
-              console.log("Using StorageAccessFramework for PDF/large file");
-              const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-              
-              if (permissions.granted) {
-                const destinationUri = await FileSystem.StorageAccessFramework.createFileAsync(
-                  permissions.directoryUri,
-                  fileName,
-                  isPDF ? 'application/pdf' : 'application/octet-stream'
-                );
-                
-                const fileContent = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-                
-                await FileSystem.writeAsStringAsync(destinationUri, fileContent, { 
-                  encoding: FileSystem.EncodingType.Base64 
-                });
-                
-                Alert.alert(
-                  'Download Complete',
-                  `File saved to your selected location`,
-                  [{ text: 'OK' }]
-                );
-              }
-            } else {
-              const asset = await MediaLibrary.createAssetAsync(uri);
-              await MediaLibrary.saveToLibraryAsync(uri);
-              
-              Alert.alert(
-                'Download Complete',
-                `File saved to your device's Downloads folder`,
-                [{ text: 'OK' }]
-              );
-            }
-          } catch (error) {
-            console.error("Storage error:", error);
-            
-            await Sharing.shareAsync(uri, {
-              mimeType: isPDF ? 'application/pdf' : 'application/octet-stream',
-              dialogTitle: `Save ${fileName}`
-            });
-          }
-        } else {
-          await Sharing.shareAsync(uri, {
-            UTI: isPDF ? 'com.adobe.pdf' : 'public.data',
-            mimeType: isPDF ? 'application/pdf' : 'application/octet-stream',
-            dialogTitle: `Save ${fileName}`
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Download error:', error);
-      Alert.alert('Error', 'Failed to download file: ' + error.message);
-    } finally {
-      const newSet = new Set(downloadingFiles);
-      newSet.delete(fileName);
-      setDownloadingFiles(newSet);
-    }
-  };
 
-  const messageRefs = useRef({});
-  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
-  const measureMessage = (messageId, layout) => {
-    setMessageLayouts(prev => ({
-      ...prev,
-      [messageId]: layout
-    }));
-  };
-  useEffect(() => {
-    if (chatId && guildId) {
-      const db = getDatabase();
-      const pinnedMessageRef = ref(db, `guilds/${guildId}/chats/${chatId}/pinnedMessage`);
-
-      const unsubscribe = onValue(pinnedMessageRef, async (snapshot) => {
-        const pinnedData = snapshot.val();
-
-        if (pinnedData) {
-          const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages/${pinnedData.id}`);
-          const messageSnapshot = await get(messageRef);
-
-          if (messageSnapshot.exists()) {
-            const fullMessage = {
-              id: pinnedData.id,
-              ...messageSnapshot.val()
-            };
-            setAttachedMessage(fullMessage);
-            setAttachedMessageText(fullMessage.text);
-          }
-        } else {
-          setAttachedMessage(null);
-          setAttachedMessageText('');
-        }
-      });
-
-      return () => unsubscribe();
-    }
-  }, [chatId, guildId]);
+  const pinnedMessagesForUser = messages
+    .flatMap((group) => group.messages)
+    .filter(
+      (m) => m.pinned && m.pinned.pinnedFor && m.pinned.pinnedFor[userId]
+    );
 
   useEffect(() => {
     const fetchUserIdAndGuildId = async () => {
@@ -253,7 +436,6 @@ const ChatWindow = ({ route, navigation }) => {
         console.error("Error fetching user or guild ID: ", error);
       }
     };
-
     fetchUserIdAndGuildId();
   }, []);
 
@@ -261,14 +443,9 @@ const ChatWindow = ({ route, navigation }) => {
     if (userId) {
       const db = getDatabase();
       const localeRef = ref(db, `users/${userId}/setting/language`);
-
       onValue(localeRef, (snapshot) => {
         const localeCode = snapshot.val();
-        if (locales[localeCode]) {
-          setLocale(locales[localeCode]); // Вибір відповідної локалі
-        } else {
-          setLocale(uk); // Локаль за замовчуванням
-        }
+        setLocale(locales[localeCode] || uk);
       });
     }
   }, [userId]);
@@ -276,224 +453,113 @@ const ChatWindow = ({ route, navigation }) => {
   useEffect(() => {
     if (chatId && guildId) {
       const db = getDatabase();
-      const chatRef = ref(db, `guilds/${guildId}/chats/${chatId}/name`);
-
+      const chatRef = ref(db, `guilds/${guildId}/chats/${chatId}`);
       onValue(chatRef, (snapshot) => {
-        const chatName = snapshot.val();
-        if (chatName) {
-          if (isGroupChat) {
-            navigation.setOptions({ title: chatName });
-          } else {
-            const chatMembersRef = ref(db, `guilds/${guildId}/chats/${chatId}/members`);
-            onValue(chatMembersRef, (snapshot) => {
-              const members = snapshot.val() || {};
-              const otherUserId = Object.keys(members).find(id => id !== userId);
-              if (otherUserId) {
-                const userRef = ref(db, `guilds/${guildId}/guildUsers/${otherUserId}`);
-                onValue(userRef, (snapshot) => {
-                  const userData = snapshot.val();
-                  if (userData) {
-                    setContactAvatar(userData.imageUrl);
-                    setContactName(userData.userName);
-                    navigation.setOptions({
-                      headerTitle: () => (
-                        <View style={styles.headerContent}>
-                          {contactAvatar && (
-                            <Image
-                              source={{ uri: contactAvatar }}
-                              style={styles.avatar}
-                            />
-                          )}
-                          <Text style={styles.headerTitle}>{contactName}</Text>
-                        </View>
-                      ),
-                    });
-                  }
-                });
-              }
-            });
-          }
+        const chatData = snapshot.val();
+        if (!chatData) return;
+        setChatType(chatData.type || "private");
+        if (chatData.type === "group") {
+          navigation.setOptions({ title: chatData.name });
+        } else if (chatData.type === "private") {
+          const chatMembersRef = ref(db, `guilds/${guildId}/chats/${chatId}/members`);
+          onValue(chatMembersRef, (snap) => {
+            const members = snap.val() || {};
+            const otherUserId = Object.keys(members).find((id) => id !== userId);
+            if (otherUserId) {
+              const userRef = ref(db, `guilds/${guildId}/guildUsers/${otherUserId}`);
+              onValue(userRef, (userSnap) => {
+                const userData = userSnap.val();
+                if (userData) {
+                  setContactAvatar(userData.imageUrl);
+                  setContactName(userData.userName);
+                  navigation.setOptions({
+                    headerTitle: () => (
+                      <View style={styles.headerContent}>
+                        {contactAvatar && (
+                          <Image
+                            source={{ uri: contactAvatar }}
+                            style={styles.avatar}
+                          />
+                        )}
+                        <Text style={styles.headerTitle}>{contactName}</Text>
+                      </View>
+                    )
+                  });
+                }
+              });
+            }
+          });
         }
       });
     }
-  }, [chatId, guildId, isGroupChat, navigation, userId, contactAvatar, contactName]);
+  }, [chatId, guildId, navigation, userId, contactAvatar, contactName]);
+
   useEffect(() => {
     if (!chatId || !userId || !guildId) return;
-  
     const db = getDatabase();
     const messagesRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
-  
     const unsubscribe = onValue(messagesRef, (snapshot) => {
       if (!snapshot.exists()) return;
-  
-      const messages = snapshot.val();
-      const batch = {};
-      
-      Object.entries(messages).forEach(([messageId, message]) => {
-        if (message.senderId !== userId && message.status !== 'read') {
-          batch[messageId] = {...message, status: 'read'};
+      const messagesData = snapshot.val();
+      const updates = {};
+      Object.entries(messagesData).forEach(([messageId, message]) => {
+        if (message.senderId !== userId && message.status !== "read") {
+          updates[`guilds/${guildId}/chats/${chatId}/messages/${messageId}/status`] =
+            "read";
         }
       });
-      
-      if (Object.keys(batch).length > 0) {
-        const updates = {};
-        Object.entries(batch).forEach(([messageId, message]) => {
-          updates[`guilds/${guildId}/chats/${chatId}/messages/${messageId}/status`] = 'read';
-        });
-        
-        const updateRef = ref(db);
-        set(updateRef, updates);
+      if (Object.keys(updates).length > 0) {
+        update(ref(db), updates);
       }
     });
-  
     return () => unsubscribe();
   }, [chatId, userId, guildId]);
 
   useEffect(() => {
     const fetchMessages = () => {
       if (!chatId || !guildId) return;
-
       const db = getDatabase();
       const messagesRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
-
       onValue(messagesRef, (snapshot) => {
         const messagesData = snapshot.val() || {};
         const messagesList = Object.keys(messagesData).map((key) => ({
           id: key,
-          ...messagesData[key],
+          ...messagesData[key]
         }));
-
         const groupedMessages = messagesList.reduce((acc, message) => {
-          const date = format(new Date(message.timestamp), 'd MMMM', { locale });
+          const date = format(new Date(message.timestamp), "d MMMM", {
+            locale
+          });
           if (!acc[date]) acc[date] = [];
           acc[date].push(message);
           return acc;
         }, {});
-
-        const groupedMessagesArray = Object.keys(groupedMessages).map(date => ({
+        const groupedMessagesArray = Object.keys(groupedMessages).map((date) => ({
           date,
           messages: groupedMessages[date]
         }));
-
         setMessages(groupedMessagesArray);
       });
     };
-
     fetchMessages();
   }, [chatId, guildId, locale]);
 
-  // Отримання guildId та chatId з AsyncStorage
-  const getChatData = async () => {
-    try {
-      //const guildId = await AsyncStorage.getItem('guildId'); // Замість 'guildId' використайте правильний ключ
-      //const chatId = await AsyncStorage.getItem('chatId');   // Замість 'chatId' використайте правильний ключ
-      console.log("guildId:", guildId);
-      return { guildId, chatId };
-    } catch (error) {
-      console.error("Не вдалося отримати дані з AsyncStorage:", error);
-    }
-  };
-  const truncateFilename = (filename, maxLength = 20) => {
-    if (!filename) return "";
-    if (filename.length <= maxLength) return filename;
-    
-    const extension = filename.split('.').pop();
-    const nameWithoutExtension = filename.substring(0, filename.length - extension.length - 1);
-    
-    const charsToKeep = maxLength - extension.length - 4; // 4 for "..." and "."
-    
-    return `${nameWithoutExtension.substring(0, charsToKeep)}...${extension}`;
-  };
-  
-  const [selectedFileUri, setSelectedFileUri] = useState(null);
-  const [selectedFileName, setSelectedFileName] = useState(null);
-  const [fileCaptionModalVisible, setFileCaptionModalVisible] = useState(false);
-  const [fileCaption, setFileCaption] = useState("");
-  const selectFile = async () => {
-    try {
-      console.log("Opening document picker...");
-      
-      const result = await DocumentPicker.getDocumentAsync({});
-      console.log("Document picker result:", result);
-      
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const { uri, name } = result.assets[0];
-        console.log(`Selected file: ${name} at ${uri}`);
-        
-        setSelectedFileUri(uri);
-        setSelectedFileName(name);
-        setFileCaption("");
-        setFileCaptionModalVisible(true);
-      } else {
-        console.log("User cancelled document picker");
-      }
-    } catch (error) {
-      console.error("Document picker error:", error);
-      Alert.alert("Error", `Failed to select file: ${error.message}`);
-    }
-  };
-  const uploadFileAndSaveMessage = async () => {
-    try {
-      setIsUploading(true);
-      
-      if (!selectedFileUri || !selectedFileName) return;
-      
-      const fileId = uuid.v4();
-      const fileRef = storageRef(storage, `files/${fileId}-${selectedFileName}`);
-      
-      const response = await fetch(selectedFileUri);
-      const blob = await response.blob();
-      
-      const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
-      await set(messageRef, {
-        text: fileCaption,
-        type: 'file',
-        fileName: selectedFileName,
-        timestamp: Date.now(),
-        senderId: userId,
-        status: 'sending'
-      });
-      
-      await uploadBytes(fileRef, blob);
-      const fileUrl = await getDownloadURL(fileRef);
-      
-      await set(messageRef, {
-        text: fileCaption,
-        fileUrl,
-        type: 'file',
-        fileName: selectedFileName,
-        timestamp: Date.now(),
-        senderId: userId,
-        status: 'sent'
-      });
-      
-      setSelectedFileUri(null);
-      setSelectedFileName(null);
-      setFileCaption("");
-      setFileCaptionModalVisible(false);
-    } catch (error) {
-      console.error("Upload error:", error);
-      Alert.alert("Error", `Failed to upload file: ${error.message}`);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   const selectImage = async () => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
         Alert.alert("Увага", "Доступ до медіа-ресурсів не надано.");
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 1,
+        allowsMultipleSelection: true
       });
-
       if (!result.canceled) {
-        setSelectedImageUri(result.assets[0].uri);
+        const uris = result.assets.map((asset) => asset.uri);
+        setSelectedImageUris(uris);
         setCaptionModalVisible(true);
       }
     } catch (error) {
@@ -503,102 +569,90 @@ const ChatWindow = ({ route, navigation }) => {
 
   const uploadImageAndSaveMessage = async () => {
     try {
-      if (!selectedImageUri) return;
-  
-      const guildId = await AsyncStorage.getItem('guildId');
-      const userId = await AsyncStorage.getItem('userId');
+      if (selectedImageUris.length === 0) return;
+      const guildIdFromStorage = await AsyncStorage.getItem("guildId");
+      const userIdFromStorage = await AsyncStorage.getItem("userId");
       const { chatId } = route.params || {};
-  
-      if (!guildId || !chatId) {
-        console.error('Не вдалося отримати guildId або chatId.', { guildId, chatId });
-        Alert.alert('Помилка', 'Не вдалося отримати guildId або chatId.');
+      if (!guildIdFromStorage || !chatId) {
+        console.error("Не вдалося отримати guildId або chatId.", {
+          guildIdFromStorage,
+          chatId
+        });
+        Alert.alert("Помилка", "Не вдалося отримати guildId або chatId.");
         return;
       }
-  
-      const imageId = uuid.v4();
-      const imageRef = storageRef(getStorage(), `images/${imageId}.jpeg`);
-  
-      const response = await fetch(selectedImageUri);
-      const blob = await response.blob();
-      
-      const messageRef = push(ref(getDatabase(), `guilds/${guildId}/chats/${chatId}/messages`));
+      const db = getDatabase();
+      const messageRef = push(
+        ref(db, `guilds/${guildIdFromStorage}/chats/${chatId}/messages`)
+      );
       await set(messageRef, {
         text: imageCaption,
         timestamp: Date.now(),
-        senderId: userId,
-        status: 'sending',
+        senderId: userIdFromStorage,
+        status: "sending"
       });
-  
-      await uploadBytes(imageRef, blob);
-      const imageUrl = await getDownloadURL(imageRef);
-  
+      const imageUrls = [];
+      for (const uri of selectedImageUris) {
+        const imageId = uuid.v4();
+        const imageRef = storageRef(getStorage(), `images/${imageId}.jpeg`);
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        await uploadBytes(imageRef, blob);
+        const imageUrl = await getDownloadURL(imageRef);
+        imageUrls.push(imageUrl);
+      }
       await set(messageRef, {
         text: imageCaption,
-        imageUrls: [imageUrl],
+        imageUrls,
         timestamp: Date.now(),
-        senderId: userId,
-        status: 'sent'
+        senderId: userIdFromStorage,
+        status: "sent"
       });
-  
-      setSelectedImageUri(null);
+      setSelectedImageUris([]);
       setImageCaption("");
       setCaptionModalVisible(false);
-  
     } catch (error) {
-      Alert.alert("Помилка", `Не вдалося завантажити зображення: ${error.message}`);
+      Alert.alert(
+        "Помилка",
+        `Не вдалося завантажити зображення: ${error.message}`
+      );
     }
   };
 
   const handleMenuOptionSelect = async (option) => {
-    console.log("selectedChatId:", chatId);
-
     if (selectedMessageId) {
       const selectedMessage = messages
-        .flatMap(group => group.messages)
-        .find(message => message.id === selectedMessageId);
-
+        .flatMap((group) => group.messages)
+        .find((m) => m.id === selectedMessageId);
       if (!selectedMessage) return;
-
-      if (option === 'translate') {
+      if (option === "translate") {
         try {
-          const translationRef = ref(database, `guilds/${guildId}/chats/${chatId}/messages/${selectedMessageId}/translate/${locale.code}`);
-
+          const translationRef = ref(
+            database,
+            `guilds/${guildId}/chats/${chatId}/messages/${selectedMessageId}/translate/${locale.code}`
+          );
           const snapshot = await get(translationRef);
           if (snapshot.exists()) {
             setTranslatedText(snapshot.val());
             setModalVisible(true);
           } else {
-            const translatedText = await translateMessage(selectedMessage.text, locale.code);
-
-            await set(translationRef, translatedText);
-
-            setTranslatedText(translatedText);
+            const translated = await translateMessage(
+              selectedMessage.text,
+              locale.code
+            );
+            await set(translationRef, translated);
+            setTranslatedText(translated);
             setModalVisible(true);
           }
         } catch (error) {
           console.error("Error translating or saving message:", error);
         }
       }
-
       setSelectedMessageId(null);
     }
   };
 
-  const isPersonalMessage = async (message) => {
-    try {
-      const userId = await AsyncStorage.getItem('userId');
-      if (userId === null) {
-        return false;
-      }
-      return message.senderId === userId || message.receiverId === userId;
-    } catch (error) {
-      console.error("Помилка при отриманні userId з AsyncStorage:", error);
-      return false;
-    }
-  };
-
   const handlePressMessage = (messageId) => {
-    console.log("Message pressed:", messageId);
     setSelectedMessageId(messageId);
   };
 
@@ -607,25 +661,24 @@ const ChatWindow = ({ route, navigation }) => {
     try {
       const db = getDatabase();
       if (!chatId || !userId || !guildId) throw new Error("Missing IDs");
-
-      const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
-      const newMessageRef = push(messageRef);
-
+      const messagesRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages`);
+      const newMessageRef = push(messagesRef);
       await set(newMessageRef, {
         senderId: userId,
         text: newMessage,
         timestamp: Date.now(),
-        status: 'sending',
+        status: "sending",
         replyTo: replyToMessage ? replyToMessage.id : null,
-        replyToText: replyToMessage ? replyToMessage.text : null,
+        replyToText: replyToMessage ? replyToMessage.text : null
       });
-
-      await set(ref(db, `guilds/${guildId}/chats/${chatId}/messages/${newMessageRef.key}/status`), 'sent');
-
+      await set(
+        ref(db, `guilds/${guildId}/chats/${chatId}/messages/${newMessageRef.key}/status`),
+        "sent"
+      );
       setNewMessage("");
       setInputHeight(40);
       setReplyToMessage(null);
-      setReplyToMessageText('');
+      setReplyToMessageText("");
     } catch (error) {
       console.error("Error sending message: ", error);
     }
@@ -633,25 +686,24 @@ const ChatWindow = ({ route, navigation }) => {
 
   const handleDeleteMessage = async (deleteForBoth) => {
     if (!messageToDelete) return;
-
     try {
       const db = getDatabase();
-      const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages/${messageToDelete.id}`);
-
+      const messageRef = ref(
+        db,
+        `guilds/${guildId}/chats/${chatId}/messages/${messageToDelete.id}`
+      );
       if (deleteForBoth) {
         await set(messageRef, null);
       } else {
         const updatedMessage = { ...messageToDelete, deletedFor: { [userId]: true } };
         await set(messageRef, updatedMessage);
       }
-
-      setMessages((prevMessages) =>
-        prevMessages.map(group => ({
+      setMessages((prev) =>
+        prev.map((group) => ({
           ...group,
-          messages: group.messages.filter(msg => msg.id !== messageToDelete.id)
+          messages: group.messages.filter((m) => m.id !== messageToDelete.id)
         }))
       );
-
       setDeleteModalVisible(false);
       setMessageToDelete(null);
     } catch (error) {
@@ -662,281 +714,374 @@ const ChatWindow = ({ route, navigation }) => {
   const handleCopyMessage = (message) => {
     Clipboard.setString(message.text);
   };
+
   const handleEditMessage = (message) => {
     setEditMessage(message);
     setEditMessageText(message.text);
   };
-  const handleAttachMessage = async (message) => {
-    try {
-      const db = getDatabase();
-      await set(ref(db, `guilds/${guildId}/chats/${chatId}/pinnedMessage`), {
-        id: message.id,
-        timestamp: Date.now()
-      });
-    } catch (error) {
-      console.error("Error pinning message:", error);
-    }
-  };
 
   const saveEditedMessage = async () => {
     if (!editMessage || editMessageText.trim() === "") return;
-
     try {
       const db = getDatabase();
-      const messageRef = ref(db, `guilds/${guildId}/chats/${chatId}/messages/${editMessage.id}`);
+      const messageRef = ref(
+        db,
+        `guilds/${guildId}/chats/${chatId}/messages/${editMessage.id}`
+      );
       await set(messageRef, {
         ...editMessage,
         text: editMessageText,
-        edited: true,
+        edited: true
       });
-
-      setMessages((prevMessages) =>
-        prevMessages.map(group => ({
+      setMessages((prev) =>
+        prev.map((group) => ({
           ...group,
-          messages: group.messages.map(msg =>
-            msg.id === editMessage.id ? { ...msg, text: editMessageText, edited: true } : msg
+          messages: group.messages.map((m) =>
+            m.id === editMessage.id ? { ...m, text: editMessageText, edited: true } : m
           )
         }))
       );
-
       setEditMessage(null);
-      setEditMessageText('');
+      setEditMessageText("");
     } catch (error) {
       console.error("Error editing message: ", error);
     }
   };
 
-
   const scrollToMessage = (messageId) => {
-    // Flatten all messages into a single array for easier lookup
-    const allMessages = messages.flatMap(group => group.messages);
-    const messageIndex = allMessages.findIndex(msg => msg.id === messageId);
-
+    const allMessages = messages.flatMap((group) => group.messages);
+    const messageIndex = allMessages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) return;
-
     let scrollOffset = 0;
     for (let i = 0; i < messageIndex; i++) {
       const prevMessageId = allMessages[i].id;
-      const messageHeight = messageHeights[prevMessageId] || 100; 
-      scrollOffset += messageHeight + 10; 
+      const messageHeight = messageHeights[prevMessageId] || 100;
+      scrollOffset += messageHeight + 10;
     }
-
-    const dateHeaderHeight = 50; 
+    const dateHeaderHeight = 50;
     const datesBeforeMessage = new Set(
-      allMessages
-        .slice(0, messageIndex)
-        .map(msg => format(new Date(msg.timestamp), 'd MMMM'))
+      allMessages.slice(0, messageIndex).map((m) =>
+        format(new Date(m.timestamp), "d MMMM", { locale })
+      )
     ).size;
     scrollOffset += dateHeaderHeight * datesBeforeMessage;
-
-    const windowHeight = Dimensions.get('window').height;
+    const windowHeight = Dimensions.get("window").height;
     const centerOffset = windowHeight / 2 - (messageHeights[messageId] || 100) / 2;
-
     flatListRef.current?.scrollToOffset({
       offset: Math.max(0, scrollOffset - centerOffset),
       animated: true
     });
-
     setHighlightedMessageId(messageId);
     setTimeout(() => setHighlightedMessageId(null), 1500);
   };
 
+  // Функція для рендерингу прикріпленого повідомлення
+  // Ліва колонка – візуальний елемент (іконка, previewImage або зображення)
+  // Права колонка – вертикальний текстовий блок із заголовком "Прикріплене повідомлення" і текстом (або "Фото")
+  const renderPinnedContent = (message) => {
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    const hasImages = message.imageUrls && message.imageUrls.length > 0;
+    const hasLink = message.text ? urlRegex.test(message.text) : false;
+    const hasText = message.text && message.text.trim().length > 0;
 
-  const renderItem = ({ item }) => (
-    <View style={styles.dateGroup}>
-     
-      <View style={styles.dateBlock}>
-        <Text style={styles.date}>{item.date}</Text>
+    let visualElement = null;
+    let textContent = null;
+
+    if (hasLink) {
+      const urls = message.text.match(urlRegex) || [];
+      const firstUrl = urls[0];
+      if (isYouTubeURL(firstUrl) || isDocsURL(firstUrl)) {
+        visualElement = isYouTubeURL(firstUrl)
+          ? (<FontAwesomeIcon icon={faYoutube} size={24} color="#FF0000" />)
+          : (<FontAwesomeIcon icon={getDocsIcon(firstUrl)} size={24} color="#4285F4" />);
+        const extraText = message.text.replace(urlRegex, "").trim();
+        textContent = extraText || (message.title || firstUrl);
+      } else if (message.previewImage) {
+        visualElement = (
+          <Image
+            source={{ uri: message.previewImage }}
+            style={styles.pinnedImage}
+            resizeMode="cover"
+          />
+        );
+        const extraText = message.text.replace(urlRegex, "").trim();
+        textContent = extraText || (message.title || firstUrl);
+      } else {
+        textContent = message.text;
+      }
+    } else if (hasImages) {
+      visualElement = (
+        <Image
+          source={{ uri: message.imageUrls[0] }}
+          style={styles.pinnedImage}
+          resizeMode="cover"
+        />
+      );
+      textContent = hasText ? message.text : "Фото";
+    } else if (hasText) {
+      textContent = message.text;
+    }
+
+    const textColumn = (
+      <View style={styles.pinnedTextColumn}>
+        <Text style={styles.pinnedHeader}>Прикріплене повідомлення</Text>
+        {textContent && (
+          <Text numberOfLines={1} style={styles.pinnedText}>
+            {textContent}
+          </Text>
+        )}
       </View>
+    );
 
-      {item.messages
-        .filter(message => !message.deletedFor || !message.deletedFor[userId])
-        .map((message, index) => {
-          const isCurrentUser = message.senderId === userId;
-          const isLastMessageFromUser = (
-            index === item.messages.length - 1 ||
-            (item.messages[index + 1] && item.messages[index + 1].senderId !== message.senderId)
-          );
-
-          return (
-            <Menu style={styles.menu} key={message.id}>
-              <MenuTrigger onPress={() => handlePressMessage(message.id)}>
-                <View
-                  ref={ref => messageRefs.current[message.id] = ref}
-                  onLayout={(event) => {
-                    const { height } = event.nativeEvent.layout;
-                    setMessageHeights(prev => ({
-                      ...prev,
-                      [message.id]: height
-                    }));
-                  }}
-                  style={[
-                    styles.messageContainer,
-                    isCurrentUser ? styles.myMessage : styles.theirMessage,
-                    highlightedMessageId === message.id && styles.highlightedMessage
-                  ]}
-                >
-                  <View style={styles.messageInnerContainer}>
-                    
-                    {message.replyTo && (
-                      <TouchableOpacity onPress={() => scrollToMessage(message.replyTo)}>
-                        <View style={styles.replyContainer}>
-                          <Text style={styles.replyText} numberOfLines={1}>
-                            Replying to: {message.replyToText}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    )}
-
-                    {message.imageUrls && message.imageUrls.length > 0 && (
-                      <TouchableOpacity onPress={() => {
-                        setFullSizeImageUri(message.imageUrls[0]);
-                        setFullSizeImageModalVisible(true);
-                      }}>
-                        <Image
-                          source={{ uri: message.imageUrls[0] }}
-                          style={styles.messageImage}
-                        />
-                      </TouchableOpacity>
-                    )}
-
-                    
-{message.type === 'file' && (
-  <TouchableOpacity
-    onPress={() => handleFileDownload(message.fileUrl, message.fileName)}
-    style={styles.fileContainer}
-    disabled={downloadingFiles.has(message.fileName)}
-  >
-    {downloadingFiles.has(message.fileName) ? (
-      <ActivityIndicator size="small" color="#4A4A4A" />
-    ) : (
-      <FontAwesomeIcon icon={faFile} size={24} color="#4A4A4A" />
-    )}
-    <Text style={styles.fileText}>{truncateFilename(message.fileName)}</Text>
-  </TouchableOpacity>
-)}
-                    
-                    {(message.text && message.text.trim()) && (
-  <Text style={styles.messageText}>
-    {message.type === 'file' ? message.text || '' : message.text}
-  </Text>
-)}
-
-<View style={styles.messageFooter}>
-  {isCurrentUser && getStatusIcon(message.status)}
-  <Text style={styles.messageDate}>
-    {format(new Date(message.timestamp), 'H:mm', { locale })}
-  </Text>
-</View>
-                  </View>
-
-                  {isLastMessageFromUser && (
-                    <View style={[
-                      styles.triangle,
-                      isCurrentUser ? styles.triangleMy : styles.triangleTheir
-                    ]} />
-                  )}
-                </View>
-              </MenuTrigger>
-
-              <MenuOptions style={isCurrentUser ? styles.popupMenuPersonal : styles.popupMenuInterlocutor}>
-                {isCurrentUser ? (
-                  <>
-                    <MenuOption value="reply" onSelect={() => handleReply(message)}>
-                      <Text>Відповісти</Text>
-                    </MenuOption>
-                    <MenuOption value="copy" onSelect={() => handleCopyMessage(message)}>
-                      <Text>Копіювати</Text>
-                    </MenuOption>
-                    <MenuOption value="attach" onSelect={() => handleAttachMessage(message)}>
-                      <Text>Прикріпити</Text>
-                    </MenuOption>
-                    <MenuOption value="edit" onSelect={() => handleEditMessage(message)}>
-                      <Text>Редагувати</Text>
-                    </MenuOption>
-                    <MenuOption value="delete" onSelect={() => {
-                      setMessageToDelete(message);
-                      setDeleteModalVisible(true);
-                    }}>
-                      <Text>Видалити</Text>
-                    </MenuOption>
-                  </>
-                ) : (
-                  <>
-                    <MenuOption value="reply" onSelect={() => handleReply(message)}>
-                      <Text>Відповісти</Text>
-                    </MenuOption>
-                    <MenuOption value="copy" onSelect={() => handleCopyMessage(message)}>
-                      <Text>Копіювати</Text>
-                    </MenuOption>
-                    <MenuOption value="attach" onSelect={() => handleAttachMessage(message)}>
-                      <Text>Прикріпити</Text>
-                    </MenuOption>
-                    <MenuOption value="translate" onSelect={() => handleMenuOptionSelect('translate')}>
-                      <Text>Перекласти</Text>
-                    </MenuOption>
-                  </>
-                )}
-              </MenuOptions>
-            </Menu>
-          );
-        })}
-    </View>
-  );
+    return (
+      <View style={styles.pinnedContentRow}>
+        {visualElement && (
+          <View style={styles.visualElementContainer}>{visualElement}</View>
+        )}
+        {textColumn}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      {attachedMessage && (
-        <TouchableOpacity onPress={() => scrollToMessage(attachedMessage.id)}>
-          <View style={styles.attachedMessageContainer}>
-            <Text style={styles.attachedMessageText} numberOfLines={1}>
-              Attached: {attachedMessageText}
-            </Text>
-            <TouchableOpacity onPress={async () => {
-              try {
-                const db = getDatabase();
-                const pinnedMessageRef = ref(db, `guilds/${guildId}/chats/${chatId}/pinnedMessage`);
-                await set(pinnedMessageRef, null);
-
-                setAttachedMessage(null);
-                setAttachedMessageText('');
-              } catch (error) {
-                console.error("Error unpinning message:", error);
-              }
-            }}>
-              <Text style={styles.cancelAttachedText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+      {/* Єдиний контейнер для прикріплених повідомлень */}
+      {pinnedMessagesForUser.length > 0 && (
+        <View style={styles.pinnedMessageWrapper}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.pinnedMessagesContainer}
+          >
+            {pinnedMessagesForUser.map((pm) => (
+              <TouchableOpacity
+                key={pm.id}
+                onPress={() => scrollToMessage(pm.id)}
+                style={{ width: screenWidth - 50 }}
+              >
+                <View style={styles.pinnedMessageBlock}>
+                  <PinnedContent message={pm} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <TouchableOpacity
+            style={styles.pinIconContainer}
+            onPress={() => {
+              /* додаткова дія для іконки */
+            }}
+          >
+            <PinIcon width={24} height={24} fill="gray" />
+          </TouchableOpacity>
+        </View>
       )}
+
       <FlatList
         ref={flatListRef}
         data={messages.length > 0 ? messages : []}
-        renderItem={renderItem}
+        renderItem={({ item }) => (
+          <View style={styles.dateGroup}>
+            <View style={styles.dateBlock}>
+              <Text style={styles.date}>{item.date}</Text>
+            </View>
+            {item.messages
+              .filter((m) => !m.deletedFor || !m.deletedFor[userId])
+              .map((message, index) => {
+                const isCurrentUser = message.senderId === userId;
+                const isLastMessageFromUser =
+                  index === item.messages.length - 1 ||
+                  (item.messages[index + 1] &&
+                    item.messages[index + 1].senderId !== message.senderId);
+                const parts = splitMessageIntoParts(message.text);
+                return (
+                  <Menu style={styles.menu} key={message.id}>
+                    <MenuTrigger onPress={() => handlePressMessage(message.id)}>
+                      <View
+                        ref={(ref) => (messageRefs.current[message.id] = ref)}
+                        onLayout={(event) => {
+                          const { height } = event.nativeEvent.layout;
+                          setMessageHeights((prev) => ({
+                            ...prev,
+                            [message.id]: height
+                          }));
+                        }}
+                        style={[
+                          styles.messageContainer,
+                          isCurrentUser ? styles.myMessage : styles.theirMessage,
+                          hasLinkOrImage(message)
+                            ? styles.standardBubble
+                            : styles.flexibleBubble,
+                          highlightedMessageId === message.id &&
+                            styles.highlightedMessage
+                        ]}
+                      >
+                        <View style={styles.messageInnerContainer}>
+                          {message.replyTo && (
+                            <TouchableOpacity onPress={() => scrollToMessage(message.replyTo)}>
+                              <View style={styles.replyContainer}>
+                                <Text style={styles.replyText} numberOfLines={1}>
+                                  Replying to: {message.replyToText}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          )}
+                          {parts.map((part, idx) => {
+                            if (part.type === "text") {
+                              if (!part.value.trim()) return null;
+                              return (
+                                <Text style={styles.messageText} key={idx}>
+                                  {part.value}
+                                </Text>
+                              );
+                            } else if (part.type === "link") {
+                              return <LinkPreviewCard url={part.value} key={idx} />;
+                            }
+                            return null;
+                          })}
+                          {message.imageUrls && message.imageUrls.length > 0 && (
+                            message.imageUrls.length === 1 ? (
+                              <SingleImage uri={message.imageUrls[0]} />
+                            ) : (
+                              <View style={styles.imagesContainer}>
+                                {(() => {
+                                  const totalImages = message.imageUrls.length;
+                                  const imagesPerRow = totalImages <= 4 ? totalImages : 4;
+                                  const imageMargin = 4;
+                                  const imageSize =
+                                    (screenWidth - (imagesPerRow + 1) * imageMargin) /
+                                    imagesPerRow;
+                                  return message.imageUrls.map((imgUrl, i) => (
+                                    <TouchableOpacity
+                                      key={i}
+                                      onPress={() => {
+                                        setFullSizeImageUri(imgUrl);
+                                        setFullSizeImageModalVisible(true);
+                                      }}
+                                      style={{ margin: imageMargin / 2 }}
+                                    >
+                                      <Image
+                                        source={{ uri: imgUrl }}
+                                        style={{
+                                          width: imageSize,
+                                          height: imageSize,
+                                          borderRadius: 10
+                                        }}
+                                      />
+                                    </TouchableOpacity>
+                                  ));
+                                })()}
+                              </View>
+                            )
+                          )}
+                          <View style={styles.messageFooter}>
+                            {isCurrentUser && getStatusIcon(message.status)}
+                            <Text style={styles.messageDate}>
+                              {format(new Date(message.timestamp), "H:mm", { locale })}
+                            </Text>
+                          </View>
+                        </View>
+                        {isLastMessageFromUser && (
+                          <View
+                            style={[
+                              styles.triangle,
+                              isCurrentUser ? styles.triangleMy : styles.triangleTheir
+                            ]}
+                          />
+                        )}
+                      </View>
+                    </MenuTrigger>
+                    <MenuOptions
+                      style={
+                        isCurrentUser
+                          ? styles.popupMenuPersonal
+                          : styles.popupMenuInterlocutor
+                      }
+                    >
+                      {isCurrentUser ? (
+                        <>
+                          <MenuOption value="reply" onSelect={() => handleReply(message)}>
+                            <Text>Відповісти</Text>
+                          </MenuOption>
+                          <MenuOption value="copy" onSelect={() => handleCopyMessage(message)}>
+                            <Text>Копіювати</Text>
+                          </MenuOption>
+                          {message.pinned && message.pinned.isPinned ? (
+                            <MenuOption value="unattach" onSelect={() => {}}>
+                              <Text>Відкріпити</Text>
+                            </MenuOption>
+                          ) : (
+                            <MenuOption value="attach1" onSelect={() => setPinMessageModalVisible(true)}>
+                              <Text>Закріпити</Text>
+                            </MenuOption>
+                          )}
+                          <MenuOption value="edit" onSelect={() => handleEditMessage(message)}>
+                            <Text>Редагувати</Text>
+                          </MenuOption>
+                          <MenuOption
+                            value="delete"
+                            onSelect={() => {
+                              setMessageToDelete(message);
+                              setDeleteModalVisible(true);
+                            }}
+                          >
+                            <Text>Видалити</Text>
+                          </MenuOption>
+                        </>
+                      ) : (
+                        <>
+                          <MenuOption value="reply" onSelect={() => handleReply(message)}>
+                            <Text>Відповісти</Text>
+                          </MenuOption>
+                          <MenuOption value="copy" onSelect={() => handleCopyMessage(message)}>
+                            <Text>Копіювати</Text>
+                          </MenuOption>
+                          {message.pinned && message.pinned.isPinned ? (
+                            <MenuOption value="unattach" onSelect={() => {}}>
+                              <Text>Відкріпити</Text>
+                            </MenuOption>
+                          ) : (
+                            <MenuOption value="attach1" onSelect={() => setPinMessageModalVisible(true)}>
+                              <Text>Закріпити</Text>
+                            </MenuOption>
+                          )}
+                          <MenuOption value="translate" onSelect={() => handleMenuOptionSelect("translate")}>
+                            <Text>Перекласти</Text>
+                          </MenuOption>
+                        </>
+                      )}
+                    </MenuOptions>
+                  </Menu>
+                );
+              })}
+          </View>
+        )}
         keyExtractor={(item) => item.date + item.messages[0].id}
         style={styles.messagesList}
         getItemLayout={(data, index) => ({
           length: 100,
           offset: 100 * index,
-          index,
+          index
         })}
-        maintainVisibleContentPosition={{
-          minIndexForVisible: 0,
-        }}
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       />
+
       {replyToMessage && (
         <View style={styles.replyingToContainer}>
           <Text style={styles.replyingToText} numberOfLines={1}>
             Replying to: {replyToMessageText}
           </Text>
-          <TouchableOpacity onPress={() => {
-            setReplyToMessage(null);
-            setReplyToMessageText('');
-          }}>
+          <TouchableOpacity
+            onPress={() => {
+              setReplyToMessage(null);
+              setReplyToMessageText("");
+            }}
+          >
             <Text style={styles.cancelReplyText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       )}
+
       <View style={styles.inputContainer}>
         <View style={styles.inputWrapper}>
           <TextInput
@@ -955,57 +1100,88 @@ const ChatWindow = ({ route, navigation }) => {
               } else if (newMessage.trim()) {
                 handleSendMessage();
               } else {
-                Alert.alert(
-                  "Виберіть дію",
-                  "",
-                  [
-                    { text: "Зображення", onPress: selectImage },
-                    { text: "Файл", onPress: selectFile },
-                    { text: "Скасувати", style: "cancel" }
-                  ]
-                );
+                Alert.alert("Виберіть дію", "", [
+                  { text: "Зображення", onPress: selectImage },
+                  { text: "Скасувати", style: "cancel" }
+                ]);
               }
             }}
           >
             <FontAwesomeIcon
               icon={editMessage || newMessage.trim() ? faPaperPlane : faPaperclip}
               size={24}
-              style={editMessage || newMessage.trim() ? styles.blueIcon : styles.defaultIcon}
+              style={
+                editMessage || newMessage.trim()
+                  ? styles.blueIcon
+                  : styles.defaultIcon
+              }
             />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Модальне вікно для пінування повідомлення – кнопки в рядок */}
       <Modal
-  animationType="slide"
-  transparent={true}
-  visible={fileCaptionModalVisible}
-  onRequestClose={() => setFileCaptionModalVisible(false)}
->
-  <View style={styles.modalOverlay}>
-    <View style={styles.modalContainer}>
-      <Text style={styles.modalHeader}>Add a Caption</Text>
-      <Text style={styles.fileNameText}>{truncateFilename(selectedFileName || "")}</Text>
-      <TextInput
-        style={styles.imageTextInput}
-        value={fileCaption}
-        onChangeText={setFileCaption}
-        placeholder="Enter a caption (optional)..."
-      />
-      <TouchableOpacity
-        style={styles.buttonSendPhoto}
-        onPress={uploadFileAndSaveMessage}
+        animationType="fade"
+        transparent={true}
+        visible={pinMessageModalVisible}
+        onRequestClose={() => setPinMessageModalVisible(false)}
       >
-        <Text style={styles.buttonText}>Send</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.buttonCancelPhoto}
-        onPress={() => setFileCaptionModalVisible(false)}
-      >
-        <Text style={styles.buttonText}>Cancel</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
+        <View style={commonModalStyles.overlay}>
+          <View style={commonModalStyles.container}>
+            <Text style={commonModalStyles.header}>Прикріпити повідомлення</Text>
+            <Text style={{ marginVertical: 10 }}>
+              Прикріпити повідомлення вгорі чату?
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginVertical: 10
+              }}
+            >
+              <CustomCheckBox
+                checked={pinForAllOrUser}
+                onPress={() => setPinForAllOrUser(!pinForAllOrUser)}
+              />
+              <Text style={{ marginLeft: 8, fontSize: 16 }}>
+                {chatType === "group"
+                  ? "Прикріпити для всіх"
+                  : `Прикріпити і для ${contactName}`}
+              </Text>
+            </View>
+            <View style={buttonContainerRow}>
+              <TouchableOpacity
+                style={commonModalStyles.button}
+                onPress={async () => {
+                  const allMessages = messages.flatMap((group) => group.messages);
+                  const selectedMessage = allMessages.find((m) => m.id === selectedMessageId);
+                  if (selectedMessage) {
+                    await handleAttachMessage(
+                      selectedMessage,
+                      userId,
+                      guildId,
+                      chatId,
+                      pinForAllOrUser
+                    );
+                  }
+                  setPinMessageModalVisible(false);
+                }}
+              >
+                <Text style={commonModalStyles.buttonText}>Прикріпити</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={commonModalStyles.button}
+                onPress={() => setPinMessageModalVisible(false)}
+              >
+                <Text style={commonModalStyles.buttonText}>Скасувати</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Модальне вікно для додавання підпису */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -1015,6 +1191,17 @@ const ChatWindow = ({ route, navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalHeader}>Add a Caption</Text>
+            {selectedImageUris.length > 0 && (
+              <ScrollView horizontal style={{ marginBottom: 10 }}>
+                {selectedImageUris.map((uri, index) => (
+                  <Image
+                    key={index}
+                    source={{ uri }}
+                    style={{ width: 80, height: 80, borderRadius: 10, marginRight: 10 }}
+                  />
+                ))}
+              </ScrollView>
+            )}
             <TextInput
               style={styles.imageTextInput}
               value={imageCaption}
@@ -1036,6 +1223,8 @@ const ChatWindow = ({ route, navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Модальне вікно для перегляду зображення у повному розмірі */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -1055,6 +1244,8 @@ const ChatWindow = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
       </Modal>
+
+      {/* Модальне вікно для перекладу */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -1071,30 +1262,41 @@ const ChatWindow = ({ route, navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Модальне вікно для видалення повідомлення – кнопки в стовпчик */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={deleteModalVisible}
         onRequestClose={() => setDeleteModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalHeader}>Delete Message</Text>
-            <View style={styles.modalButtonContainer}>
-              <View style={{ margin: 5 }}>
-                <Button title="Delete for Both" onPress={() => handleDeleteMessage(true)} />
-              </View>
-              <View style={{ margin: 5 }}>
-                <Button title="Delete for Myself" onPress={() => handleDeleteMessage(false)} />
-              </View>
-              <View style={{ margin: 5 }}>
-                <Button title="Cancel" onPress={() => setDeleteModalVisible(false)} />
-              </View>
+        <View style={commonModalStyles.overlay}>
+          <View style={commonModalStyles.container}>
+            <Text style={commonModalStyles.header}>Видалити повідомлення</Text>
+            <View style={buttonContainerColumn}>
+              <TouchableOpacity
+                style={commonModalStyles.button}
+                onPress={() => handleDeleteMessage(true)}
+              >
+                <Text style={commonModalStyles.buttonText}>Видалити для всіх</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={commonModalStyles.button}
+                onPress={() => handleDeleteMessage(false)}
+              >
+                <Text style={commonModalStyles.buttonText}>Видалити для себе</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={commonModalStyles.button}
+                onPress={() => setDeleteModalVisible(false)}
+              >
+                <Text style={commonModalStyles.buttonText}>Скасувати</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View >
-      </Modal >
-    </View >
+        </View>
+      </Modal>
+    </View>
   );
 };
 
@@ -1102,64 +1304,65 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
-    justifyContent: "space-between",
+    justifyContent: "space-between"
   },
   dateGroup: {
-    marginBottom: 10,
+    marginBottom: 10
   },
   dateBlock: {
-    alignItems: 'center',
-    marginVertical: 10,
+    alignItems: "center",
+    marginVertical: 10
   },
   date: {
     fontSize: 14,
     color: "#fff",
     backgroundColor: "#999",
     padding: 5,
-    borderRadius: 10,
+    borderRadius: 10
   },
-
   messagesList: {
     flex: 1,
-    paddingHorizontal: 10,
+    paddingHorizontal: 10
   },
   messageContainer: {
     marginVertical: 5,
     padding: 10,
     borderRadius: 10,
+    position: "relative"
+  },
+  standardBubble: {
+    width: "80%"
+  },
+  flexibleBubble: {
     maxWidth: "80%",
-    minWidth: screenWidth / 2, // Мінімальна ширина повідомлення
-    position: 'relative', // Необхідно для позиціонування "хвостиків"
+    minWidth: "40%"
   },
-  messageInnerContainer: {
-    padding: 2,
-  },
-
   myMessage: {
     alignSelf: "flex-end",
-    backgroundColor: "#DCF8C6",
+    backgroundColor: "#DCF8C6"
   },
   theirMessage: {
     alignSelf: "flex-start",
-    backgroundColor: "#ECECEC",
+    backgroundColor: "#ECECEC"
   },
   messageText: {
     fontSize: 16,
+    marginBottom: 2
   },
   messageFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 8
   },
-  
   messageDate: {
     fontSize: 12,
-    color: '#888',
+    color: "#888",
+    marginLeft: 6
   },
   inputContainer: {
     padding: 10,
-    backgroundColor: "#fff",
+    backgroundColor: "#fff"
   },
   inputWrapper: {
     flexDirection: "row",
@@ -1167,41 +1370,41 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 20,
-    paddingHorizontal: 10,
+    paddingHorizontal: 10
   },
   input: {
     flex: 1,
     padding: 10,
-    fontSize: 16,
+    fontSize: 16
   },
   iconButton: {
-    marginHorizontal: 5,
+    marginHorizontal: 5
   },
   blueIcon: {
-    color: "#007bff",
+    color: "#007bff"
   },
   defaultIcon: {
-    color: "#ccc",
+    color: "#ccc"
   },
   headerContent: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "center"
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 10,
+    marginRight: 10
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold"
   },
   triangle: {
     width: 0,
     height: 0,
     borderStyle: "solid",
-    position: 'absolute',
+    position: "absolute"
   },
   triangleMy: {
     borderTopWidth: 25,
@@ -1213,7 +1416,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
     borderLeftColor: "transparent",
     bottom: -25,
-    right: -15,
+    right: -15
   },
   triangleTheir: {
     borderTopWidth: 25,
@@ -1225,255 +1428,258 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
     borderLeftColor: "#ECECEC",
     bottom: -25,
-    left: -15,
+    left: -15
   },
   menu: {
-    position: 'relative',
-
-    //bottom: 50, // Можна змінити для відповідності з вашим дизайном
-
+    position: "relative"
   },
   popupMenuInterlocutor: {
-
-    position: 'absolute',
-    left: 10,  // Відступ зліва для співрозмовника
+    position: "absolute",
+    left: 10,
     top: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 8,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#cccccc',
-    // Інші стилі
+    borderColor: "#cccccc"
   },
-  // Стиль для попап меню особистих повідомлень
   popupMenuPersonal: {
-    backgroundColor: 'red',
-    position: 'absolute',
-    right: -155,  // Відступ справа для особистих повідомлень
+    backgroundColor: "#ffffff",
+    position: "absolute",
+    right: -155,
     top: 0,
     fontSize: 20,
-    backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#cccccc',
-    // Інші стилі, такі ж як для співрозмовника
+    borderColor: "#cccccc"
   },
-  modalOverlay: {
+  pinnedContainer: {
+    height: 50,
+    backgroundColor: "#f9f9f9",
+    overflow: "hidden"
+  },
+  // Єдиний контейнер для прикріплених повідомлень:
+  // Ліва частина – горизонтальний ScrollView, права – фіксована іконка
+  pinnedMessageWrapper: {
+    flexDirection: "row",
+    width: screenWidth,
+    height: 50
+  },
+  pinnedMessagesContainer: {
+    width: screenWidth - 50
+  },
+  pinnedMessageBlock: {
+    width: screenWidth - 50,
+    height: 50,
+    backgroundColor: "#fff",
+    paddingHorizontal: 5,
+    justifyContent: "center"
+  },
+  // Рядкова верстка для контенту прикріпленого повідомлення
+  pinnedContentRow: {
+    flexDirection: "row",
+    alignItems: "center"
+  },
+  // Контейнер для візуального елемента (іконка або зображення)
+  visualElementContainer: {
+    width: 50,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  pinnedImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 4
+  },
+  // Контейнер для текстової колонки
+  pinnedTextColumn: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    flexDirection: "column",
+    justifyContent: "center",
+    paddingLeft: 5
   },
-  modalContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '50%', // Модальне вікно займає не більше половини екрану
+  pinnedHeader: {
+    fontSize: 12,
+    color: "gray",
+    marginBottom: 2
   },
-  modalHeader: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
+  pinnedText: {
+    fontSize: 14,
+    color: "#333"
   },
-  scrollContent: {
-    paddingVertical: 10,
+  pinnedLabel: {
+    fontSize: 14,
+    color: "gray"
   },
-  translatedText: {
+  pinIconContainer: {
+    width: 50,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  pinIcon: {
+    width: 24,
+    height: 24,
+    backgroundColor: "transparent"
+  },
+  unpinButton: {
+    position: "absolute",
+    top: 5,
+    right: 5
+  },
+  unpinText: {
     fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
+    color: "#ff0000"
   },
-  modalOverlay: {
+  replyingToContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f2f2f2",
+    padding: 5
+  },
+  replyingToText: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    fontStyle: "italic",
+    color: "#666"
   },
-  modalContainer: {
-    backgroundColor: 'white',
-    padding: 30,
-    borderRadius: 20,
-    width: '80%',
-    alignItems: 'center',
+  cancelReplyText: {
+    color: "#007bff",
+    marginLeft: 10
   },
-  modalHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
+  highlightedMessage: {
+    backgroundColor: "#2296f3",
+    borderWidth: 1,
+    borderColor: "#2296f3"
   },
   imageTextInput: {
     padding: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 20,
-    width: '100%',
-    marginBottom: 20,
+    width: "100%",
+    marginBottom: 20
   },
   buttonSendPhoto: {
-    backgroundColor: '#007bff',
+    backgroundColor: "#007bff",
     padding: 15,
     borderRadius: 10,
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 10,
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 10
   },
   buttonCancelPhoto: {
-    backgroundColor: '#ddd',
+    backgroundColor: "#ddd",
     padding: 15,
     borderRadius: 10,
-    width: '100%',
-    alignItems: 'center',
+    width: "100%",
+    alignItems: "center"
   },
   buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  messageImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 10,
+    color: "white",
+    fontWeight: "bold"
   },
   fullSizeImageModalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.8)"
   },
   fullSizeImageModalContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center"
   },
   fullSizeImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%"
   },
   replyContainer: {
     borderLeftWidth: 2,
-    borderLeftColor: '#ccc',
+    borderLeftColor: "#ccc",
     paddingLeft: 10,
-    marginBottom: 5,
+    marginBottom: 5
   },
   replyText: {
-    fontStyle: 'italic',
-    color: '#666',
-    overflow: 'hidden',
+    fontStyle: "italic",
+    color: "#666",
+    overflow: "hidden"
   },
-  replyingToContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
+  scrollContent: {
+    paddingVertical: 10
   },
-  replyingToText: {
-    flex: 1,
-    fontStyle: 'italic',
-    color: '#666',
-  },
-  cancelReplyText: {
-    color: '#007bff',
-    marginLeft: 10,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-    width: '80%',
-    alignItems: 'center',
-  },
-  modalHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  modalText: {
+  translatedText: {
     fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  modalButtonContainer: {
-    flexDirection: 'column',
-    width: '100%',
-
-    marginVertical: 5,
-  },
-  buttonWrapper: {
-    marginBottom: 10,
-    width: '100%',
-  },
-  attachedMessageContainer: {
-    backgroundColor: '#f0f0f0',
-    padding: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd'
-  },
-  attachedMessageText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#666'
-  },
-  cancelAttachedText: {
-    color: '#007AFF',
-    marginLeft: 10
-  },
-  highlightedMessage: {
-    backgroundColor: '#2296f3',
-    borderWidth: 1,
-    borderColor: '#2296f3',
-  },
-  fileContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    marginVertical: 5
-  },
-  fileName: {
-    marginLeft: 10,
-    color: '#007AFF',
-    textDecorationLine: 'underline'
-  },
-  doubleCheckContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    color: "#333",
+    textAlign: "center"
   },
   statusIcon: {
-    color: '#8e8e8e',
+    color: "#8e8e8e"
   },
   secondCheck: {
-    marginLeft: -8,
+    marginLeft: -8
   },
-  fileText: {
-    marginLeft: 10,
+  doubleCheckContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 5
+  },
+  imagesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginVertical: 5
+  },
+  linkPreviewContainer: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 8,
+    backgroundColor: "#fff",
+    width: "100%",
+    position: "relative"
+  },
+  linkPreviewImage: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 4,
+    marginRight: 8
+  },
+  linkPreviewTextContainer: {
+    flex: 2,
+    justifyContent: "center"
+  },
+  linkPreviewTitle: {
     fontSize: 14,
-    color: '#4A4A4A',
+    fontWeight: "bold",
+    marginBottom: 4
   },
-  fileNameText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#4A4A4A',
-    marginBottom: 15,
-    textAlign: 'center',
+  linkPreviewDescription: {
+    fontSize: 12,
+    color: "#555"
   },
+  youtubeIconContainer: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 12,
+    padding: 2
+  },
+  docsIconContainer: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    borderRadius: 12,
+    padding: 2
+  },
+  singleImage: {
+    width: "100%"
+  }
 });
 
 export default ChatWindow;

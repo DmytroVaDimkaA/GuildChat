@@ -22,6 +22,7 @@ import NewGBChat from './GB/NewGBChat';
 import AddGBComponent from './GB/AddGBComponent';
 import GBGuarant from './GB/GBGuarant';
 import GuildMembersList from "./Chat/GuildMemberList";
+import CreateGroupScreen from './Chat/CreateGroupScreen';
 import GBChatWindow from './GB/GBChatWindow';
 import GBExpress from './GB/GBExpress';
 import GBNewExpress from './GB/GBNewExpress';
@@ -74,6 +75,37 @@ function ChatStack() {
         component={GuildMembersList}
         options={{ title: t("chatStack.guildMembersListTitle") }} // переклад для "Нове повідомлення"
       />
+      <Stack.Screen 
+  name="CreateGroupScreen" 
+  component={CreateGroupScreen} 
+  options={({ navigation, route }) => ({
+    title: "Нова група",
+    headerLeft: () => (
+      <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+        <Ionicons name="arrow-back" size={24} color="white" />
+      </TouchableOpacity>
+    ),
+    headerRight: () => (
+      <TouchableOpacity
+        onPress={() => {
+          if (route.params?.handleCreateGroup) {
+            route.params.handleCreateGroup();
+          }
+        }}
+        style={{ marginRight: 15 }}
+      >
+        <Ionicons name="checkmark" size={24} color="white" />
+      </TouchableOpacity>
+    ),
+  })}
+/>
+
+      
+      
+      
+      
+      
+      
       <Stack.Screen
         name="NewGroupChat"
         component={NewGroupChat}
