@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { getDatabase, ref, get, push, set } from 'firebase/database';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CameraIcon from "../ico/camera.svg";
 
@@ -28,7 +29,7 @@ const CreateGroupScreen = () => {
   const [membersInfo, setMembersInfo] = useState([]);
   const [guildName, setGuildName] = useState('');
 
-  // Завантаження даних користувачів за їх id з Firebase
+  // Завантаження даних користувачів з Firebase
   useEffect(() => {
     const fetchMembersInfo = async () => {
       try {
@@ -100,12 +101,14 @@ const CreateGroupScreen = () => {
       quality: 0.7,
     });
 
-    if (!result.cancelled && result.assets && result.assets.length > 0) {
-      setChatImage(result.assets[0].uri);
+    // Перевірка для нової версії expo-image-picker
+    if (!result.cancelled) {
+      const uri = result.assets ? result.assets[0].uri : result.uri;
+      setChatImage(uri);
     }
   };
 
-  // Функція створення групового чату в Firebase та перехід до ChatWindow
+  // Функція створення групового чату в Firebase та завантаження аватарки/групового кольору
   const handleCreateGroup = useCallback(async () => {
     try {
       const guildId = await AsyncStorage.getItem('guildId');
@@ -119,7 +122,7 @@ const CreateGroupScreen = () => {
       const chatsRef = ref(db, `guilds/${guildId}/chats`);
       const newChatRef = push(chatsRef);
 
-      // Формуємо об'єкт members, додаючи себе та вибраних користувачів (за id)
+      // Формуємо об'єкт members, додаючи себе та вибраних користувачів
       const members = { [userId]: true };
       selectedMembers.forEach((memberId) => {
         members[memberId] = true;
@@ -132,30 +135,70 @@ const CreateGroupScreen = () => {
         members,
       };
 
+      // Якщо обране зображення, завантажуємо його у Firebase Storage
       if (chatImage) {
-        chatData.imageUrl = chatImage;
+        const response = await fetch(chatImage);
+        const blob = await response.blob();
+        const storage = getStorage();
+        // Створюємо шлях: guilds/{guildId}/chats/{chatId}/groupAvatar.jpg
+        const avatarRef = storageRef(storage, `guilds/${guildId}/chats/${newChatRef.key}/groupAvatar.jpg`);
+        await uploadBytes(avatarRef, blob);
+        const downloadURL = await getDownloadURL(avatarRef);
+        chatData.groupAvatar = downloadURL;
+      } else {
+        // Якщо аватарку не обрано, призначаємо груповий колір
+        // Масив доступних кольорів
+        const colorPool = [
+          '#F44336', '#E91E63', '#9C27B0', '#3F51B5', '#2196F3',
+          '#03A9F4', '#00BCD4', '#4CAF50', '#8BC34A', '#FFEB3B',
+          '#FF9800', '#FF5722', '#9E9E9E', '#795548', '#607D8B'
+        ];
+        // Отримуємо всі чати для цієї гільдії
+        const chatsSnapshot = await get(ref(db, `guilds/${guildId}/chats`));
+        let usedColors = [];
+        if (chatsSnapshot.exists()) {
+          chatsSnapshot.forEach(childSnapshot => {
+            const chat = childSnapshot.val();
+            if (chat.groupColor) {
+              usedColors.push(chat.groupColor);
+            }
+          });
+        }
+        // Обчислюємо, які кольори ще не задіяні
+        const availableColors = colorPool.filter(color => !usedColors.includes(color));
+        let selectedColor;
+        if (availableColors.length > 0) {
+          selectedColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+        } else {
+          selectedColor = colorPool[Math.floor(Math.random() * colorPool.length)];
+        }
+        chatData.groupColor = selectedColor;
       }
 
       await set(newChatRef, chatData);
       console.log('Груповий чат створено успішно!');
-
-      // Перехід до стеку ChatWindow у щойно створений чат
+      // Переходимо до стеку ChatWindow із передачею ідентифікатора щойно створеного чату
       navigation.navigate('ChatWindow', { chatId: newChatRef.key });
     } catch (error) {
       console.error('Помилка при створенні групового чату: ', error);
     }
   }, [groupName, chatImage, selectedMembers, navigation]);
 
-  // Встановлюємо кнопку-галочку у хедері через navigation.setOptions
+  // Встановлюємо кнопку-галочку у хедері через navigation.setOptions.
+  // Якщо поле groupName не заповнене, кнопка неактивна.
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={handleCreateGroup} style={{ marginRight: 15 }}>
+        <TouchableOpacity
+          onPress={handleCreateGroup}
+          style={{ marginRight: 15, opacity: groupName ? 1 : 0.5 }}
+          disabled={!groupName}
+        >
           <Ionicons name="checkmark" size={24} color="white" />
         </TouchableOpacity>
       ),
     });
-  }, [navigation, handleCreateGroup]);
+  }, [navigation, handleCreateGroup, groupName]);
 
   // Рендер одного учасника – аватар та логін
   const renderMember = ({ item }) => (

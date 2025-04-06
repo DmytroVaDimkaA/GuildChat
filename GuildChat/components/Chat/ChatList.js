@@ -48,13 +48,29 @@ const ChatList = ({ chats, guildId, userId }) => {
           <Text style={styles.chatName}>{otherUser.userName}</Text>
         </TouchableOpacity>
       );
-    }
+    } else {
+      // Логіка для групового чату
+      // Обчислюємо ініціали з назви чату
+      const words = item.name.trim().split(' ');
+      let initials = words[0].substring(0, 1);
+      if (words.length > 1) {
+        initials += words[1].substring(0, 1);
+      }
+      initials = initials.toUpperCase();
 
-    return (
-      <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelect(item)}>
-        <Text style={styles.chatName}>{item.name}</Text>
-      </TouchableOpacity>
-    );
+      return (
+        <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelect(item)}>
+          {item.groupAvatar ? (
+            <Image source={{ uri: item.groupAvatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.groupAvatar, { backgroundColor: item.groupColor || '#ccc' }]}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
+          <Text style={styles.chatName}>{item.name}</Text>
+        </TouchableOpacity>
+      );
+    }
   };
 
   return (
@@ -63,11 +79,11 @@ const ChatList = ({ chats, guildId, userId }) => {
         data={chats}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>} // Повідомлення про порожній список
+        ListEmptyComponent={<Text style={styles.emptyMessage}>Немає доступних чатів</Text>}
       />
       <FloatingActionButton 
-        onPress={handleFabPress}  // Запуск функції handleFabPress
-        iconName="pencil"           // Іконка, яка буде відображатися
+        onPress={handleFabPress}
+        iconName="pencil"
       />
     </View>
   );
@@ -75,17 +91,14 @@ const ChatList = ({ chats, guildId, userId }) => {
 
 const styles = StyleSheet.create({
   container: {
-
     flex: 1,
     padding: 20,
-    backgroundColor: 'white', // додаємо явний білий фон
+    backgroundColor: 'white',
   },
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
-    //borderBottomWidth: 1,
-    //borderBottomColor: '#ddd',
     backgroundColor: '#f2f2f2',
     marginBottom: 10,
     borderRadius: 8,
@@ -102,6 +115,21 @@ const styles = StyleSheet.create({
     marginRight: 10,
     borderWidth: 1,
     borderColor: '#000',
+  },
+  groupAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#000',
+  },
+  avatarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   emptyMessage: {
     padding: 15,
