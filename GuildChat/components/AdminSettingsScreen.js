@@ -42,20 +42,33 @@ const AdminSettingsScreen = ({ selectedOption, onCountryPress, fetch }) => {
   const buttonWidth = screenWidth * 0.8;
 
   useEffect(() => {
+    const withTimeout = (promise, timeout = 7000) =>
+      Promise.race([
+        promise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout")), timeout)
+        ),
+      ]);
+  
     const loadCountries = async () => {
       setIsLoading(true);
       try {
-        const parsedData = await parseData();
+        const parsedData = await withTimeout(parseData(), 7000); // 7 секунд
         setCountries(parsedData);
       } catch (error) {
-        setParseError(error.message);
+        if (error.message === "Timeout") {
+          setParseError(t("adminSettings.timeoutError") || "Перевищено час очікування.");
+        } else {
+          setParseError(error.message);
+        }
       } finally {
         setIsLoading(false);
       }
     };
-
+  
     loadCountries();
   }, []);
+  
 
   useEffect(() => {
     setIsApplyButtonEnabled(guildId.length === 5);

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// RoleSelectionScreen.js
+import React from "react";
 import {
   View,
   Text,
@@ -7,17 +8,9 @@ import {
   Dimensions,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import AdminSettingsScreen from "./AdminSettingsScreen";
-import UserSettingsScreen from "./UserSettingsScreen";
 
-const RoleSelectionScreen = ({ onRoleSelect }) => {
-  const [selectedRole, setSelectedRole] = useState(null);
+const RoleSelectionScreen = ({ navigation, selectedOption, onCountryPress }) => {
   const { t } = useTranslation();
-
-  const handleRolePress = (role) => {
-    setSelectedRole(role);
-    onRoleSelect(role);
-  };
 
   const styles = StyleSheet.create({
     container: {
@@ -53,33 +46,23 @@ const RoleSelectionScreen = ({ onRoleSelect }) => {
 
   return (
     <View style={styles.container}>
-      {selectedRole === "admin" ? (
-        <AdminSettingsScreen />
-      ) : (
-        <>
-          <Text style={styles.title}>{t("roleSelection.title")}</Text>
-          <View style={{ flexDirection: "column", alignItems: "center" }}>
-            <TouchableOpacity
-              style={[
-                styles.button,
-                selectedRole === "admin" && styles.selectedButton,
-              ]}
-              onPress={() => handleRolePress("admin")}
-            >
-              <Text style={styles.buttonText}>{t("roleSelection.admin")}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.button,
-                selectedRole === "user" && styles.selectedButton,
-              ]}
-              onPress={() => handleRolePress("user")}
-            >
-              <Text style={styles.buttonText}>{t("roleSelection.user")}</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
+      <Text style={styles.title}>{t("roleSelection.title")}</Text>
+      <View style={{ flexDirection: "column", alignItems: "center" }}>
+        {/* Кнопка для переходу до налаштувань адміністратора */}
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("AdminSettingsScreen")}
+        >
+          <Text style={styles.buttonText}>{t("roleSelection.admin")}</Text>
+        </TouchableOpacity>
+        {/* Кнопка для переходу до налаштувань звичайного користувача */}
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("UserSettingsScreen")}
+        >
+          <Text style={styles.buttonText}>{t("roleSelection.user")}</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };

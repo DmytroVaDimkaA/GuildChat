@@ -1,30 +1,53 @@
-import axios from 'axios';
-import cheerio from 'cheerio';
+// parser.js
 
+import axios from 'axios';
+import { parseDocument } from 'htmlparser2';
+import { selectOne, selectAll } from 'css-select';
+
+/**
+ * Завантажує список країн і їхніх прапорів із сайту foe.scoredb.io
+ * @returns {Promise<Array<{ name: string, flag: string | null }>>}
+ */
 export async function parseData() {
   try {
     const response = await axios.get('https://foe.scoredb.io/Worlds');
-    const $ = cheerio.load(response.data);
+    const html = response.data;
 
-    const countries = [];
+    // Парсимо HTML у дерево
+    const doc = parseDocument(html);
 
-    const serverList = $('li.nav-item.dropdown:has(a:contains("Servers"))');
+    // Знаходимо пункт меню «Servers»
+    const navItems = selectAll('li.nav-item.dropdown', doc);
+    const serverNav = navItems.find(item => {
+      const link = selectOne('a', item);
+      return link
+        && link.children
+          .filter(child => child.type === 'text')
+          .some(textNode => textNode.data.includes('Servers'));
+    });
+    if (!serverNav) return [];
 
-    serverList.find('.dropdown-menu > .dropdown').each((_, dropdown) => {
-      const countryItem = $(dropdown).find('> .dropdown-item:first-child'); // Выбираем элемент с флагом
-      const countryName = countryItem.text().trim();
-      const flagUrl = countryItem.find('img').attr('src'); // Получаем URL флага
+    // Знаходимо усі підпункти країн
+    const countryDropdowns = selectAll('.dropdown-menu > .dropdown', serverNav);
+    const countries = countryDropdowns.map(dropdown => {
+      // Перший елемент з класом dropdown-item — це елемент із прапором і назвою країни
+      const countryItem = selectAll('a.dropdown-item', dropdown)[0];
+      // Отримуємо текстові вузли для назви
+      const nameNode = countryItem.children.find(child => child.type === 'text');
+      const name = nameNode?.data.trim() || '';
 
-      countries.push({
-        name: countryName,
-        flag: flagUrl ? `https://foe.scoredb.io${flagUrl}` : null, // Добавляем полный URL флага
-      });
+      // Знаходимо <img> для прапора
+      const img = selectOne('img', countryItem);
+      const rawFlag = img?.attribs?.src || null;
+      // Додаємо базовий URL, якщо прапор відносний
+      const flag = rawFlag ? `https://foe.scoredb.io${rawFlag}` : null;
+
+      return { name, flag };
     });
 
     return countries;
   } catch (error) {
-    console.error('Ошибка при парсинге:', error);
+    console.error('Помилка при парсингу:', error);
     throw error;
   }
 }
-

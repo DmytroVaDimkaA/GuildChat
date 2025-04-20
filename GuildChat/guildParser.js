@@ -1,42 +1,45 @@
-const fetch = require('node-fetch');
-const cheerio = require('cheerio');
+// guildParser.js
 
-const parseGuildData = async (url) => {
+import axios from 'axios';
+import { parseDocument } from 'htmlparser2';
+import { selectAll, selectOne } from 'css-select';
+
+/**
+ * Парсить дані членів гільдії з заданої URL-адреси
+ * @param {string} url - адреса сторінки гільдії
+ * @returns {Promise<{ success: boolean, data?: Array<{ name: string, imageUrl: string|null, linkUrl: string|null, battles: string|null, points: string|null }>, clanCaption?: string, error?: string }>} */
+export async function parseGuildData(url) {
   try {
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
+    const response = await axios.get(url);
+    const html = response.data;
 
-    const guildData = [];
+    // Розбираємо HTML у документ
+    const doc = parseDocument(html);
 
-    // Extract guild member data from table rows
-    $('table.table tbody tr:nth-child(2n)').each((index, element) => {
-      const row = $(element);
+    // Збираємо дані про учасників
+    const rows = selectAll('table.table tbody tr:nth-child(even)', doc);
+    const guildData = rows.map(row => {
+      const nameElem = selectOne('td:nth-child(2) a', row);
+      const imgElem = selectOne('td:nth-child(2) a img', row);
+      const linkElem = selectOne('td:nth-child(2) a', row);
+      const battlesElem = selectOne('td:nth-child(3) i', row);
+      const pointsElem = selectOne('td:nth-child(3) i', row);
 
-      const name = row.find('td:nth-child(2) a').text().trim();
-      const imageUrl = row.find('td:nth-child(2) a img').attr('src');
-      const linkUrl = row.find('td:nth-child(2) a').attr('href');
-      const battles = row.find('td:nth-child(3) i').attr('data-battles');
-      const points = row.find('td:nth-child(3) i').attr('data-points');
+      const name = nameElem?.children?.find(c => c.type === 'text')?.data.trim() || '';
+      const imageUrl = imgElem?.attribs?.src || null;
+      const linkUrl = linkElem?.attribs?.href || null;
+      const battles = battlesElem?.attribs?.['data-battles'] || null;
+      const points = pointsElem?.attribs?.['data-points'] || null;
 
-      guildData.push({
-        name,
-        imageUrl,
-        linkUrl,
-        battles,
-        points,
-      });
+      return { name, imageUrl, linkUrl, battles, points };
     });
 
-    // Extract content of <b> within <h6> with class "small avatar-clan-caption"
-    const clanCaption = $('h6.small.avatar-clan-caption b').text().trim();
+    // Парсимо підпис гільдії
+    const captionElem = selectOne('h6.small.avatar-clan-caption b', doc);
+    const clanCaption = captionElem?.children?.find(c => c.type === 'text')?.data.trim() || '';
 
-    // Return success and the parsed data
     return { success: true, data: guildData, clanCaption };
   } catch (error) {
-    // Return failure and the error message
-    return { success: false, error: error.message }; 
+    return { success: false, error: error.message };
   }
-};
-
-module.exports = { parseGuildData };
+}

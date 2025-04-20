@@ -1,38 +1,61 @@
+// worldParser.js
+
 import axios from 'axios';
-import cheerio from 'cheerio';
+import { parseDocument } from 'htmlparser2';
+import { selectAll, selectOne } from 'css-select';
 
-async function parseDataNew(selectedCountryName) {
+/**
+ * Парсить список світів для обраної країни
+ * @param {string} selectedCountryName - назва країни (як у меню)
+ * @returns {Promise<Array<{ name: string, url: string }>>}
+ */
+export async function parseDataNew(selectedCountryName) {
   try {
+    // Завантажуємо HTML-сторінку
     const response = await axios.get('https://foe.scoredb.io/Worlds');
-    const $ = cheerio.load(response.data);
+    const html = response.data;
 
-    const worlds = [];
+    // Розбираємо HTML у структуру документу
+    const doc = parseDocument(html);
 
-    // Находим элемент .dropdown-item, содержащий название выбранной страны
-    const countryItem = $(`a.dropdown-item:contains("${selectedCountryName}")`);
+    // Шукаємо усі блоки країн у меню
+    const countryBlocks = selectAll('.dropdown-menu > .dropdown', doc);
 
-    // Находим родительский элемент .dropdown
-    const parentDropdown = countryItem.closest('.dropdown');
+    // Знаходимо блок для обраної країни
+    const targetBlock = countryBlocks.find(block => {
+      const label = selectOne('> a.dropdown-item', block);
+      return label?.children.some(
+        node => node.type === 'text' && node.data.includes(selectedCountryName)
+      );
+    });
 
-    // Находим вложенный .dropdown-menu внутри родительского .dropdown
-    const dropdownMenu = parentDropdown.find('.dropdown-menu');
+    if (!targetBlock) {
+      return [];
+    }
 
-    // Извлекаем миры только из этого вложенного меню
-    dropdownMenu.find('a.dropdown-item').each((_, link) => {
-      const worldName = $(link).text().trim();
-      let worldUrl = $(link).attr('href');
+    // Знаходимо вкладене меню світів всередині цього блоку
+    const worldsMenu = selectOne('> .dropdown-menu', targetBlock);
+    if (!worldsMenu) {
+      return [];
+    }
 
-      // Обрезаем начало ссылки до последнего слеша
-      worldUrl = worldUrl.substring(worldUrl.lastIndexOf('/') + 1);
+    // Парсимо усі посилання на світи
+    const links = selectAll('a.dropdown-item', worldsMenu);
+    const worlds = links.map(link => {
+      // Назва світу
+      const textNode = link.children.find(child => child.type === 'text');
+      const name = textNode?.data.trim() || '';
 
-      worlds.push({ name: worldName, url: worldUrl });
+      // Формуємо короткий URL
+      let url = link.attribs.href || '';
+      url = url.substring(url.lastIndexOf('/') + 1);
+
+      return { name, url };
     });
 
     return worlds;
   } catch (error) {
-    console.error('Ошибка при парсинге:', error);
+    console.error('Помилка при парсингу світів:', error);
     throw error;
   }
 }
-
-export { parseDataNew };
